@@ -75,6 +75,24 @@ cd android && ./gradlew assembleDebug
 
 产物位于 `app/build/outputs/apk/debug/app-debug.apk`（相对于 `android/`），需要手动侧载到 Android 设备。Android 捆绑的 FFmpeg 构建涉及 GPL；与桌面版相同，发布前需自行确认许可证并保留相应版权与源码获取说明。
 
+#### Android 真机冒烟清单
+
+请连接 arm64 真机或模拟器。先确认系统 PATH 中没有可用的 `ffmpeg`，确保测试的是 APK 捆绑的二进制：
+
+```bash
+adb shell 'PATH=/system/bin:/vendor/bin command -v ffmpeg || true'
+cd android && ./gradlew connectedDebugAndroidTest
+```
+
+在真机上各选一段可辨认的原片，逐项确认：
+
+- [ ] **MP4 H.264**：完成完整转码流程，导出文件可播放且有声音。
+- [ ] **mp4-copy**：使用 H.264/AAC 源，快速导出且文件可播放。
+- [ ] **抽音频**：导出 MP3 或 M4A，可播放且时长正确。
+- [ ] **裁切**：设置明确的起止时间，导出片段时长和内容正确。
+- [ ] 上述操作均在系统 PATH 无 `ffmpeg` 时成功。
+- [ ] 每次完成、失败或取消后，原片仍在且可正常播放。
+
 ## 从源码运行
 
 需要：
