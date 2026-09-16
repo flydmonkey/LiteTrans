@@ -54,6 +54,16 @@ class PumpCoordinatorTest {
     }
 
     @Test
+    fun failedPumpCanStartAgainAfterFinallyReset() {
+        val coordinator = PumpCoordinator()
+        assertTrue(coordinator.requestStart())
+
+        coordinator.finish()
+
+        assertTrue(coordinator.requestStart())
+    }
+
+    @Test
     fun cancelThenRetryExecuteInArrivalOrder() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val finished = CountDownLatch(2)

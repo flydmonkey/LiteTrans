@@ -185,7 +185,15 @@ class FfmpegProcess(
             preferHardware = preferHardware,
         ).getOrThrow()
         partial.delete()
-        val process = processBuilder(ffmpegPath, args).start()
+        val process = startProcessUnlessCancelled(
+            isCancelled = { activeProcess.wasCancelled(job.id) },
+            partial = partial,
+            start = { processBuilder(ffmpegPath, args).start() },
+        ) ?: return ProcessResult(
+            exitCode = -1,
+            stderr = "",
+            cancelled = true,
+        )
         activeProcess.attach(job.id) {
             process.destroy()
             if (process.isAlive) process.destroyForcibly()
@@ -253,6 +261,18 @@ internal fun createStagingOutput(
 
 internal fun deleteStagedOutput(output: JobOutput) {
     output.partial.parentFile?.deleteRecursively()
+}
+
+internal fun startProcessUnlessCancelled(
+    isCancelled: () -> Boolean,
+    partial: File,
+    start: () -> Process,
+): Process? {
+    if (isCancelled()) {
+        partial.delete()
+        return null
+    }
+    return start()
 }
 
 internal class ActiveProcessSlot {

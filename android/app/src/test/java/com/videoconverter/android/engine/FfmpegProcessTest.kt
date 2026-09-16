@@ -93,6 +93,25 @@ class FfmpegProcessTest {
     }
 
     @Test
+    fun cancellationImmediatelyBeforeSpawnDeletesPartialWithoutStartingProcess() {
+        val partial = Files.createTempFile("ffmpeg-cancelled-", ".partial.mp4").toFile()
+        val starts = AtomicInteger()
+
+        val process = startProcessUnlessCancelled(
+            isCancelled = { true },
+            partial = partial,
+            start = {
+                starts.incrementAndGet()
+                ProcessBuilder("/usr/bin/false").start()
+            },
+        )
+
+        assertNull(process)
+        assertEquals(0, starts.get())
+        assertFalse(partial.exists())
+    }
+
+    @Test
     fun deletingStagedOutputRemovesPartialFinalAndJobDirectory() {
         val jobDir = Files.createTempDirectory("ffmpeg-staging-").toFile()
         val output = JobOutput(

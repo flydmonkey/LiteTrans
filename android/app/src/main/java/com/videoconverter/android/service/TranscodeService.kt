@@ -56,7 +56,10 @@ class TranscodeService : Service() {
             ACTION_CLEAR_FINISHED -> ServiceCommand.ClearFinished
             else -> null
         }
-        command?.let { commands.dispatch(startId, it) }
+        startForegroundBeforeDispatch(
+            startForeground = ::showForegroundPlaceholder,
+            dispatch = { command?.let { commands.dispatch(startId, it) } },
+        )
         return START_NOT_STICKY
     }
 
@@ -88,34 +91,41 @@ class TranscodeService : Service() {
     private fun startPump() {
         if (!pumpCoordinator.requestStart()) return
         scope.launch {
-            while (isActive) {
-                val running = claimNextQueued()
-                if (running == null) {
-                    val stillQueued = jobStore.load().any { it.status == JobStatus.Queued }
-                    if (pumpCoordinator.shouldContinue(stillQueued)) continue
-                    commands.dispatchInternal(ServiceCommand.QueueDrained)
-                    return@launch
-                }
+            try {
+                while (isActive) {
+                    val running = claimNextQueued()
+                    if (running == null) {
+                        val stillQueued = jobStore.load().any { it.status == JobStatus.Queued }
+                        if (pumpCoordinator.shouldContinue(stillQueued)) continue
+                        commands.dispatchInternal(ServiceCommand.QueueDrained)
+                        return@launch
+                    }
 
-                showForeground(running)
+                    showForeground(running)
 
-                val target = sessionStore.load().output
-                val result = ffmpeg.transcode(running, target) { progress ->
-                    val updated = jobStore.update { jobs ->
-                        jobs.map { job ->
-                            if (job.id == running.id && job.status == JobStatus.Running) {
-                                job.copy(progress = progress)
-                            } else {
-                                job
+                    val target = sessionStore.load().output
+                    val result = ffmpeg.transcode(running, target) { progress ->
+                        val updated = jobStore.update { jobs ->
+                            jobs.map { job ->
+                                if (job.id == running.id && job.status == JobStatus.Running) {
+                                    job.copy(progress = progress)
+                                } else {
+                                    job
+                                }
                             }
-                        }
-                    }.firstOrNull { it.id == running.id }
-                    if (updated?.status == JobStatus.Running) showForeground(updated)
+                        }.firstOrNull { it.id == running.id }
+                        if (updated?.status == JobStatus.Running) showForeground(updated)
+                    }
+                    synchronized(stateLock) {
+                        jobStore.update { jobs -> jobs.completeRunningJob(result) }
+                        if (runningJobId == running.id) runningJobId = null
+                    }
                 }
+            } finally {
                 synchronized(stateLock) {
-                    jobStore.update { jobs -> jobs.completeRunningJob(result) }
-                    if (runningJobId == running.id) runningJobId = null
+                    runningJobId = null
                 }
+                if (pumpCoordinator.finish()) startPump()
             }
         }
     }
@@ -158,7 +168,21 @@ class TranscodeService : Service() {
     }
 
     private fun showForeground(job: Job) {
-        val notification = notification(job)
+        startForegroundNotification(notification(job))
+    }
+
+    private fun showForegroundPlaceholder() {
+        val notification = Notification.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setContentTitle("轻转码")
+            .setContentText("正在检查转码队列")
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
+            .build()
+        startForegroundNotification(notification)
+    }
+
+    private fun startForegroundNotification(notification: Notification) {
         val foregroundType = if (Build.VERSION.SDK_INT >= 35) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
         } else {
@@ -318,6 +342,14 @@ internal fun List<Job>.completeRunningJob(result: Job): List<Job> =
         if (job.id == result.id && job.status == JobStatus.Running) result else job
     }
 
+internal inline fun startForegroundBeforeDispatch(
+    startForeground: () -> Unit,
+    dispatch: () -> Unit,
+) {
+    startForeground()
+    dispatch()
+}
+
 private sealed interface ServiceCommand {
     data object Enqueue : ServiceCommand
     data object StartPump : ServiceCommand
@@ -400,5 +432,11 @@ internal class PumpCoordinator {
         }
         running = false
         return false
+    }
+
+    @Synchronized
+    fun finish(): Boolean {
+        running = false
+        return wakeRequested.also { wakeRequested = false }
     }
 }

@@ -11,6 +11,18 @@ import org.junit.Test
 
 class TranscodeServiceStateTest {
     @Test
+    fun serviceEntersForegroundBeforeDispatchingEvenWithNoQueuedJob() {
+        val events = mutableListOf<String>()
+
+        startForegroundBeforeDispatch(
+            startForeground = { events += "foreground" },
+            dispatch = { events += "empty-queue" },
+        )
+
+        assertEquals(listOf("foreground", "empty-queue"), events)
+    }
+
+    @Test
     fun pendingEnqueueMailboxDrainsJobsOnceInOrder() {
         val mailbox = PendingJobMailbox()
         val first = job(JobStatus.Queued, id = "job-1")
