@@ -42,8 +42,9 @@
 | macOS Intel | `.dmg` / `.app` | `轻转码-macos-x64` |
 | Windows x64 | NSIS 安装程序 `.exe` | `轻转码-windows-x64` |
 | Linux x64 | `.deb` | `轻转码-linux-x64`；包名 `qing-zhuama`，菜单显示「轻转码」 |
+| Android arm64 | Debug APK | `app-debug.apk`，需侧载 |
 
-当前没有 iOS / Android 包。
+当前没有 iOS 包。
 
 ### macOS
 
@@ -62,6 +63,17 @@
 ### Linux
 
 Debian / Ubuntu 用 `.deb`。本机也可打 `.AppImage`。桌面菜单名称是「轻转码」，软件包文件名是 `qing-zhuama`（Debian 不允许中文包名）。
+
+### Android
+
+Android 构建需要 JDK 17 和 Android SDK 35，目前仅支持 arm64。先拉取固定版本的 FFmpeg / FFprobe 二进制，再构建 Debug APK：
+
+```bash
+node android/scripts/fetch-ffmpeg.mjs
+cd android && ./gradlew assembleDebug
+```
+
+产物位于 `app/build/outputs/apk/debug/app-debug.apk`（相对于 `android/`），需要手动侧载到 Android 设备。Android 捆绑的 FFmpeg 构建涉及 GPL；与桌面版相同，发布前需自行确认许可证并保留相应版权与源码获取说明。
 
 ## 从源码运行
 
