@@ -37,6 +37,7 @@ class TranscodeService : Service() {
     private var runningJobId: String? = null
 
     override fun onCreate() {
+        recordAlive()
         super.onCreate()
         createNotificationChannel()
         jobStore = JobStore(this)
@@ -46,6 +47,7 @@ class TranscodeService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        recordAlive()
         val command = when (intent?.action) {
             ACTION_ENQUEUE -> ServiceCommand.Enqueue
             ACTION_START_PUMP -> ServiceCommand.StartPump
@@ -68,6 +70,7 @@ class TranscodeService : Service() {
     override fun onDestroy() {
         runningJobId?.let(ffmpeg::cancel)
         scope.cancel()
+        recordDestroyed()
         super.onDestroy()
     }
 
@@ -144,12 +147,11 @@ class TranscodeService : Service() {
     }
 
     private fun claimNextQueued(): Job? = synchronized(stateLock) {
-        var claimed: Job? = null
-        jobStore.update { jobs ->
-            jobs.claimNextQueued(ffmpeg::reserve).also {
-                claimed = it.claimed
-            }.jobs
-        }
+        val claimed = claimNextQueuedPersisted(
+            update = jobStore::update,
+            reserve = ffmpeg::reserve,
+            release = ffmpeg::release,
+        )
         runningJobId = claimed?.id
         claimed
     }
@@ -263,6 +265,18 @@ class TranscodeService : Service() {
         private const val NOTIFICATION_ID = 1001
         private val pendingJobs = PendingJobMailbox()
 
+        @Volatile
+        internal var isAlive = false
+            private set
+
+        internal fun recordAlive() {
+            isAlive = true
+        }
+
+        internal fun recordDestroyed() {
+            isAlive = false
+        }
+
         fun enqueue(context: Context, jobs: List<Job>) {
             pendingJobs.append(jobs)
             startForegroundAction(context, ACTION_ENQUEUE)
@@ -317,6 +331,25 @@ internal fun List<Job>.claimNextQueued(reserve: (String) -> Boolean): QueuedClai
         error = null,
     )
     return QueuedClaim(replace(claimed), claimed)
+}
+
+internal fun claimNextQueuedPersisted(
+    update: ((List<Job>) -> List<Job>) -> List<Job>,
+    reserve: (String) -> Boolean,
+    release: (String) -> Unit,
+): Job? {
+    var claimed: Job? = null
+    try {
+        update { jobs ->
+            jobs.claimNextQueued(reserve).also {
+                claimed = it.claimed
+            }.jobs
+        }
+    } catch (error: Exception) {
+        claimed?.id?.let(release)
+        throw error
+    }
+    return claimed
 }
 
 internal fun List<Job>.cancelJob(jobId: String, activeJobId: String?): List<Job> =

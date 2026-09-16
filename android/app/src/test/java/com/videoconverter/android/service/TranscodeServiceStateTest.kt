@@ -5,9 +5,11 @@ import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
 import com.videoconverter.android.engine.ActiveProcessSlot
+import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class TranscodeServiceStateTest {
@@ -72,6 +74,38 @@ class TranscodeServiceStateTest {
         assertEquals(JobStatus.Running, claim.claimed?.status)
         assertTrue(slot.cancel("job-1"))
         assertTrue(slot.wasCancelled("job-1"))
+    }
+
+    @Test
+    fun failedClaimPersistenceReleasesFfmpegSlotAndKeepsJobQueued() {
+        val slot = ActiveProcessSlot()
+        var persisted = listOf(job(JobStatus.Queued))
+
+        try {
+            claimNextQueuedPersisted(
+                update = { transform ->
+                    transform(persisted)
+                    throw IOException("disk full")
+                },
+                reserve = slot::claim,
+                release = slot::release,
+            )
+            fail("Expected persistence failure")
+        } catch (error: IOException) {
+            assertEquals("disk full", error.message)
+        }
+
+        assertEquals(JobStatus.Queued, persisted.single().status)
+        assertTrue(slot.claim("job-2"))
+    }
+
+    @Test
+    fun serviceLivenessPreventsInterruptedRecoveryUntilServiceIsDestroyed() {
+        TranscodeService.recordAlive()
+        assertTrue(TranscodeService.isAlive)
+
+        TranscodeService.recordDestroyed()
+        assertFalse(TranscodeService.isAlive)
     }
 
     @Test
