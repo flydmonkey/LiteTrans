@@ -168,6 +168,10 @@ class FfmpegProcess(
 
     fun reserve(jobId: String): Boolean = activeProcess.claim(jobId)
 
+    internal fun wasCancelled(jobId: String): Boolean = activeProcess.wasCancelled(jobId)
+
+    internal fun release(jobId: String) = activeProcess.release(jobId)
+
     private fun runAttempt(
         job: Job,
         inputPath: String,
@@ -185,20 +189,19 @@ class FfmpegProcess(
             preferHardware = preferHardware,
         ).getOrThrow()
         partial.delete()
-        val process = startProcessUnlessCancelled(
-            isCancelled = { activeProcess.wasCancelled(job.id) },
-            partial = partial,
+        val process = activeProcess.start(
+            candidateJobId = job.id,
             start = { processBuilder(ffmpegPath, args).start() },
+            destroy = { started ->
+                started.destroy()
+                if (started.isAlive) started.destroyForcibly()
+                partial.delete()
+            },
         ) ?: return ProcessResult(
             exitCode = -1,
             stderr = "",
             cancelled = true,
         )
-        activeProcess.attach(job.id) {
-            process.destroy()
-            if (process.isAlive) process.destroyForcibly()
-            partial.delete()
-        }
 
         val stderr = StringBuilder()
         val stdoutReader = thread(name = "ffmpeg-progress-${job.id}") {
@@ -263,29 +266,21 @@ internal fun deleteStagedOutput(output: JobOutput) {
     output.partial.parentFile?.deleteRecursively()
 }
 
-internal fun startProcessUnlessCancelled(
-    isCancelled: () -> Boolean,
-    partial: File,
-    start: () -> Process,
-): Process? {
-    if (isCancelled()) {
-        partial.delete()
-        return null
-    }
-    return start()
-}
-
 internal class ActiveProcessSlot {
     private val lock = Any()
     private var jobId: String? = null
-    private var destroyProcess: (() -> Unit)? = null
+    private var process: Process? = null
+    private var destroyProcess: ((Process) -> Unit)? = null
     private var cancelled = false
+    private var releasedCancelledJobId: String? = null
 
     fun claim(candidateJobId: String): Boolean = synchronized(lock) {
         if (jobId != null) return false
         jobId = candidateJobId
+        process = null
         destroyProcess = null
         cancelled = false
+        releasedCancelledJobId = null
         true
     }
 
@@ -293,33 +288,45 @@ internal class ActiveProcessSlot {
         if (jobId == candidateJobId) return true
         if (jobId != null) return false
         jobId = candidateJobId
+        process = null
         destroyProcess = null
         cancelled = false
+        releasedCancelledJobId = null
         true
     }
 
-    fun attach(candidateJobId: String, destroy: () -> Unit) = synchronized(lock) {
+    fun start(
+        candidateJobId: String,
+        start: () -> Process,
+        destroy: (Process) -> Unit,
+    ): Process? = synchronized(lock) {
         check(jobId == candidateJobId) { "转码任务未持有进程槽" }
+        if (cancelled) return null
+        val started = start()
+        process = started
         destroyProcess = destroy
-        if (cancelled) destroy()
+        started
     }
 
     fun cancel(candidateJobId: String): Boolean = synchronized(lock) {
         if (jobId != candidateJobId) return false
         cancelled = true
-        destroyProcess?.invoke()
+        process?.let { destroyProcess?.invoke(it) }
         true
     }
 
     fun wasCancelled(candidateJobId: String): Boolean = synchronized(lock) {
-        jobId == candidateJobId && cancelled
+        (jobId == candidateJobId && cancelled) ||
+            releasedCancelledJobId == candidateJobId
     }
 
     fun activeJobId(): String? = synchronized(lock) { jobId }
 
     fun release(candidateJobId: String) = synchronized(lock) {
         if (jobId == candidateJobId) {
+            releasedCancelledJobId = candidateJobId.takeIf { cancelled }
             jobId = null
+            process = null
             destroyProcess = null
             cancelled = false
         }

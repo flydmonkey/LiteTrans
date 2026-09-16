@@ -122,10 +122,23 @@ class TranscodeService : Service() {
                     }
                 }
             } finally {
-                synchronized(stateLock) {
-                    runningJobId = null
+                try {
+                    synchronized(stateLock) {
+                        runningJobId?.let { jobId ->
+                            val cancelled = ffmpeg.wasCancelled(jobId)
+                            ffmpeg.release(jobId)
+                            try {
+                                jobStore.update { jobs ->
+                                    jobs.recoverInterruptedPump(jobId, cancelled)
+                                }
+                            } finally {
+                                runningJobId = null
+                            }
+                        }
+                    }
+                } finally {
+                    if (pumpCoordinator.finish()) startPump()
                 }
-                if (pumpCoordinator.finish()) startPump()
             }
         }
     }
@@ -341,6 +354,25 @@ internal fun List<Job>.completeRunningJob(result: Job): List<Job> =
     map { job ->
         if (job.id == result.id && job.status == JobStatus.Running) result else job
     }
+
+internal fun List<Job>.recoverInterruptedPump(
+    jobId: String,
+    cancelled: Boolean,
+): List<Job> = map { job ->
+    if (job.id != jobId || job.status != JobStatus.Running) return@map job
+    if (cancelled) {
+        job.copy(
+            status = JobStatus.Cancelled,
+            progress = 0.0,
+            error = null,
+        )
+    } else {
+        job.copy(
+            status = JobStatus.Failed,
+            error = "转码被中断",
+        )
+    }
+}
 
 internal inline fun startForegroundBeforeDispatch(
     startForeground: () -> Unit,

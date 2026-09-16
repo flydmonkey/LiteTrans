@@ -6,6 +6,7 @@ import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
 import com.videoconverter.android.engine.ActiveProcessSlot
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -71,6 +72,25 @@ class TranscodeServiceStateTest {
         assertEquals(JobStatus.Running, claim.claimed?.status)
         assertTrue(slot.cancel("job-1"))
         assertTrue(slot.wasCancelled("job-1"))
+    }
+
+    @Test
+    fun interruptedPumpFailsRunningJob() {
+        val updated = listOf(job(JobStatus.Running, progress = 42.0))
+            .recoverInterruptedPump("job-1", cancelled = false)
+
+        assertEquals(JobStatus.Failed, updated.single().status)
+        assertEquals("转码被中断", updated.single().error)
+    }
+
+    @Test
+    fun cancelledPumpCancelsRunningJob() {
+        val updated = listOf(job(JobStatus.Running, progress = 42.0))
+            .recoverInterruptedPump("job-1", cancelled = true)
+
+        assertEquals(JobStatus.Cancelled, updated.single().status)
+        assertEquals(null, updated.single().error)
+        assertFalse(updated.single().progress > 0.0)
     }
 
     private fun job(
