@@ -20,7 +20,6 @@ import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.domain.sourceStem
 import java.io.File
 import java.io.IOException
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,14 +43,7 @@ class FfmpegProcess(
         "ffprobe",
     ).absolutePath,
 ) {
-    private val cancelledJobs = ConcurrentHashMap.newKeySet<String>()
-    private val processLock = Any()
-
-    @Volatile
-    private var activeJobId: String? = null
-
-    @Volatile
-    private var activeProcess: Process? = null
+    private val activeProcess = ActiveProcessSlot()
 
     suspend fun transcode(
         job: Job,
@@ -63,6 +55,12 @@ class FfmpegProcess(
                 status = JobStatus.Failed,
                 error = "没有可用的输出路径",
             )
+        if (!activeProcess.claim(job.id)) {
+            return@withContext job.copy(
+                status = JobStatus.Failed,
+                error = "已有转码任务正在运行",
+            )
+        }
         val final = File(outputPath)
         val partial = File(com.videoconverter.android.domain.partialOutputPath(outputPath))
 
@@ -102,7 +100,7 @@ class FfmpegProcess(
                     first
                 }
 
-                if (result.cancelled || job.id in cancelledJobs) {
+                if (result.cancelled || activeProcess.wasCancelled(job.id)) {
                     partial.delete()
                     return@withContext job.copy(
                         status = JobStatus.Cancelled,
@@ -119,7 +117,7 @@ class FfmpegProcess(
             }
 
             outputStore.finalizeJobOutput(JobOutput(partial = partial, final = final))
-            if (job.id in cancelledJobs) {
+            if (activeProcess.wasCancelled(job.id)) {
                 final.delete()
                 return@withContext job.copy(status = JobStatus.Cancelled, error = null)
             }
@@ -133,7 +131,7 @@ class FfmpegProcess(
             job.completed(exported)
         } catch (error: Exception) {
             partial.delete()
-            if (job.id in cancelledJobs) {
+            if (activeProcess.wasCancelled(job.id)) {
                 job.copy(status = JobStatus.Cancelled, error = null)
             } else {
                 job.copy(
@@ -142,13 +140,7 @@ class FfmpegProcess(
                 )
             }
         } finally {
-            cancelledJobs.remove(job.id)
-            synchronized(processLock) {
-                if (activeJobId == job.id) {
-                    activeJobId = null
-                    activeProcess = null
-                }
-            }
+            activeProcess.release(job.id)
         }
     }
 
@@ -173,13 +165,7 @@ class FfmpegProcess(
     }
 
     fun cancel(jobId: String) {
-        cancelledJobs += jobId
-        synchronized(processLock) {
-            if (activeJobId == jobId) {
-                activeProcess?.destroy()
-                activeProcess?.takeIf { it.isAlive }?.destroyForcibly()
-            }
-        }
+        activeProcess.cancel(jobId)
     }
 
     private fun runAttempt(
@@ -200,13 +186,9 @@ class FfmpegProcess(
         ).getOrThrow()
         partial.delete()
         val process = processBuilder(ffmpegPath, args).start()
-        synchronized(processLock) {
-            activeJobId = job.id
-            activeProcess = process
-            if (job.id in cancelledJobs) {
-                process.destroy()
-                if (process.isAlive) process.destroyForcibly()
-            }
+        activeProcess.attach(job.id) {
+            process.destroy()
+            if (process.isAlive) process.destroyForcibly()
         }
 
         val stderr = StringBuilder()
@@ -228,7 +210,7 @@ class FfmpegProcess(
         return ProcessResult(
             exitCode = exitCode,
             stderr = stderr.toString(),
-            cancelled = job.id in cancelledJobs,
+            cancelled = activeProcess.wasCancelled(job.id),
         )
     }
 
@@ -259,6 +241,48 @@ class FfmpegProcess(
         ProcessBuilder(listOf(executable) + args).apply {
             environment()["PATH"] = "/system/bin:/vendor/bin"
         }
+}
+
+internal class ActiveProcessSlot {
+    private val lock = Any()
+    private var jobId: String? = null
+    private var destroyProcess: (() -> Unit)? = null
+    private var cancelled = false
+
+    fun claim(candidateJobId: String): Boolean = synchronized(lock) {
+        if (jobId != null) return false
+        jobId = candidateJobId
+        destroyProcess = null
+        cancelled = false
+        true
+    }
+
+    fun attach(candidateJobId: String, destroy: () -> Unit) = synchronized(lock) {
+        check(jobId == candidateJobId) { "转码任务未持有进程槽" }
+        destroyProcess = destroy
+        if (cancelled) destroy()
+    }
+
+    fun cancel(candidateJobId: String): Boolean = synchronized(lock) {
+        if (jobId != candidateJobId) return false
+        cancelled = true
+        destroyProcess?.invoke()
+        true
+    }
+
+    fun wasCancelled(candidateJobId: String): Boolean = synchronized(lock) {
+        jobId == candidateJobId && cancelled
+    }
+
+    fun activeJobId(): String? = synchronized(lock) { jobId }
+
+    fun release(candidateJobId: String) = synchronized(lock) {
+        if (jobId == candidateJobId) {
+            jobId = null
+            destroyProcess = null
+            cancelled = false
+        }
+    }
 }
 
 private fun ResolvedInput.close() {

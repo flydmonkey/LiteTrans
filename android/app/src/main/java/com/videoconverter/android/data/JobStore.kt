@@ -7,6 +7,8 @@ import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -36,12 +38,7 @@ class JobStore(context: Context) {
     private fun saveLocked(jobs: List<Job>) {
         try {
             temporary.writeText(jobsToJson(jobs))
-            if (file.exists() && !file.delete()) {
-                throw IOException("无法更新任务记录")
-            }
-            if (!temporary.renameTo(file)) {
-                throw IOException("无法保存任务记录")
-            }
+            replaceFile(temporary, file)
         } catch (error: Exception) {
             temporary.delete()
             if (error is IOException) throw error
@@ -52,6 +49,15 @@ class JobStore(context: Context) {
     private companion object {
         val STORE_LOCK = Any()
     }
+}
+
+internal fun replaceFile(temporary: File, live: File) {
+    Files.move(
+        temporary.toPath(),
+        live.toPath(),
+        StandardCopyOption.ATOMIC_MOVE,
+        StandardCopyOption.REPLACE_EXISTING,
+    )
 }
 
 internal fun jobsToJson(jobs: List<Job>): String =

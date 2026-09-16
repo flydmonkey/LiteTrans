@@ -18,7 +18,6 @@ import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.engine.FfmpegProcess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job as CoroutineJob
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
@@ -29,7 +28,10 @@ class TranscodeService : Service() {
     private lateinit var jobStore: JobStore
     private lateinit var sessionStore: SessionStore
     private lateinit var ffmpeg: FfmpegProcess
-    private var pumpJob: CoroutineJob? = null
+    private val pumpCoordinator = PumpCoordinator()
+    private val stateLock = Any()
+
+    @Volatile
     private var runningJobId: String? = null
 
     override fun onCreate() {
@@ -42,10 +44,14 @@ class TranscodeService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_ENQUEUE, ACTION_START_PUMP -> startPump()
-            ACTION_CANCEL -> intent.getStringExtra(EXTRA_JOB_ID)?.let(::cancelJob)
-            ACTION_RETRY -> intent.getStringExtra(EXTRA_JOB_ID)?.let(::retryJob)
-            ACTION_CLEAR_FINISHED -> clearFinishedJobs()
+            ACTION_ENQUEUE, ACTION_START_PUMP -> startPump(startId)
+            ACTION_CANCEL -> intent.getStringExtra(EXTRA_JOB_ID)?.let {
+                cancelJob(it, startId)
+            }
+            ACTION_RETRY -> intent.getStringExtra(EXTRA_JOB_ID)?.let {
+                retryJob(it, startId)
+            }
+            ACTION_CLEAR_FINISHED -> clearFinishedJobs(startId)
         }
         return START_NOT_STICKY
     }
@@ -58,23 +64,18 @@ class TranscodeService : Service() {
         super.onDestroy()
     }
 
-    private fun startPump() {
-        if (pumpJob?.isActive == true) return
-        pumpJob = scope.launch {
+    private fun startPump(startId: Int) {
+        if (!pumpCoordinator.requestStart()) return
+        scope.launch {
             while (isActive) {
-                val queued = jobStore.load().firstOrNull { it.status == JobStatus.Queued }
-                if (queued == null) {
-                    stopWhenQueueIsEmpty()
+                val running = claimNextQueued()
+                if (running == null) {
+                    val stillQueued = jobStore.load().any { it.status == JobStatus.Queued }
+                    if (pumpCoordinator.shouldContinue(stillQueued)) continue
+                    stopWhenQueueIsEmpty(startId)
                     return@launch
                 }
 
-                runningJobId = queued.id
-                val running = queued.copy(
-                    status = JobStatus.Running,
-                    progress = 0.0,
-                    error = null,
-                )
-                jobStore.update { jobs -> jobs.replace(running) }
                 showForeground(running)
 
                 val target = sessionStore.load().output
@@ -90,59 +91,88 @@ class TranscodeService : Service() {
                     }.firstOrNull { it.id == running.id }
                     if (updated?.status == JobStatus.Running) showForeground(updated)
                 }
-                jobStore.update { jobs -> jobs.replace(result) }
-                runningJobId = null
+                synchronized(stateLock) {
+                    jobStore.update { jobs -> jobs.replace(result) }
+                    if (runningJobId == running.id) runningJobId = null
+                }
             }
         }
     }
 
-    private fun cancelJob(jobId: String) {
-        ffmpeg.cancel(jobId)
+    private fun claimNextQueued(): Job? = synchronized(stateLock) {
+        var claimed: Job? = null
+        jobStore.update { jobs ->
+            val queued = jobs.firstOrNull { it.status == JobStatus.Queued }
+                ?: return@update jobs
+            claimed = queued.copy(
+                status = JobStatus.Running,
+                progress = 0.0,
+                error = null,
+            )
+            jobs.replace(claimed!!)
+        }
+        runningJobId = claimed?.id
+        claimed
+    }
+
+    private fun cancelJob(jobId: String, startId: Int) {
         scope.launch {
-            jobStore.update { jobs ->
-                jobs.map { job ->
-                    if (job.id == jobId && job.status == JobStatus.Queued) {
-                        job.copy(status = JobStatus.Cancelled, error = null)
-                    } else {
-                        job
+            synchronized(stateLock) {
+                if (runningJobId == jobId) {
+                    ffmpeg.cancel(jobId)
+                } else {
+                    jobStore.update { jobs ->
+                        jobs.map { job ->
+                            if (job.id == jobId && job.status == JobStatus.Queued) {
+                                job.copy(status = JobStatus.Cancelled, error = null)
+                            } else {
+                                job
+                            }
+                        }
                     }
                 }
             }
-            startPump()
+            startPump(startId)
         }
     }
 
-    private fun retryJob(jobId: String) {
+    private fun retryJob(jobId: String, startId: Int) {
         scope.launch {
-            jobStore.update { jobs ->
-                jobs.map { job ->
-                    if (
-                        job.id == jobId &&
-                        job.status in setOf(
-                            JobStatus.Failed,
-                            JobStatus.Cancelled,
-                        )
-                    ) {
-                        job.copy(
-                            status = JobStatus.Queued,
-                            progress = 0.0,
-                            error = null,
-                        )
-                    } else {
-                        job
+            synchronized(stateLock) {
+                jobStore.update { jobs ->
+                    jobs.map { job ->
+                        if (
+                            job.id == jobId &&
+                            job.status in setOf(
+                                JobStatus.Failed,
+                                JobStatus.Cancelled,
+                            )
+                        ) {
+                            job.copy(
+                                status = JobStatus.Queued,
+                                progress = 0.0,
+                                error = null,
+                            )
+                        } else {
+                            job
+                        }
                     }
                 }
             }
-            startPump()
+            startPump(startId)
         }
     }
 
-    private fun clearFinishedJobs() {
+    private fun clearFinishedJobs(startId: Int) {
         scope.launch {
-            jobStore.update { jobs ->
-                jobs.filter { it.status == JobStatus.Queued || it.status == JobStatus.Running }
+            synchronized(stateLock) {
+                jobStore.update { jobs ->
+                    jobs.filter {
+                        it.status == JobStatus.Queued || it.status == JobStatus.Running
+                    }
+                }
             }
-            if (runningJobId == null) stopWhenQueueIsEmpty()
+            if (runningJobId == null) stopWhenQueueIsEmpty(startId)
         }
     }
 
@@ -183,9 +213,10 @@ class TranscodeService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun stopWhenQueueIsEmpty() {
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+    private fun stopWhenQueueIsEmpty(startId: Int) {
+        if (stopSelfResult(startId)) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        }
     }
 
     companion object {
@@ -241,3 +272,27 @@ class TranscodeService : Service() {
 
 private fun List<Job>.replace(updated: Job): List<Job> =
     map { job -> if (job.id == updated.id) updated else job }
+
+internal class PumpCoordinator {
+    private var running = false
+    private var wakeRequested = false
+
+    @Synchronized
+    fun requestStart(): Boolean {
+        wakeRequested = true
+        if (running) return false
+        running = true
+        wakeRequested = false
+        return true
+    }
+
+    @Synchronized
+    fun shouldContinue(hasQueuedJob: Boolean): Boolean {
+        if (hasQueuedJob || wakeRequested) {
+            wakeRequested = false
+            return true
+        }
+        running = false
+        return false
+    }
+}
