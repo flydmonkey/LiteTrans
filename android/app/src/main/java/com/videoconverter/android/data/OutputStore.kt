@@ -12,6 +12,8 @@ import com.videoconverter.android.domain.allocateOutputPath
 import com.videoconverter.android.domain.partialOutputPath
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -60,11 +62,14 @@ class OutputStore(
 
     fun finalizeJobOutput(output: JobOutput): File {
         if (!output.partial.isFile) throw IOException("转码临时文件不存在")
-        if (output.final.exists() && !output.final.delete()) {
-            throw IOException("无法替换转码输出")
-        }
-        if (!output.partial.renameTo(output.final)) {
-            throw IOException("无法完成转码输出")
+        try {
+            Files.move(
+                output.partial.toPath(),
+                output.final.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (error: IOException) {
+            throw IOException("无法完成转码输出", error)
         }
         return output.final
     }
@@ -114,11 +119,13 @@ class OutputStore(
                 requireNotNull(output) { "无法写入输出文件" }
                 source.inputStream().use { input -> input.copyTo(output) }
             }
-            resolver.update(
-                destination,
-                ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
-                null,
-                null,
+            requireMediaStorePublished(
+                resolver.update(
+                    destination,
+                    ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                    null,
+                    null,
+                ),
             )
         } catch (error: Exception) {
             resolver.delete(destination, null, null)
@@ -151,7 +158,7 @@ class OutputStore(
         ext: String,
         mimeType: String,
         target: OutputTarget,
-    ): ExportedOutput {
+    ): ExportedOutput = mapSafExportErrors {
         val uri = target.treeUri?.let(Uri::parse) ?: throw outputDirectoryError()
         if (!hasWritePermission(uri)) throw outputDirectoryError()
         val tree = DocumentFile.fromTreeUri(context, uri)
@@ -168,7 +175,7 @@ class OutputStore(
             destination.delete()
             throw IOException("无法写入输出目录，请重新选择", error)
         }
-        return ExportedOutput(destination.uri.toString(), target)
+        ExportedOutput(destination.uri.toString(), target)
     }
 
     private suspend fun exportToAppExternal(
@@ -210,3 +217,14 @@ private fun safeExtension(value: String): String =
 
 private fun outputDirectoryError(): IOException =
     IOException("无法写入输出目录，请重新选择")
+
+internal fun requireMediaStorePublished(updatedRows: Int) {
+    if (updatedRows == 0) throw IOException("无法发布输出文件")
+}
+
+internal fun <T> mapSafExportErrors(block: () -> T): T =
+    try {
+        block()
+    } catch (error: Exception) {
+        throw IOException("无法写入输出目录，请重新选择", error)
+    }
