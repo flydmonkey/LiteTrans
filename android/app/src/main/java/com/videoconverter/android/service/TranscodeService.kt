@@ -105,7 +105,7 @@ class TranscodeService : Service() {
                     if (updated?.status == JobStatus.Running) showForeground(updated)
                 }
                 synchronized(stateLock) {
-                    jobStore.update { jobs -> jobs.replace(result) }
+                    jobStore.update { jobs -> jobs.completeRunningJob(result) }
                     if (runningJobId == running.id) runningJobId = null
                 }
             }
@@ -130,44 +130,15 @@ class TranscodeService : Service() {
 
     private fun cancelJob(jobId: String) {
         synchronized(stateLock) {
-            if (runningJobId == jobId) {
-                ffmpeg.cancel(jobId)
-            } else {
-                jobStore.update { jobs ->
-                    jobs.map { job ->
-                        if (job.id == jobId && job.status == JobStatus.Queued) {
-                            job.copy(status = JobStatus.Cancelled, error = null)
-                        } else {
-                            job
-                        }
-                    }
-                }
-            }
+            jobStore.update { jobs -> jobs.cancelJob(jobId, runningJobId) }
+            if (runningJobId == jobId) ffmpeg.cancel(jobId)
         }
         startPump()
     }
 
     private fun retryJob(jobId: String) {
         synchronized(stateLock) {
-            jobStore.update { jobs ->
-                jobs.map { job ->
-                    if (
-                        job.id == jobId &&
-                        job.status in setOf(
-                            JobStatus.Failed,
-                            JobStatus.Cancelled,
-                        )
-                    ) {
-                        job.copy(
-                            status = JobStatus.Queued,
-                            progress = 0.0,
-                            error = null,
-                        )
-                    } else {
-                        job
-                    }
-                }
-            }
+            jobStore.update { jobs -> jobs.retryJob(jobId) }
         }
         startPump()
     }
@@ -289,6 +260,42 @@ class TranscodeService : Service() {
 
 private fun List<Job>.replace(updated: Job): List<Job> =
     map { job -> if (job.id == updated.id) updated else job }
+
+internal fun List<Job>.cancelJob(jobId: String, activeJobId: String?): List<Job> =
+    map { job ->
+        val cancellable = job.status == JobStatus.Queued ||
+            (job.status == JobStatus.Running && job.id == activeJobId)
+        if (job.id == jobId && cancellable) {
+            job.copy(
+                status = JobStatus.Cancelled,
+                progress = 0.0,
+                error = null,
+            )
+        } else {
+            job
+        }
+    }
+
+internal fun List<Job>.retryJob(jobId: String): List<Job> =
+    map { job ->
+        if (
+            job.id == jobId &&
+            job.status in setOf(JobStatus.Failed, JobStatus.Cancelled)
+        ) {
+            job.copy(
+                status = JobStatus.Queued,
+                progress = 0.0,
+                error = null,
+            )
+        } else {
+            job
+        }
+    }
+
+internal fun List<Job>.completeRunningJob(result: Job): List<Job> =
+    map { job ->
+        if (job.id == result.id && job.status == JobStatus.Running) result else job
+    }
 
 private sealed interface ServiceCommand {
     data object StartPump : ServiceCommand

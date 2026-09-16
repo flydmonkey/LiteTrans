@@ -189,6 +189,7 @@ class FfmpegProcess(
         activeProcess.attach(job.id) {
             process.destroy()
             if (process.isAlive) process.destroyForcibly()
+            partial.delete()
         }
 
         val stderr = StringBuilder()
