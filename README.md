@@ -1,0 +1,135 @@
+# 轻转码
+
+本地桌面转码应用。把视频转成常用格式、裁一段、或只抽出音频。文件始终留在本机，不会上传。
+
+能转哪些格式，取决于捆绑的 FFmpeg 能否解码。不是云服务，也不保证「任意编码都能完美转出」。
+
+## 能做什么
+
+1. 拖入或选择视频（可多选）
+2. 选目标格式
+3. 需要时再选画质、分辨率、裁切区间
+4. 点「开始转码」
+
+默认输出目录是「下载 / 轻转码」。下次打开会记住上次的格式、画质和输出位置。
+
+| 目标 | 说明 |
+| --- | --- |
+| MP4 · H.264 | 兼容性最好，适合分享、上传 |
+| MP4 · 不重编码 | 只换容器，不重新压缩，速度最快 |
+| MP4 · H.265 | 同样是 MP4，体积通常更小 |
+| MOV · H.264 | 苹果设备和剪辑软件常用 |
+| MKV · H.264 / H.265 | 适合封装保存 |
+| WebM · VP9 | 适合网页播放，会比 MP4 慢 |
+| AVI · MPEG-4 | 旧电脑和投影常用 |
+| GIF | 短视频转成动图 |
+| MP3 / M4A | 只导出音频 |
+
+画质和分辨率是两回事：
+
+- **画质**：压得紧不紧（原画 / 标准 / 节省体积）
+- **分辨率**：画面有多大（原尺寸 / 1080p / 720p / 480p）
+
+例如可以选「原画 + 1080p」：画面缩小，细节尽量留着。
+
+在 macOS 上，H.264 / H.265 会优先走系统硬件编码（VideoToolbox）。WebM / GIF / 部分音频仍是软件编码。
+
+## 安装包
+
+| 系统 | 产物 | 备注 |
+| --- | --- | --- |
+| macOS Apple Silicon | `.dmg` / `.app` | `轻转码-macos-arm64` |
+| macOS Intel | `.dmg` / `.app` | `轻转码-macos-x64` |
+| Windows x64 | NSIS 安装程序 `.exe` | `轻转码-windows-x64` |
+| Linux x64 | `.deb` | `轻转码-linux-x64`；包名 `qing-zhuama`，菜单显示「轻转码」 |
+
+当前没有 iOS / Android 包。
+
+### macOS
+
+没有苹果开发者签名。第一次打开可能被系统拦截：
+
+1. 打开「系统设置 → 隐私与安全性」
+2. 允许打开「轻转码」
+3. 或右键 `.app` → 打开
+
+请按芯片选包：M 系列用 arm64，Intel 用 x64。
+
+### Windows
+
+需要 [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/)。多数 Windows 10/11 已自带；若提示缺失，按安装向导安装即可。安装程序默认装到当前用户，不需要管理员权限。
+
+### Linux
+
+Debian / Ubuntu 用 `.deb`。本机也可打 `.AppImage`。桌面菜单名称是「轻转码」，软件包文件名是 `qing-zhuama`（Debian 不允许中文包名）。
+
+## 从源码运行
+
+需要：
+
+- Node.js 20+
+- 通过 [rustup](https://rustup.rs/) 安装的稳定版 Rust（不要用 Homebrew 的 `rustc`，可能和系统 LLVM 冲突）
+
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+npm install
+npm run tauri dev
+```
+
+`npm install` 会为**当前电脑架构**下载 FFmpeg / FFprobe，放到 `src-tauri/binaries/`。也可以单独执行：
+
+```bash
+npm run fetch-ffmpeg
+```
+
+验证捆绑的 FFmpeg 不依赖系统 PATH：
+
+```bash
+npm run smoke
+```
+
+## 本地打包
+
+安装包必须在对应操作系统上构建，或走 GitHub Actions。不能只在一台 Mac 上打出 Windows / Linux 安装包。
+
+```bash
+npm install
+npm run fetch-ffmpeg
+```
+
+| 系统 | 命令 | 产物 |
+| --- | --- | --- |
+| macOS Apple Silicon | `npm run tauri:build:macos` | `.app` / `.dmg`（arm64） |
+| macOS Intel | `npm run tauri:build:macos-intel` | `.app` / `.dmg`（x64） |
+| Windows | `npm run tauri:build:windows` | NSIS `.exe` |
+| Linux | `npm run tauri:build:linux` | `.deb` / `.AppImage` |
+
+Linux 还需要：
+
+```bash
+sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2
+```
+
+Apple Silicon 电脑上打 Intel 包，需要先安装交叉编译目标，并准备 x64 的 FFmpeg sidecar。更省事的方式是用下面的 GitHub Actions。
+
+## GitHub Actions
+
+工作流：`.github/workflows/build-desktop.yml`
+
+代码推到 GitHub 后：
+
+1. 打开仓库的 **Actions**
+2. 运行 **Build desktop**
+3. 下载四个产物：
+   - `轻转码-macos-arm64`
+   - `轻转码-macos-x64`
+   - `轻转码-windows-x64`
+   - `轻转码-linux-x64`
+
+打 `v*` 标签（例如 `v0.1.0`）也会触发同样的打包。
+
+## FFmpeg 许可
+
+应用通过 sidecar 调用 FFmpeg / FFprobe，不静态链接 libav。开发时默认使用 `ffmpeg-static` / `ffprobe-static` 提供的二进制，这些构建通常按 GPL / LGPL 分发。
+
+发布产品前请自行确认所用构建的许可证，并保留 FFmpeg 版权与源码获取说明。如需 LGPL 构建，可从 [FFmpeg 官网](https://ffmpeg.org/download.html) 或各平台官方包替换 `src-tauri/binaries/` 中的文件。
