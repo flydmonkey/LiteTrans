@@ -26,6 +26,10 @@ class ProgressTest {
     fun invalidProgressInputReturnsNull() {
         assertNull(parseProgressLine("progress=continue", 10.0))
         assertNull(parseProgressLine("out_time_ms=invalid", 10.0))
+        assertNull(parseProgressLine("out_time_ms=NaN", 10.0))
+        assertNull(parseProgressLine("out_time_ms=Infinity", 10.0))
+        assertNull(parseProgressLine("out_time_ms=5000000", Double.NaN))
+        assertNull(parseProgressLine("out_time_ms=5000000", Double.POSITIVE_INFINITY))
         assertNull(parseProgressLine("out_time_ms=5000000", 0.0))
         assertNull(parseProgressLine("out_time_ms=5000000", -1.0))
     }

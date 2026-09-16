@@ -2,6 +2,7 @@ package com.videoconverter.android.engine
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.videoconverter.android.data.ExportedOutput
 import com.videoconverter.android.data.JobOutput
 import com.videoconverter.android.data.OutputStore
@@ -33,14 +34,8 @@ class FfmpegProcess(
     private val context: Context,
     private val sourceAccess: SourceAccess = SourceAccess(context),
     private val outputStore: OutputStore = OutputStore(context),
-    private val ffmpegPath: String = nativeBinary(
-        File(context.applicationInfo.nativeLibraryDir),
-        "ffmpeg",
-    ).absolutePath,
-    private val ffprobePath: String = nativeBinary(
-        File(context.applicationInfo.nativeLibraryDir),
-        "ffprobe",
-    ).absolutePath,
+    private val configuredFfmpegPath: String? = null,
+    private val configuredFfprobePath: String? = null,
 ) {
     private val activeProcess = ActiveProcessSlot()
 
@@ -70,48 +65,39 @@ class FfmpegProcess(
             )
             val partial = output.partial
             val duration = outputDurationSecs(config, job.media)
-            val input = sourceAccess.resolveInput(Uri.parse(job.sourceUri))
-            input.use {
-                val first = runAttempt(
-                    job = job,
-                    inputPath = it.ffmpegPath,
-                    partial = partial,
-                    preferHardware = true,
-                    durationSecs = duration,
-                    onProgress = onProgress,
-                )
-                val result = if (
-                    first.exitCode != 0 &&
-                    !first.cancelled &&
-                    shouldRetryWithoutHardware(first.stderr)
-                ) {
-                    partial.delete()
-                    runAttempt(
+            val uri = Uri.parse(job.sourceUri)
+            val result = runWithInputFallback(
+                cachedInput = sourceAccess.cachedInput(uri),
+                openInput = { sourceAccess.resolveInput(uri) },
+                inputPath = ResolvedInput::ffmpegPath,
+                needsCacheFallback = { it.pfd != null },
+                copyToCache = { sourceAccess.copyToCache(uri) },
+                closeInput = ResolvedInput::close,
+                run = { inputPath ->
+                    runTranscodeAttempts(
                         job = job,
-                        inputPath = it.ffmpegPath,
+                        inputPath = inputPath,
                         partial = partial,
-                        preferHardware = false,
                         durationSecs = duration,
                         onProgress = onProgress,
                     )
-                } else {
-                    first
-                }
+                },
+            )
 
-                if (result.cancelled || activeProcess.wasCancelled(job.id)) {
-                    partial.delete()
-                    return@withContext job.copy(
-                        status = JobStatus.Cancelled,
-                        error = null,
-                    )
-                }
-                if (result.exitCode != 0) {
-                    partial.delete()
-                    return@withContext job.copy(
-                        status = JobStatus.Failed,
-                        error = "FFmpeg 转码失败（退出码 ${result.exitCode}）",
-                    )
-                }
+            if (result.cancelled || activeProcess.wasCancelled(job.id)) {
+                partial.delete()
+                return@withContext job.copy(
+                    status = JobStatus.Cancelled,
+                    error = null,
+                )
+            }
+            if (result.exitCode != 0) {
+                partial.delete()
+                Log.e(TAG, "FFmpeg failed (${result.exitCode}): ${result.stderr.takeLast(4_000)}")
+                return@withContext job.copy(
+                    status = JobStatus.Failed,
+                    error = "FFmpeg 转码失败（退出码 ${result.exitCode}）",
+                )
             }
 
             val final = outputStore.finalizeJobOutput(output)
@@ -143,6 +129,10 @@ class FfmpegProcess(
     }
 
     suspend fun probe(uri: Uri, displayName: String): MediaInfo = withContext(Dispatchers.IO) {
+        sourceAccess.cachedInput(uri)?.use {
+            val cached = runProbe(it.ffmpegPath)
+            return@withContext parseFfprobeJson(uri.toString(), displayName, cached.stdout)
+        }
         val opened = sourceAccess.resolveInput(uri)
         val first = runProbe(opened.ffmpegPath)
         if (first.exitCode == 0) {
@@ -166,11 +156,48 @@ class FfmpegProcess(
         activeProcess.cancel(jobId)
     }
 
+    fun interrupt(jobId: String) {
+        activeProcess.interrupt(jobId)
+    }
+
     fun reserve(jobId: String): Boolean = activeProcess.claim(jobId)
 
     internal fun wasCancelled(jobId: String): Boolean = activeProcess.wasCancelled(jobId)
 
     internal fun release(jobId: String) = activeProcess.release(jobId)
+
+    private fun runTranscodeAttempts(
+        job: Job,
+        inputPath: String,
+        partial: File,
+        durationSecs: Double,
+        onProgress: (Double) -> Unit,
+    ): ProcessResult {
+        val first = runAttempt(
+            job = job,
+            inputPath = inputPath,
+            partial = partial,
+            preferHardware = true,
+            durationSecs = durationSecs,
+            onProgress = onProgress,
+        )
+        if (
+            first.exitCode == 0 ||
+            first.cancelled ||
+            !shouldRetryWithoutHardware(first.stderr)
+        ) {
+            return first
+        }
+        partial.delete()
+        return runAttempt(
+            job = job,
+            inputPath = inputPath,
+            partial = partial,
+            preferHardware = false,
+            durationSecs = durationSecs,
+            onProgress = onProgress,
+        )
+    }
 
     private fun runAttempt(
         job: Job,
@@ -191,7 +218,7 @@ class FfmpegProcess(
         partial.delete()
         val process = activeProcess.start(
             candidateJobId = job.id,
-            start = { processBuilder(ffmpegPath, args).start() },
+            start = { processBuilder(binaryPath(configuredFfmpegPath, "ffmpeg"), args).start() },
             destroy = { started ->
                 started.destroy()
                 if (started.isAlive) started.destroyForcibly()
@@ -205,10 +232,14 @@ class FfmpegProcess(
 
         val stderr = StringBuilder()
         val stdoutReader = thread(name = "ffmpeg-progress-${job.id}") {
-            process.inputStream.bufferedReader().useLines { lines ->
-                lines.forEach { line ->
-                    parseProgressLine(line, durationSecs)?.let(onProgress)
+            try {
+                process.inputStream.bufferedReader().useLines { lines ->
+                    lines.forEach { line ->
+                        parseProgressLine(line, durationSecs)?.let(onProgress)
+                    }
                 }
+            } catch (error: Exception) {
+                Log.e(TAG, "读取 FFmpeg 进度失败", error)
             }
         }
         val stderrReader = thread(name = "ffmpeg-stderr-${job.id}") {
@@ -236,7 +267,7 @@ class FfmpegProcess(
             "json",
             ffmpegFileArg(inputPath),
         )
-        val process = processBuilder(ffprobePath, args).start()
+        val process = processBuilder(binaryPath(configuredFfprobePath, "ffprobe"), args).start()
         val stderr = StringBuilder()
         val stderrReader = thread(name = "ffprobe-stderr") {
             process.errorStream.bufferedReader().useLines { lines ->
@@ -253,6 +284,60 @@ class FfmpegProcess(
         ProcessBuilder(listOf(executable) + args).apply {
             environment()["PATH"] = "/system/bin:/vendor/bin"
         }
+
+    private fun binaryPath(configured: String?, name: String): String =
+        configured ?: nativeBinary(
+            File(context.applicationInfo.nativeLibraryDir),
+            name,
+        ).absolutePath
+
+    private companion object {
+        const val TAG = "FfmpegProcess"
+    }
+}
+
+internal suspend fun <T> runWithInputFallback(
+    cachedInput: T?,
+    openInput: suspend () -> T,
+    inputPath: (T) -> String,
+    needsCacheFallback: (T) -> Boolean,
+    copyToCache: suspend (T) -> T,
+    closeInput: (T) -> Unit,
+    run: (String) -> ProcessResult,
+): ProcessResult {
+    var input = cachedInput ?: openInput()
+    var inputOpen = true
+    try {
+        var result = run(inputPath(input))
+        if (
+            result.exitCode != 0 &&
+            !result.cancelled &&
+            needsCacheFallback(input) &&
+            shouldRetryWithCachedInput(result.stderr)
+        ) {
+            val descriptorInput = input
+            closeInput(descriptorInput)
+            inputOpen = false
+            input = copyToCache(descriptorInput)
+            inputOpen = true
+            result = run(inputPath(input))
+        }
+        return result
+    } finally {
+        if (inputOpen) closeInput(input)
+    }
+}
+
+internal fun shouldRetryWithCachedInput(stderr: String): Boolean {
+    val normalized = stderr.lowercase()
+    return "/proc/self/fd/" in normalized &&
+        listOf(
+            "no such file",
+            "permission denied",
+            "cannot open",
+            "could not open",
+            "error opening input",
+        ).any { it in normalized }
 }
 
 internal fun createStagingOutput(
@@ -315,6 +400,12 @@ internal class ActiveProcessSlot {
         true
     }
 
+    fun interrupt(candidateJobId: String): Boolean = synchronized(lock) {
+        if (jobId != candidateJobId) return false
+        process?.let { destroyProcess?.invoke(it) }
+        true
+    }
+
     fun wasCancelled(candidateJobId: String): Boolean = synchronized(lock) {
         (jobId == candidateJobId && cancelled) ||
             releasedCancelledJobId == candidateJobId
@@ -362,7 +453,7 @@ private fun mimeType(container: String): String = when (container) {
     else -> "application/octet-stream"
 }
 
-private data class ProcessResult(
+internal data class ProcessResult(
     val exitCode: Int,
     val stderr: String,
     val cancelled: Boolean,

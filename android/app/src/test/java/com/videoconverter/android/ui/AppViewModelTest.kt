@@ -1,5 +1,7 @@
 package com.videoconverter.android.ui
 
+import android.content.Intent
+import android.net.Uri
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
@@ -10,7 +12,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class AppViewModelTest {
     @Test
     fun resolutionOptionsMapToExpectedBounds() {
@@ -83,6 +88,16 @@ class AppViewModelTest {
         assertEquals("image/gif", outputMimeType(OutputConfig(preset = "gif")))
         assertEquals("video/webm", outputMimeType(OutputConfig(preset = "webm-vp9")))
         assertEquals("video/mp4", outputMimeType(OutputConfig(preset = "mp4-h264")))
+    }
+
+    @Test
+    fun viewIntentKeepsOutputUriAndMimeType() {
+        val uri = Uri.parse("content://outputs/video.mp4")
+
+        val intent = configureViewIntent(Intent(Intent.ACTION_VIEW), uri, "video/mp4")
+
+        assertEquals(uri, intent.data)
+        assertEquals("video/mp4", intent.type)
     }
 
     private fun media(name: String, container: String) = MediaInfo(

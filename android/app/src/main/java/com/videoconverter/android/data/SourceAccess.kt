@@ -28,13 +28,21 @@ class SourceAccess(private val context: Context) {
         )
     }
 
+    fun cachedInput(uri: Uri): ResolvedInput? {
+        val cached = cacheFile(uri)
+        return if (cached.isFile) {
+            ResolvedInput(ffmpegPath = cached.absolutePath, pfd = null)
+        } else {
+            null
+        }
+    }
+
     suspend fun copyToCache(uri: Uri, opened: ResolvedInput? = null): ResolvedInput =
         withContext(Dispatchers.IO) {
             opened?.pfd?.close()
 
-            val sourceDir = File(context.cacheDir, "sources").apply { mkdirs() }
-            val displayName = displayName(uri)
-            val cacheFile = File(sourceDir, "${uriHash(uri)}-$displayName")
+            val cacheFile = cacheFile(uri)
+            val sourceDir = requireNotNull(cacheFile.parentFile).apply { mkdirs() }
             val temporary = File(sourceDir, "${cacheFile.name}.partial")
 
             try {
@@ -59,6 +67,9 @@ class SourceAccess(private val context: Context) {
 
             ResolvedInput(ffmpegPath = cacheFile.absolutePath, pfd = null)
         }
+
+    private fun cacheFile(uri: Uri): File =
+        File(File(context.cacheDir, "sources"), "${uriHash(uri)}-${displayName(uri)}")
 
     private fun displayName(uri: Uri): String {
         val queried = context.contentResolver.query(

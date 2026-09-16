@@ -15,14 +15,10 @@ import org.json.JSONObject
 class JobStore(context: Context) {
     private val file = File(context.filesDir, "jobs.json")
     private val temporary = File(context.filesDir, "jobs.json.tmp")
+    private val corrupt = File(context.filesDir, "jobs.json.bad")
 
     fun load(): List<Job> = synchronized(STORE_LOCK) {
-        if (!file.isFile) return emptyList()
-        try {
-            jobsFromJson(file.readText())
-        } catch (error: Exception) {
-            throw IOException("无法读取任务记录", error)
-        }
+        loadJobsOrEmpty(file, corrupt)
     }
 
     fun save(jobs: List<Job>) = synchronized(STORE_LOCK) {
@@ -48,6 +44,19 @@ class JobStore(context: Context) {
 
     private companion object {
         val STORE_LOCK = Any()
+    }
+}
+
+internal fun loadJobsOrEmpty(file: File, corrupt: File): List<Job> {
+    if (!file.isFile) return emptyList()
+    return try {
+        jobsFromJson(file.readText())
+    } catch (_: Exception) {
+        runCatching {
+            corrupt.delete()
+            if (!file.renameTo(corrupt)) file.delete()
+        }
+        emptyList()
     }
 }
 

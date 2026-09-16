@@ -75,6 +75,12 @@ fun outputMimeType(config: OutputConfig): String =
         onFailure = { "video/*" },
     )
 
+internal fun configureViewIntent(intent: Intent, uri: Uri, mimeType: String): Intent =
+    intent.apply {
+        setDataAndType(uri, mimeType)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
 fun resolutionBounds(size: String): Pair<Int?, Int?> = when (size) {
     "1080p" -> 1920 to 1080
     "720p" -> 1280 to 720
@@ -279,10 +285,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         } else {
-            Intent(Intent.ACTION_VIEW, uri).apply {
-                type = outputMimeType(job.config)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+            configureViewIntent(
+                Intent(Intent.ACTION_VIEW),
+                uri,
+                outputMimeType(job.config),
+            )
         }
     }
 

@@ -68,7 +68,7 @@ class TranscodeService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        runningJobId?.let(ffmpeg::cancel)
+        runningJobId?.let(ffmpeg::interrupt)
         scope.cancel()
         recordDestroyed()
         super.onDestroy()
@@ -161,7 +161,6 @@ class TranscodeService : Service() {
             jobStore.update { jobs -> jobs.cancelJob(jobId, runningJobId) }
             if (runningJobId == jobId) ffmpeg.cancel(jobId)
         }
-        startPump()
     }
 
     private fun retryJob(jobId: String) {

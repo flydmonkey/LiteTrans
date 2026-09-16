@@ -23,6 +23,14 @@ const ARCHIVE_URL =
   "https://github.com/fazi-gondal/ffmpeg/releases/download/latest/ffmpeg-android-arm64-v8a.tar.gz";
 const EXPECTED_SHA256 =
   "7dbe009d53ae6bc6eddd7dc8a025726b4a41d5b1fd6933f6b1811328b0ed9e39";
+const REQUIRED_CONFIGURATION_FLAGS = [
+  "--enable-libx264",
+  "--enable-libx265",
+  "--enable-libvpx",
+  "--enable-libmp3lame",
+  "--enable-libopus",
+  "--enable-mediacodec",
+];
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const androidDir = path.resolve(scriptDir, "..");
@@ -113,6 +121,7 @@ async function main() {
 
   const actualSha256 = sha256(archivePath);
   if (actualSha256 !== EXPECTED_SHA256) {
+    rmSync(archivePath, { force: true });
     throw new Error(
       `FFmpeg 归档 sha256 校验失败：期望 ${EXPECTED_SHA256}，实际 ${actualSha256}`,
     );
@@ -124,6 +133,23 @@ async function main() {
   execFileSync("tar", ["-xzf", archivePath, "-C", extractDir], {
     stdio: "inherit",
   });
+
+  const ffmpeg = findNamedFile(extractDir, "ffmpeg");
+  if (!ffmpeg) {
+    throw new Error("归档内找不到独立 CLI 二进制：ffmpeg");
+  }
+  const embeddedStrings = execFileSync("strings", [ffmpeg], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  const missingFlags = REQUIRED_CONFIGURATION_FLAGS.filter(
+    (flag) => !embeddedStrings.includes(flag),
+  );
+  if (missingFlags.length > 0) {
+    throw new Error(
+      `FFmpeg CLI 缺少必需配置：${missingFlags.join(", ")}。请勿使用此不完整构建。`,
+    );
+  }
 
   mkdirSync(outputDir, { recursive: true });
   for (const name of ["ffmpeg", "ffprobe"]) {

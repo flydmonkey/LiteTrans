@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -14,6 +15,78 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FfmpegProcessTest {
+    @Test
+    fun cachedProbeInputIsPreferredForTranscode() = runBlocking {
+        val opened = mutableListOf<String>()
+        val attempts = mutableListOf<String>()
+
+        runWithInputFallback(
+            cachedInput = "cached.mp4",
+            openInput = { opened += "fd"; "fd" },
+            inputPath = { it },
+            needsCacheFallback = { it == "fd" },
+            copyToCache = { "copied.mp4" },
+            closeInput = {},
+            run = {
+                attempts += it
+                ProcessResult(0, "", false)
+            },
+        )
+
+        assertTrue(opened.isEmpty())
+        assertEquals(listOf("cached.mp4"), attempts)
+    }
+
+    @Test
+    fun unreadableFdInputIsCopiedAndRetriedOnce() = runBlocking {
+        val copied = mutableListOf<String>()
+        val attempts = mutableListOf<String>()
+
+        val result = runWithInputFallback(
+            cachedInput = null,
+            openInput = { "/proc/self/fd/7" },
+            inputPath = { it },
+            needsCacheFallback = { it.startsWith("/proc/self/fd/") },
+            copyToCache = {
+                copied += it
+                "/cache/source.mp4"
+            },
+            closeInput = {},
+            run = {
+                attempts += it
+                if (attempts.size == 1) {
+                    ProcessResult(1, "$it: No such file or directory", false)
+                } else {
+                    ProcessResult(0, "", false)
+                }
+            },
+        )
+
+        assertEquals(0, result.exitCode)
+        assertEquals(listOf("/proc/self/fd/7", "/cache/source.mp4"), attempts)
+        assertEquals(listOf("/proc/self/fd/7"), copied)
+    }
+
+    @Test
+    fun fdInputIsNotCopiedForUnrelatedFfmpegFailure() = runBlocking {
+        var copies = 0
+
+        runWithInputFallback(
+            cachedInput = null,
+            openInput = { "/proc/self/fd/7" },
+            inputPath = { it },
+            needsCacheFallback = { true },
+            copyToCache = {
+                copies++
+                "/cache/source.mp4"
+            },
+            closeInput = {},
+            run = { ProcessResult(1, "Unknown encoder 'libx265'", false) },
+        )
+
+        assertEquals(0, copies)
+    }
+
     @Test
     fun stagingOutputUsesJobIdSourceStemAndExtension() {
         var requested: Triple<String, String, String>? = null
@@ -91,6 +164,26 @@ class FfmpegProcessTest {
 
         assertEquals(1, destroyCalls.get())
         assertTrue(slot.wasCancelled("job-1"))
+    }
+
+    @Test
+    fun interruptDestroysProcessWithoutMarkingUserCancellation() {
+        val slot = ActiveProcessSlot()
+        val destroyCalls = AtomicInteger()
+        assertTrue(slot.claim("job-1"))
+        slot.start(
+            "job-1",
+            { ProcessBuilder("/bin/sleep", "30").start() },
+            {
+                it.destroyForcibly()
+                destroyCalls.incrementAndGet()
+            },
+        )
+
+        assertTrue(slot.interrupt("job-1"))
+
+        assertEquals(1, destroyCalls.get())
+        assertFalse(slot.wasCancelled("job-1"))
     }
 
     @Test
