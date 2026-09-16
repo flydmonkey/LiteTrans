@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -28,6 +29,7 @@ class TranscodeService : Service() {
     private lateinit var jobStore: JobStore
     private lateinit var sessionStore: SessionStore
     private lateinit var ffmpeg: FfmpegProcess
+    private lateinit var commands: SerialServiceCommands<ServiceCommand>
     private val pumpCoordinator = PumpCoordinator()
     private val stateLock = Any()
 
@@ -40,19 +42,20 @@ class TranscodeService : Service() {
         jobStore = JobStore(this)
         sessionStore = SessionStore(this)
         ffmpeg = FfmpegProcess(this)
+        commands = SerialServiceCommands(scope, ::executeCommand)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_ENQUEUE, ACTION_START_PUMP -> startPump(startId)
-            ACTION_CANCEL -> intent.getStringExtra(EXTRA_JOB_ID)?.let {
-                cancelJob(it, startId)
-            }
-            ACTION_RETRY -> intent.getStringExtra(EXTRA_JOB_ID)?.let {
-                retryJob(it, startId)
-            }
-            ACTION_CLEAR_FINISHED -> clearFinishedJobs(startId)
+        val command = when (intent?.action) {
+            ACTION_ENQUEUE, ACTION_START_PUMP -> ServiceCommand.StartPump
+            ACTION_CANCEL -> intent.getStringExtra(EXTRA_JOB_ID)
+                ?.let(ServiceCommand::Cancel)
+            ACTION_RETRY -> intent.getStringExtra(EXTRA_JOB_ID)
+                ?.let(ServiceCommand::Retry)
+            ACTION_CLEAR_FINISHED -> ServiceCommand.ClearFinished
+            else -> null
         }
+        command?.let { commands.dispatch(startId, it) }
         return START_NOT_STICKY
     }
 
@@ -64,7 +67,17 @@ class TranscodeService : Service() {
         super.onDestroy()
     }
 
-    private fun startPump(startId: Int) {
+    private fun executeCommand(command: ServiceCommand, start: ServiceStart) {
+        when (command) {
+            ServiceCommand.StartPump -> startPump()
+            is ServiceCommand.Cancel -> cancelJob(command.jobId)
+            is ServiceCommand.Retry -> retryJob(command.jobId)
+            ServiceCommand.ClearFinished -> clearFinishedJobs()
+            ServiceCommand.QueueDrained -> stopWhenQueueIsEmpty(start)
+        }
+    }
+
+    private fun startPump() {
         if (!pumpCoordinator.requestStart()) return
         scope.launch {
             while (isActive) {
@@ -72,7 +85,7 @@ class TranscodeService : Service() {
                 if (running == null) {
                     val stillQueued = jobStore.load().any { it.status == JobStatus.Queued }
                     if (pumpCoordinator.shouldContinue(stillQueued)) continue
-                    stopWhenQueueIsEmpty(startId)
+                    commands.dispatchInternal(ServiceCommand.QueueDrained)
                     return@launch
                 }
 
@@ -115,65 +128,59 @@ class TranscodeService : Service() {
         claimed
     }
 
-    private fun cancelJob(jobId: String, startId: Int) {
-        scope.launch {
-            synchronized(stateLock) {
-                if (runningJobId == jobId) {
-                    ffmpeg.cancel(jobId)
-                } else {
-                    jobStore.update { jobs ->
-                        jobs.map { job ->
-                            if (job.id == jobId && job.status == JobStatus.Queued) {
-                                job.copy(status = JobStatus.Cancelled, error = null)
-                            } else {
-                                job
-                            }
-                        }
-                    }
-                }
-            }
-            startPump(startId)
-        }
-    }
-
-    private fun retryJob(jobId: String, startId: Int) {
-        scope.launch {
-            synchronized(stateLock) {
+    private fun cancelJob(jobId: String) {
+        synchronized(stateLock) {
+            if (runningJobId == jobId) {
+                ffmpeg.cancel(jobId)
+            } else {
                 jobStore.update { jobs ->
                     jobs.map { job ->
-                        if (
-                            job.id == jobId &&
-                            job.status in setOf(
-                                JobStatus.Failed,
-                                JobStatus.Cancelled,
-                            )
-                        ) {
-                            job.copy(
-                                status = JobStatus.Queued,
-                                progress = 0.0,
-                                error = null,
-                            )
+                        if (job.id == jobId && job.status == JobStatus.Queued) {
+                            job.copy(status = JobStatus.Cancelled, error = null)
                         } else {
                             job
                         }
                     }
                 }
             }
-            startPump(startId)
         }
+        startPump()
     }
 
-    private fun clearFinishedJobs(startId: Int) {
-        scope.launch {
-            synchronized(stateLock) {
-                jobStore.update { jobs ->
-                    jobs.filter {
-                        it.status == JobStatus.Queued || it.status == JobStatus.Running
+    private fun retryJob(jobId: String) {
+        synchronized(stateLock) {
+            jobStore.update { jobs ->
+                jobs.map { job ->
+                    if (
+                        job.id == jobId &&
+                        job.status in setOf(
+                            JobStatus.Failed,
+                            JobStatus.Cancelled,
+                        )
+                    ) {
+                        job.copy(
+                            status = JobStatus.Queued,
+                            progress = 0.0,
+                            error = null,
+                        )
+                    } else {
+                        job
                     }
                 }
             }
-            if (runningJobId == null) stopWhenQueueIsEmpty(startId)
         }
+        startPump()
+    }
+
+    private fun clearFinishedJobs() {
+        synchronized(stateLock) {
+            jobStore.update { jobs ->
+                jobs.filter {
+                    it.status == JobStatus.Queued || it.status == JobStatus.Running
+                }
+            }
+        }
+        if (runningJobId == null) commands.dispatchInternal(ServiceCommand.QueueDrained)
     }
 
     private fun showForeground(job: Job) {
@@ -213,8 +220,18 @@ class TranscodeService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun stopWhenQueueIsEmpty(startId: Int) {
-        if (stopSelfResult(startId)) {
+    private fun stopWhenQueueIsEmpty(start: ServiceStart) {
+        if (commands.latestStart() != start) return
+        val hasWork = synchronized(stateLock) {
+            runningJobId != null ||
+                jobStore.load().any { it.status == JobStatus.Queued || it.status == JobStatus.Running }
+        }
+        if (hasWork) {
+            startPump()
+            return
+        }
+        if (commands.latestStart() != start) return
+        if (stopSelfResult(start.startId)) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         }
     }
@@ -272,6 +289,53 @@ class TranscodeService : Service() {
 
 private fun List<Job>.replace(updated: Job): List<Job> =
     map { job -> if (job.id == updated.id) updated else job }
+
+private sealed interface ServiceCommand {
+    data object StartPump : ServiceCommand
+    data class Cancel(val jobId: String) : ServiceCommand
+    data class Retry(val jobId: String) : ServiceCommand
+    data object ClearFinished : ServiceCommand
+    data object QueueDrained : ServiceCommand
+}
+
+internal data class ServiceStart(
+    val generation: Long,
+    val startId: Int,
+)
+
+internal class SerialServiceCommands<T>(
+    scope: CoroutineScope,
+    execute: (T, ServiceStart) -> Unit,
+) {
+    private val lock = Any()
+    private val channel = Channel<Pair<T, ServiceStart>>(Channel.UNLIMITED)
+    private var latest: ServiceStart? = null
+
+    init {
+        scope.launch {
+            for ((command, start) in channel) execute(command, start)
+        }
+    }
+
+    fun dispatch(startId: Int, command: T) {
+        synchronized(lock) {
+            val start = ServiceStart(
+                generation = (latest?.generation ?: 0) + 1,
+                startId = startId,
+            )
+            latest = start
+            check(channel.trySend(command to start).isSuccess)
+        }
+    }
+
+    fun dispatchInternal(command: T) {
+        synchronized(lock) {
+            latest?.let { check(channel.trySend(command to it).isSuccess) }
+        }
+    }
+
+    fun latestStart(): ServiceStart? = synchronized(lock) { latest }
+}
 
 internal class PumpCoordinator {
     private var running = false

@@ -2,6 +2,10 @@ package com.videoconverter.android.service
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -47,5 +51,45 @@ class PumpCoordinatorTest {
 
         assertTrue(coordinator.shouldContinue(hasQueuedJob = true))
         assertFalse(coordinator.requestStart())
+    }
+
+    @Test
+    fun cancelThenRetryExecuteInArrivalOrder() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val finished = CountDownLatch(2)
+        var status = "Queued"
+        val commands = SerialServiceCommands<String>(scope) { command, _ ->
+            when (command) {
+                "cancel" -> status = "Cancelled"
+                "retry" -> if (status == "Cancelled") status = "Queued"
+            }
+            finished.countDown()
+        }
+
+        commands.dispatch(startId = 1, command = "cancel")
+        commands.dispatch(startId = 2, command = "retry")
+
+        finished.await()
+        assertEquals("Queued", status)
+        scope.cancel()
+    }
+
+    @Test
+    fun emptyQueueCommandUsesLatestStartId() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val finished = CountDownLatch(3)
+        var emptyQueueStartId: Int? = null
+        val commands = SerialServiceCommands<String>(scope) { command, start ->
+            if (command == "empty") emptyQueueStartId = start.startId
+            finished.countDown()
+        }
+
+        commands.dispatch(startId = 7, command = "start")
+        commands.dispatch(startId = 11, command = "cancel")
+        commands.dispatchInternal("empty")
+
+        finished.await()
+        assertEquals(11, emptyQueueStartId)
+        scope.cancel()
     }
 }
