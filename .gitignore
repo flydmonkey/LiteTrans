@@ -25,6 +25,7 @@ src-tauri/binaries/*
 *.sln
 *.sw?
 
+android/.ffmpeg-cache/
 android/.gradle
 android/build
 android/app/build
