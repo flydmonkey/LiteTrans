@@ -92,14 +92,14 @@ class TranscodeService : Service() {
     }
 
     private fun startPump() {
-        if (!pumpCoordinator.requestStart()) return
+        val generation = pumpCoordinator.requestStart() ?: return
         scope.launch {
             try {
                 while (isActive) {
                     val running = claimNextQueued()
                     if (running == null) {
                         val stillQueued = jobStore.load().any { it.status == JobStatus.Queued }
-                        if (pumpCoordinator.shouldContinue(stillQueued)) continue
+                        if (pumpCoordinator.shouldContinue(generation, stillQueued)) continue
                         commands.dispatchInternal(ServiceCommand.QueueDrained)
                         return@launch
                     }
@@ -140,7 +140,7 @@ class TranscodeService : Service() {
                         }
                     }
                 } finally {
-                    if (pumpCoordinator.finish()) startPump()
+                    if (pumpCoordinator.finish(generation)) startPump()
                 }
             }
         }
@@ -477,31 +477,34 @@ internal class SerialServiceCommands<T>(
 }
 
 internal class PumpCoordinator {
-    private var running = false
+    private var generation = 0L
+    private var runningGeneration: Long? = null
     private var wakeRequested = false
 
     @Synchronized
-    fun requestStart(): Boolean {
+    fun requestStart(): Long? {
+        generation++
         wakeRequested = true
-        if (running) return false
-        running = true
+        if (runningGeneration != null) return null
+        runningGeneration = generation
         wakeRequested = false
-        return true
+        return generation
     }
 
     @Synchronized
-    fun shouldContinue(hasQueuedJob: Boolean): Boolean {
+    fun shouldContinue(ownerGeneration: Long, hasQueuedJob: Boolean): Boolean {
+        if (runningGeneration != ownerGeneration) return false
         if (hasQueuedJob || wakeRequested) {
             wakeRequested = false
             return true
         }
-        running = false
         return false
     }
 
     @Synchronized
-    fun finish(): Boolean {
-        running = false
+    fun finish(ownerGeneration: Long): Boolean {
+        if (runningGeneration != ownerGeneration) return false
+        runningGeneration = null
         return wakeRequested.also { wakeRequested = false }
     }
 }

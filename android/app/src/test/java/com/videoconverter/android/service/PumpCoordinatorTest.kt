@@ -8,6 +8,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -20,7 +22,7 @@ class PumpCoordinatorTest {
         val executor = Executors.newFixedThreadPool(16)
 
         val starts = (1..16).map {
-            executor.submit<Boolean> {
+            executor.submit<Long?> {
                 ready.countDown()
                 start.await()
                 coordinator.requestStart()
@@ -29,38 +31,62 @@ class PumpCoordinatorTest {
         ready.await()
         start.countDown()
 
-        assertEquals(1, starts.count { it.get() })
+        assertEquals(1, starts.count { it.get() != null })
         executor.shutdown()
     }
 
     @Test
     fun requestWhilePumpStopsKeepsPumpAlive() {
         val coordinator = PumpCoordinator()
-        assertTrue(coordinator.requestStart())
-        assertFalse(coordinator.requestStart())
+        val generation = coordinator.requestStart()
+        assertNotNull(generation)
+        assertNull(coordinator.requestStart())
 
-        assertTrue(coordinator.shouldContinue(hasQueuedJob = false))
-        assertFalse(coordinator.shouldContinue(hasQueuedJob = false))
-        assertTrue(coordinator.requestStart())
+        assertTrue(coordinator.shouldContinue(generation!!, hasQueuedJob = false))
+        assertFalse(coordinator.shouldContinue(generation, hasQueuedJob = false))
+        assertNull(coordinator.requestStart())
+        coordinator.finish(generation)
+        assertNotNull(coordinator.requestStart())
     }
 
     @Test
     fun queuedRecheckKeepsPumpAlive() {
         val coordinator = PumpCoordinator()
-        assertTrue(coordinator.requestStart())
+        val generation = coordinator.requestStart()
+        assertNotNull(generation)
 
-        assertTrue(coordinator.shouldContinue(hasQueuedJob = true))
-        assertFalse(coordinator.requestStart())
+        assertTrue(coordinator.shouldContinue(generation!!, hasQueuedJob = true))
+        assertNull(coordinator.requestStart())
     }
 
     @Test
     fun failedPumpCanStartAgainAfterFinallyReset() {
         val coordinator = PumpCoordinator()
-        assertTrue(coordinator.requestStart())
+        val generation = coordinator.requestStart()
+        assertNotNull(generation)
 
-        coordinator.finish()
+        coordinator.finish(generation!!)
 
-        assertTrue(coordinator.requestStart())
+        assertNotNull(coordinator.requestStart())
+    }
+
+    @Test
+    fun oldPumpFinallyDoesNotClearNewPumpRunningFlag() {
+        val coordinator = PumpCoordinator()
+        val oldGeneration = coordinator.requestStart()
+        assertNotNull(oldGeneration)
+
+        assertFalse(coordinator.shouldContinue(oldGeneration!!, hasQueuedJob = false))
+        assertNull(coordinator.requestStart())
+        coordinator.finish(oldGeneration)
+
+        val newGeneration = coordinator.requestStart()
+        assertNotNull(newGeneration)
+        coordinator.finish(oldGeneration)
+
+        assertNull(coordinator.requestStart())
+        coordinator.finish(newGeneration!!)
+        assertNotNull(coordinator.requestStart())
     }
 
     @Test
