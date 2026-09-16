@@ -1,5 +1,7 @@
 package com.videoconverter.android.engine
 
+import com.videoconverter.android.data.JobOutput
+import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,6 +10,23 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FfmpegProcessTest {
+    @Test
+    fun stagingOutputUsesJobIdSourceStemAndExtension() {
+        var requested: Triple<String, String, String>? = null
+
+        val output = createStagingOutput(
+            jobId = "job-42",
+            displayName = "holiday.mov",
+            extension = "mp4",
+        ) { jobId, stem, extension ->
+            requested = Triple(jobId, stem, extension)
+            JobOutput(File("/jobs/$jobId/$stem.partial.$extension"), File("/jobs/$jobId/$stem.$extension"))
+        }
+
+        assertEquals(Triple("job-42", "holiday", "mp4"), requested)
+        assertEquals("/jobs/job-42/holiday.partial.mp4", output.partial.path)
+    }
+
     @Test
     fun mediacodecFailureRetries() {
         assertTrue(shouldRetryWithoutHardware("Error while opening encoder: h264_mediacodec"))

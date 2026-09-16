@@ -47,7 +47,8 @@ class TranscodeService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val command = when (intent?.action) {
-            ACTION_ENQUEUE, ACTION_START_PUMP -> ServiceCommand.StartPump
+            ACTION_ENQUEUE -> ServiceCommand.Enqueue
+            ACTION_START_PUMP -> ServiceCommand.StartPump
             ACTION_CANCEL -> intent.getStringExtra(EXTRA_JOB_ID)
                 ?.let(ServiceCommand::Cancel)
             ACTION_RETRY -> intent.getStringExtra(EXTRA_JOB_ID)
@@ -69,6 +70,13 @@ class TranscodeService : Service() {
 
     private fun executeCommand(command: ServiceCommand, start: ServiceStart) {
         when (command) {
+            ServiceCommand.Enqueue -> {
+                val jobs = pendingJobs.drain()
+                if (jobs.isNotEmpty()) {
+                    jobStore.update { current -> current + jobs }
+                }
+                startPump()
+            }
             ServiceCommand.StartPump -> startPump()
             is ServiceCommand.Cancel -> cancelJob(command.jobId)
             is ServiceCommand.Retry -> retryJob(command.jobId)
@@ -221,9 +229,10 @@ class TranscodeService : Service() {
         private const val EXTRA_JOB_ID = "jobId"
         private const val CHANNEL_ID = "transcode"
         private const val NOTIFICATION_ID = 1001
+        private val pendingJobs = PendingJobMailbox()
 
         fun enqueue(context: Context, jobs: List<Job>) {
-            JobStore(context).update { current -> current + jobs }
+            pendingJobs.append(jobs)
             startForegroundAction(context, ACTION_ENQUEUE)
         }
 
@@ -298,11 +307,25 @@ internal fun List<Job>.completeRunningJob(result: Job): List<Job> =
     }
 
 private sealed interface ServiceCommand {
+    data object Enqueue : ServiceCommand
     data object StartPump : ServiceCommand
     data class Cancel(val jobId: String) : ServiceCommand
     data class Retry(val jobId: String) : ServiceCommand
     data object ClearFinished : ServiceCommand
     data object QueueDrained : ServiceCommand
+}
+
+internal class PendingJobMailbox {
+    private val lock = Any()
+    private val jobs = mutableListOf<Job>()
+
+    fun append(pending: List<Job>) = synchronized(lock) {
+        jobs += pending
+    }
+
+    fun drain(): List<Job> = synchronized(lock) {
+        jobs.toList().also { jobs.clear() }
+    }
 }
 
 internal data class ServiceStart(

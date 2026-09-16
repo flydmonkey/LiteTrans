@@ -19,7 +19,6 @@ import com.videoconverter.android.domain.parseProgressLine
 import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.domain.sourceStem
 import java.io.File
-import java.io.IOException
 import kotlin.concurrent.thread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -50,27 +49,23 @@ class FfmpegProcess(
         outputTarget: OutputTarget,
         onProgress: (Double) -> Unit = {},
     ): Job = withContext(Dispatchers.IO) {
-        val outputPath = job.outputPath
-            ?: return@withContext job.copy(
-                status = JobStatus.Failed,
-                error = "没有可用的输出路径",
-            )
         if (!activeProcess.claim(job.id)) {
             return@withContext job.copy(
                 status = JobStatus.Failed,
                 error = "已有转码任务正在运行",
             )
         }
-        val final = File(outputPath)
-        val partial = File(com.videoconverter.android.domain.partialOutputPath(outputPath))
+        var output: JobOutput? = null
 
         try {
-            final.parentFile?.let { parent ->
-                if (!parent.exists() && !parent.mkdirs()) {
-                    throw IOException("无法创建转码输出目录")
-                }
-            }
             val config = resolveConfig(job.config).getOrThrow()
+            output = createStagingOutput(
+                jobId = job.id,
+                displayName = job.displayName,
+                extension = config.extension,
+                create = outputStore::createJobOutput,
+            )
+            val partial = output.partial
             val duration = outputDurationSecs(config, job.media)
             val input = sourceAccess.resolveInput(Uri.parse(job.sourceUri))
             input.use {
@@ -116,7 +111,7 @@ class FfmpegProcess(
                 }
             }
 
-            outputStore.finalizeJobOutput(JobOutput(partial = partial, final = final))
+            val final = outputStore.finalizeJobOutput(output)
             if (activeProcess.wasCancelled(job.id)) {
                 final.delete()
                 return@withContext job.copy(status = JobStatus.Cancelled, error = null)
@@ -130,7 +125,7 @@ class FfmpegProcess(
             )
             job.completed(exported)
         } catch (error: Exception) {
-            partial.delete()
+            output?.partial?.delete()
             if (activeProcess.wasCancelled(job.id)) {
                 job.copy(status = JobStatus.Cancelled, error = null)
             } else {
@@ -243,6 +238,13 @@ class FfmpegProcess(
             environment()["PATH"] = "/system/bin:/vendor/bin"
         }
 }
+
+internal fun createStagingOutput(
+    jobId: String,
+    displayName: String,
+    extension: String,
+    create: (String, String, String) -> JobOutput,
+): JobOutput = create(jobId, sourceStem(displayName), extension)
 
 internal class ActiveProcessSlot {
     private val lock = Any()

@@ -9,6 +9,19 @@ import org.junit.Test
 
 class TranscodeServiceStateTest {
     @Test
+    fun pendingEnqueueMailboxDrainsJobsOnceInOrder() {
+        val mailbox = PendingJobMailbox()
+        val first = job(JobStatus.Queued, id = "job-1")
+        val second = job(JobStatus.Queued, id = "job-2")
+
+        mailbox.append(listOf(first))
+        mailbox.append(listOf(second))
+
+        assertEquals(listOf("job-1", "job-2"), mailbox.drain().map(Job::id))
+        assertEquals(emptyList<Job>(), mailbox.drain())
+    }
+
+    @Test
     fun runningJobCanBeRetriedImmediatelyAfterCancel() {
         val running = job(JobStatus.Running, progress = 42.0, error = "old error")
 
@@ -37,10 +50,11 @@ class TranscodeServiceStateTest {
 
     private fun job(
         status: JobStatus,
+        id: String = "job-1",
         progress: Double = 0.0,
         error: String? = null,
     ) = Job(
-        id = "job-1",
+        id = id,
         sourceUri = "content://video",
         displayName = "video.mp4",
         outputPath = "/tmp/video.mp4",
