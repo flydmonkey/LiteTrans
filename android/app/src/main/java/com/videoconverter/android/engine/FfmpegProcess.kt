@@ -49,7 +49,7 @@ class FfmpegProcess(
         outputTarget: OutputTarget,
         onProgress: (Double) -> Unit = {},
     ): Job = withContext(Dispatchers.IO) {
-        if (!activeProcess.claim(job.id)) {
+        if (!activeProcess.claimOrConfirm(job.id)) {
             return@withContext job.copy(
                 status = JobStatus.Failed,
                 error = "已有转码任务正在运行",
@@ -58,6 +58,9 @@ class FfmpegProcess(
         var output: JobOutput? = null
 
         try {
+            if (activeProcess.wasCancelled(job.id)) {
+                return@withContext job.copy(status = JobStatus.Cancelled, error = null)
+            }
             val config = resolveConfig(job.config).getOrThrow()
             output = createStagingOutput(
                 jobId = job.id,
@@ -125,7 +128,6 @@ class FfmpegProcess(
             )
             job.completed(exported)
         } catch (error: Exception) {
-            output?.partial?.delete()
             if (activeProcess.wasCancelled(job.id)) {
                 job.copy(status = JobStatus.Cancelled, error = null)
             } else {
@@ -135,6 +137,7 @@ class FfmpegProcess(
                 )
             }
         } finally {
+            output?.let(::deleteStagedOutput)
             activeProcess.release(job.id)
         }
     }
@@ -162,6 +165,8 @@ class FfmpegProcess(
     fun cancel(jobId: String) {
         activeProcess.cancel(jobId)
     }
+
+    fun reserve(jobId: String): Boolean = activeProcess.claim(jobId)
 
     private fun runAttempt(
         job: Job,
@@ -246,6 +251,10 @@ internal fun createStagingOutput(
     create: (String, String, String) -> JobOutput,
 ): JobOutput = create(jobId, sourceStem(displayName), extension)
 
+internal fun deleteStagedOutput(output: JobOutput) {
+    output.partial.parentFile?.deleteRecursively()
+}
+
 internal class ActiveProcessSlot {
     private val lock = Any()
     private var jobId: String? = null
@@ -253,6 +262,15 @@ internal class ActiveProcessSlot {
     private var cancelled = false
 
     fun claim(candidateJobId: String): Boolean = synchronized(lock) {
+        if (jobId != null) return false
+        jobId = candidateJobId
+        destroyProcess = null
+        cancelled = false
+        true
+    }
+
+    fun claimOrConfirm(candidateJobId: String): Boolean = synchronized(lock) {
+        if (jobId == candidateJobId) return true
         if (jobId != null) return false
         jobId = candidateJobId
         destroyProcess = null

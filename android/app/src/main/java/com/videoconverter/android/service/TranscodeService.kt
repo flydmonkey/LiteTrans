@@ -123,14 +123,9 @@ class TranscodeService : Service() {
     private fun claimNextQueued(): Job? = synchronized(stateLock) {
         var claimed: Job? = null
         jobStore.update { jobs ->
-            val queued = jobs.firstOrNull { it.status == JobStatus.Queued }
-                ?: return@update jobs
-            claimed = queued.copy(
-                status = JobStatus.Running,
-                progress = 0.0,
-                error = null,
-            )
-            jobs.replace(claimed!!)
+            jobs.claimNextQueued(ffmpeg::reserve).also {
+                claimed = it.claimed
+            }.jobs
         }
         runningJobId = claimed?.id
         claimed
@@ -269,6 +264,23 @@ class TranscodeService : Service() {
 
 private fun List<Job>.replace(updated: Job): List<Job> =
     map { job -> if (job.id == updated.id) updated else job }
+
+internal data class QueuedClaim(
+    val jobs: List<Job>,
+    val claimed: Job?,
+)
+
+internal fun List<Job>.claimNextQueued(reserve: (String) -> Boolean): QueuedClaim {
+    val queued = firstOrNull { it.status == JobStatus.Queued }
+        ?: return QueuedClaim(this, null)
+    if (!reserve(queued.id)) return QueuedClaim(this, null)
+    val claimed = queued.copy(
+        status = JobStatus.Running,
+        progress = 0.0,
+        error = null,
+    )
+    return QueuedClaim(replace(claimed), claimed)
+}
 
 internal fun List<Job>.cancelJob(jobId: String, activeJobId: String?): List<Job> =
     map { job ->

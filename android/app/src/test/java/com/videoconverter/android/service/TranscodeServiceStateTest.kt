@@ -4,7 +4,9 @@ import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
+import com.videoconverter.android.engine.ActiveProcessSlot
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TranscodeServiceStateTest {
@@ -46,6 +48,17 @@ class TranscodeServiceStateTest {
         val updated = cancelled.completeRunningJob(lateResult)
 
         assertEquals(JobStatus.Cancelled, updated.single().status)
+    }
+
+    @Test
+    fun claimingQueuedJobReservesFfmpegSlotBeforeCancellationCanRun() {
+        val slot = ActiveProcessSlot()
+
+        val claim = listOf(job(JobStatus.Queued)).claimNextQueued(slot::claim)
+
+        assertEquals(JobStatus.Running, claim.claimed?.status)
+        assertTrue(slot.cancel("job-1"))
+        assertTrue(slot.wasCancelled("job-1"))
     }
 
     private fun job(

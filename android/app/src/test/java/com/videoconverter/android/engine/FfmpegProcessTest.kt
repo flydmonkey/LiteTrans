@@ -2,6 +2,7 @@ package com.videoconverter.android.engine
 
 import com.videoconverter.android.data.JobOutput
 import java.io.File
+import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -76,5 +77,33 @@ class FfmpegProcessTest {
 
         assertEquals(1, destroyCalls.get())
         assertTrue(slot.wasCancelled("job-1"))
+    }
+
+    @Test
+    fun cancellingReservedJobBeforeProcessAttachDestroysProcessOnAttach() {
+        val slot = ActiveProcessSlot()
+        val destroyCalls = AtomicInteger()
+        assertTrue(slot.claim("job-1"))
+
+        assertTrue(slot.cancel("job-1"))
+        slot.attach("job-1") { destroyCalls.incrementAndGet() }
+
+        assertEquals(1, destroyCalls.get())
+        assertTrue(slot.wasCancelled("job-1"))
+    }
+
+    @Test
+    fun deletingStagedOutputRemovesPartialFinalAndJobDirectory() {
+        val jobDir = Files.createTempDirectory("ffmpeg-staging-").toFile()
+        val output = JobOutput(
+            partial = File(jobDir, "video.partial.mp4").apply { writeText("partial") },
+            final = File(jobDir, "video.mp4").apply { writeText("final") },
+        )
+
+        deleteStagedOutput(output)
+
+        assertFalse(output.partial.exists())
+        assertFalse(output.final.exists())
+        assertFalse(jobDir.exists())
     }
 }
