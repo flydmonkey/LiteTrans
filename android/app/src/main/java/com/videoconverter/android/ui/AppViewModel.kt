@@ -16,6 +16,7 @@ import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
 import com.videoconverter.android.domain.enqueueJobs
+import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.engine.FfmpegProcess
 import com.videoconverter.android.service.TranscodeService
 import java.io.File
@@ -46,6 +47,33 @@ enum class StartAction { StartPump, Enqueue }
 
 fun chooseStartAction(hasQueuedJobs: Boolean, sourcesChanged: Boolean): StartAction =
     if (hasQueuedJobs && !sourcesChanged) StartAction.StartPump else StartAction.Enqueue
+
+suspend fun persistOutputBeforeStart(
+    output: OutputTarget,
+    persist: suspend (OutputTarget) -> Unit,
+    start: () -> Unit,
+) {
+    persist(output)
+    start()
+}
+
+fun outputMimeType(config: OutputConfig): String =
+    resolveConfig(config).fold(
+        onSuccess = {
+            when (it.container) {
+                "mp3" -> "audio/mpeg"
+                "m4a" -> "audio/mp4"
+                "gif" -> "image/gif"
+                "mp4" -> "video/mp4"
+                "mov" -> "video/quicktime"
+                "mkv" -> "video/x-matroska"
+                "webm" -> "video/webm"
+                "avi" -> "video/x-msvideo"
+                else -> "video/*"
+            }
+        },
+        onFailure = { "video/*" },
+    )
 
 fun resolutionBounds(size: String): Pair<Int?, Int?> = when (size) {
     "1080p" -> 1920 to 1080
@@ -179,7 +207,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val snapshot = mutableState.value
         val queued = snapshot.jobs.any { it.status == JobStatus.Queued }
         if (chooseStartAction(queued, sourcesChanged) == StartAction.StartPump) {
-            TranscodeService.startPump(app)
+            viewModelScope.launch {
+                persistOutputBeforeStart(
+                    output = snapshot.output,
+                    persist = sessionStore::saveOutputTarget,
+                    start = { TranscodeService.startPump(app) },
+                )
+            }
             return
         }
         if (snapshot.sources.any { it.probing }) {
@@ -213,7 +247,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             message = report.skipped.firstOrNull()?.reason,
         )
         sourcesChanged = false
-        TranscodeService.enqueue(app, report.jobs)
+        viewModelScope.launch {
+            persistOutputBeforeStart(
+                output = snapshot.output,
+                persist = sessionStore::saveOutputTarget,
+                start = { TranscodeService.enqueue(app, report.jobs) },
+            )
+        }
     }
 
     fun cancel(jobId: String) = TranscodeService.cancel(app, jobId)
@@ -234,13 +274,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         return if (share) {
             Intent(Intent.ACTION_SEND).apply {
-                type = "video/*"
+                type = outputMimeType(job.config)
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         } else {
             Intent(Intent.ACTION_VIEW, uri).apply {
-                type = "video/*"
+                type = outputMimeType(job.config)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         }

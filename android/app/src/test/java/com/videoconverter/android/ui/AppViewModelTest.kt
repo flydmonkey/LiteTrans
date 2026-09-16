@@ -1,7 +1,10 @@
 package com.videoconverter.android.ui
 
+import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.OutputConfig
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -54,6 +57,32 @@ class AppViewModelTest {
         val bounds = effectiveResolution("mp4-copy", "1080p")
         assertNull(bounds.first)
         assertNull(bounds.second)
+    }
+
+    @Test
+    fun outputTargetIsPersistedBeforeServiceStarts() = runBlocking {
+        val output = OutputTarget(OutputTarget.Kind.SafTree, "content://tree/output")
+        val events = mutableListOf<String>()
+
+        persistOutputBeforeStart(
+            output = output,
+            persist = {
+                assertEquals(output, it)
+                events += "persist"
+            },
+            start = { events += "start" },
+        )
+
+        assertEquals(listOf("persist", "start"), events)
+    }
+
+    @Test
+    fun outputMimeMatchesResolvedContainer() {
+        assertEquals("audio/mpeg", outputMimeType(OutputConfig(preset = "audio-mp3")))
+        assertEquals("audio/mp4", outputMimeType(OutputConfig(preset = "audio-aac")))
+        assertEquals("image/gif", outputMimeType(OutputConfig(preset = "gif")))
+        assertEquals("video/webm", outputMimeType(OutputConfig(preset = "webm-vp9")))
+        assertEquals("video/mp4", outputMimeType(OutputConfig(preset = "mp4-h264")))
     }
 
     private fun media(name: String, container: String) = MediaInfo(
