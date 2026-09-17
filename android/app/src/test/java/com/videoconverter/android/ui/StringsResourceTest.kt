@@ -41,7 +41,8 @@ class StringsResourceTest {
     fun requiredCatalogMatchesBrief() {
         val zh = zhCn()
         val expected = listOf(
-            Triple(R.string.app_name, "LiteTrans", "LiteTrans"),
+            Triple(R.string.app_name, "LiteTrans", "轻转码"),
+            Triple(R.string.tab_convert, "Transcode", "转码"),
             Triple(R.string.tab_transcode, "Video", "视频转码"),
             Triple(R.string.tab_audio, "Audio", "音频转换"),
             Triple(R.string.tab_document, "Documents", "文档"),
@@ -84,6 +85,7 @@ class StringsResourceTest {
             Triple(R.string.notify_transcode_channel, "Conversion progress", "转码进度"),
             Triple(R.string.notify_checking_queue, "Checking the queue", "正在检查转码队列"),
             Triple(R.string.error_interrupted, "Conversion was interrupted", "转码被中断"),
+            Triple(R.string.wizard_more_formats, "GIF and other video formats", "GIF 和其他视频格式"),
         )
         for ((id, en, zhCn) in expected) {
             assertEquals(en, app.getString(id))
@@ -197,6 +199,25 @@ class StringsResourceTest {
             R.string.output_movies_hint,
             R.string.output_downloads_hint,
             R.string.output_custom_hint,
+            R.string.output_custom_pick,
+            R.string.privacy_capsule,
+            R.string.mine_local_promise,
+            R.string.mine_version,
+            R.string.quality_audio_high,
+            R.string.quality_audio_high_hint,
+            R.string.quality_audio_small,
+            R.string.quality_audio_small_hint,
+            R.string.action_clear_finished,
+            R.string.action_convert_again,
+            R.string.history_running_banner,
+            R.string.history_delete_title,
+            R.string.history_delete_body,
+            R.string.wizard_title_convert_to,
+            R.string.wizard_title_compress,
+            R.string.wizard_title_split,
+            R.string.document_office_preview,
+            R.string.document_office_word,
+            R.string.document_office_excel,
             R.string.output_music_hint,
             R.string.output_documents_hint,
             R.string.quality_original,
@@ -395,8 +416,11 @@ class StringsResourceTest {
         assertTrue(twFolders.contains("資料夾"))
         assertTrue(twConvert.contains("轉檔"))
 
+        assertEquals("輕轉碼", tw.getString(R.string.app_name))
+        assertEquals("輕轉碼", hk.getString(R.string.app_name))
+        assertEquals("LiteTrans", ja.getString(R.string.app_name))
+        assertEquals("LiteTrans", ko.getString(R.string.app_name))
         for (ctx in listOf(tw, hk, ja, ko)) {
-            assertEquals("LiteTrans", ctx.getString(R.string.app_name))
             assertEquals("English", ctx.getString(R.string.language_en))
             assertEquals("简体中文", ctx.getString(R.string.language_zh_cn))
             assertEquals("繁體中文", ctx.getString(R.string.language_zh_tw))

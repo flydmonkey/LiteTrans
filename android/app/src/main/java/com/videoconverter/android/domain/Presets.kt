@@ -114,7 +114,8 @@ fun resolveConfig(
 fun normalizeQuality(value: String?): String = when (value) {
     "original", "high" -> "original"
     "small" -> "small"
-    else -> "standard"
+    "standard" -> "standard"
+    else -> "original"
 }
 
 fun extensionFor(container: String): Result<String> = when (container) {

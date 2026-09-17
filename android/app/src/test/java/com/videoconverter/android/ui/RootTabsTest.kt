@@ -65,6 +65,11 @@ class RootTabsTest {
             ),
             mineItemGroups().map { group -> group.map { it.page } },
         )
+        assertEquals(MineRowIcon.Share, mineRowIcon(MinePage.LanShare))
+        assertEquals(MineRowIcon.Language, mineRowIcon(MinePage.Language))
+        assertEquals(MineRowIcon.Lock, mineRowIcon(MinePage.Privacy))
+        assertEquals(MineRowIcon.List, mineRowIcon(MinePage.Terms))
+        assertEquals(MineRowIcon.Info, mineRowIcon(MinePage.About))
     }
 
     @Test
@@ -237,6 +242,9 @@ class RootTabsTest {
             HistorySegment.Document,
             historySegmentAfterEnqueue(ConvertMode.Document, "image-jpg"),
         )
+        assertEquals(ConvertMode.Video, convertModeForHistorySegment(HistorySegment.Video))
+        assertEquals(ConvertMode.Audio, convertModeForHistorySegment(HistorySegment.Audio))
+        assertEquals(ConvertMode.Document, convertModeForHistorySegment(HistorySegment.Document))
     }
 
     @Test
@@ -247,6 +255,30 @@ class RootTabsTest {
     }
 
     @Test
+    fun historyThumbKindFollowsSegmentAndOutputType() {
+        assertEquals(
+            HistoryThumbKind.Video,
+            historyThumbKind(job("v", OutputConfig(preset = "mp4-h264"), outputPath = "/tmp/clip.mp4")),
+        )
+        assertEquals(
+            HistoryThumbKind.Audio,
+            historyThumbKind(job("a", OutputConfig(preset = "audio-mp3"), outputPath = "/tmp/song.mp3")),
+        )
+        assertEquals(
+            HistoryThumbKind.Document,
+            historyThumbKind(job("d", OutputConfig(preset = "pdf-split"), outputPath = "/tmp/scan.pdf")),
+        )
+        assertEquals(
+            HistoryThumbKind.Image,
+            historyThumbKind(job("p", OutputConfig(preset = "pdf-image"), outputPath = "/tmp/page.png")),
+        )
+        assertEquals(
+            HistoryThumbKind.Image,
+            historyThumbKind(job("i", OutputConfig(preset = "image-compress"), outputPath = "/tmp/shot.jpg")),
+        )
+    }
+
+    @Test
     fun leavingMineResetsDetail() {
         assertEquals(MinePage.Root, minePageAfterLeavingTab(RootTab.History, MinePage.Privacy))
         assertEquals(MinePage.Root, minePageAfterLeavingTab(RootTab.History, MinePage.LanShare))
@@ -254,11 +286,16 @@ class RootTabsTest {
         assertEquals(MinePage.Privacy, minePageAfterLeavingTab(RootTab.Mine, MinePage.Privacy))
     }
 
-    private fun job(id: String, config: OutputConfig, status: JobStatus = JobStatus.Completed) = Job(
+    private fun job(
+        id: String,
+        config: OutputConfig,
+        status: JobStatus = JobStatus.Completed,
+        outputPath: String? = null,
+    ) = Job(
         id = id,
         sourceUri = "content://$id",
         displayName = "$id.mp4",
-        outputPath = null,
+        outputPath = outputPath,
         status = status,
         progress = 1.0,
         error = null,

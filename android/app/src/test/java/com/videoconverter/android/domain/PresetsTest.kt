@@ -24,8 +24,10 @@ class PresetsTest {
     }
 
     @Test
-    fun qualityDefaultsToStandard() {
-        assertEquals("standard", resolveConfig(OutputConfig()).getOrThrow().quality)
+    fun qualityDefaultsToOriginal() {
+        assertEquals("original", resolveConfig(OutputConfig()).getOrThrow().quality)
+        assertEquals("original", normalizeQuality(null))
+        assertEquals("standard", normalizeQuality("standard"))
     }
 
     @Test

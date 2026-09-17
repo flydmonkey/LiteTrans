@@ -400,7 +400,10 @@ internal fun List<Job>.cancelJob(jobId: String, activeJobId: String?): List<Job>
         }
     }
 
-internal fun List<Job>.retryJob(jobId: String): List<Job> =
+internal fun List<Job>.retryJob(
+    jobId: String,
+    nowMs: () -> Long = { System.currentTimeMillis() },
+): List<Job> =
     map { job ->
         if (
             job.id == jobId &&
@@ -410,6 +413,7 @@ internal fun List<Job>.retryJob(jobId: String): List<Job> =
                 status = JobStatus.Queued,
                 progress = 0.0,
                 error = null,
+                createdAtEpochMs = nowMs(),
             )
         } else {
             job

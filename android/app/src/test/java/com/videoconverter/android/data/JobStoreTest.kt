@@ -82,6 +82,14 @@ class JobStoreTest {
         val parsed = jobsFromJson(oldJson).single()
         assertNull(parsed.outputKind)
         assertNull(parsed.outputTreeUri)
+        assertNull(parsed.createdAtEpochMs)
+    }
+
+    @Test
+    fun jobJsonRoundTripKeepsCreatedAt() {
+        val job = sampleJob().copy(createdAtEpochMs = 1_779_160_980_000L)
+        val parsed = jobsFromJson(jobsToJson(listOf(job))).single()
+        assertEquals(1_779_160_980_000L, parsed.createdAtEpochMs)
     }
 
     @Test

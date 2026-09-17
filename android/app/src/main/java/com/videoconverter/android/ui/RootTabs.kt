@@ -76,6 +76,17 @@ fun mineItemGroups(): List<List<MineItem>> = listOf(
     listOf(MineItem(MinePage.About, R.string.mine_about)),
 )
 
+enum class MineRowIcon { Share, Language, Lock, List, Info }
+
+fun mineRowIcon(page: MinePage): MineRowIcon = when (page) {
+    MinePage.Root -> MineRowIcon.Info
+    MinePage.LanShare -> MineRowIcon.Share
+    MinePage.Language -> MineRowIcon.Language
+    MinePage.Privacy -> MineRowIcon.Lock
+    MinePage.Terms -> MineRowIcon.List
+    MinePage.About -> MineRowIcon.Info
+}
+
 fun rootTabLabelRes(tab: RootTab): Int = when (tab) {
     RootTab.Convert -> R.string.tab_convert
     RootTab.History -> R.string.tab_history
@@ -133,6 +144,29 @@ fun historySegmentFor(job: Job): HistorySegment = when {
     else -> HistorySegment.Video
 }
 
+enum class HistoryThumbKind { Video, Audio, Image, Document }
+
+private val IMAGE_THUMB_EXTENSIONS = setOf(
+    "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif",
+)
+
+fun historyThumbFileName(job: Job): String =
+    (job.outputPaths.firstOrNull() ?: job.outputPath ?: job.displayName)
+
+fun historyThumbKind(job: Job): HistoryThumbKind {
+    val name = historyThumbFileName(job)
+    val ext = name.substringAfterLast('/', name)
+        .substringAfterLast('.', "")
+        .substringBefore('?')
+        .lowercase()
+    val image = ext in IMAGE_THUMB_EXTENSIONS
+    return when (historySegmentFor(job)) {
+        HistorySegment.Audio -> HistoryThumbKind.Audio
+        HistorySegment.Document -> if (image) HistoryThumbKind.Image else HistoryThumbKind.Document
+        HistorySegment.Video -> if (image) HistoryThumbKind.Image else HistoryThumbKind.Video
+    }
+}
+
 fun historyJobs(jobs: List<Job>, segment: HistorySegment): List<Job> =
     jobs.filter { historySegmentFor(it) == segment }
 
@@ -180,6 +214,12 @@ fun historyEmptyGlyph(segment: HistorySegment): AppGlyph = when (segment) {
     HistorySegment.Video -> AppGlyph.Video
     HistorySegment.Audio -> AppGlyph.Audio
     HistorySegment.Document -> AppGlyph.Document
+}
+
+fun convertModeForHistorySegment(segment: HistorySegment): ConvertMode = when (segment) {
+    HistorySegment.Video -> ConvertMode.Video
+    HistorySegment.Audio -> ConvertMode.Audio
+    HistorySegment.Document -> ConvertMode.Document
 }
 
 fun historySegmentAfterEnqueue(mode: ConvertMode, preset: String): HistorySegment = when {

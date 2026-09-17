@@ -66,6 +66,7 @@ class EnqueueFlowTest {
             outputDir = plannedOutputDir.absolutePath,
             nextId = { "instrumented-${++sequence}" },
             exists = { File(it).exists() },
+            clock = { "20260918_033012" },
         ).getOrThrow().jobs.single()
 
         val first = enqueue()
@@ -75,7 +76,7 @@ class EnqueueFlowTest {
         }
         val second = enqueue()
         assertEquals("tiny.mp4", File(requireNotNull(first.outputPath)).name)
-        assertEquals("tiny-1.mp4", File(requireNotNull(second.outputPath)).name)
+        assertEquals("tiny_20260918_033012.mp4", File(requireNotNull(second.outputPath)).name)
 
         val ffmpegStarted = CompletableDeferred<Unit>()
         val cancelledResult = async {

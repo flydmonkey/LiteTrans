@@ -124,7 +124,7 @@ fun ConvertScreen(
                     if (preview != null) {
                         item(key = "preview-${preview.sourceUri}") {
                             AppCard {
-                                Box(modifier = Modifier.padding(12.dp)) {
+                                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                                     if (documentMode) {
                                         DocumentSourcePreview(preview) { appViewModel.updateTrim(it, mode) }
                                     } else {

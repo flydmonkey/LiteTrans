@@ -40,6 +40,8 @@ fun enqueueJobs(
     selectOutput: String = "Choose an output folder first",
     validateCopy: ValidateCopy = ValidateCopy(),
     unknownPreset: (String) -> String = { "Unknown preset: $it" },
+    clock: () -> String = ::outputCollisionStamp,
+    nowMs: () -> Long = { System.currentTimeMillis() },
 ): Result<EnqueueReport> = runCatching {
     if (outputDir.isBlank()) {
         throw IllegalArgumentException(selectOutput)
@@ -66,13 +68,15 @@ fun enqueueJobs(
             outputDir = outputDir,
             stem = sourceStem(media.displayName),
             ext = resolved.extension,
-        ) { candidate ->
-            val partial = partialOutputPath(candidate)
-            exists(candidate) ||
-                exists(partial) ||
-                candidate in allocated ||
-                partial in allocated
-        }
+            exists = { candidate ->
+                val partial = partialOutputPath(candidate)
+                exists(candidate) ||
+                    exists(partial) ||
+                    candidate in allocated ||
+                    partial in allocated
+            },
+            clock = clock,
+        )
         allocated += outputPath
         allocated += partialOutputPath(outputPath)
 
@@ -86,6 +90,7 @@ fun enqueueJobs(
             error = null,
             config = configForSource(config, media),
             media = media,
+            createdAtEpochMs = nowMs(),
         )
     }
 
@@ -101,6 +106,8 @@ fun enqueueDocumentJobs(
     cannotTranscode: String = "Could not convert this file",
     selectOutput: String = "Choose an output folder first",
     cannotReadPages: String = "Could not read the page count",
+    clock: () -> String = ::outputCollisionStamp,
+    nowMs: () -> Long = { System.currentTimeMillis() },
 ): Result<EnqueueReport> = runCatching {
     if (outputDir.isBlank()) {
         throw IllegalArgumentException(selectOutput)
@@ -126,13 +133,15 @@ fun enqueueDocumentJobs(
             outputDir = outputDir,
             stem = sourceStem(media.displayName),
             ext = extension,
-        ) { candidate ->
-            val partial = partialOutputPath(candidate)
-            exists(candidate) ||
-                exists(partial) ||
-                candidate in allocated ||
-                partial in allocated
-        }
+            exists = { candidate ->
+                val partial = partialOutputPath(candidate)
+                exists(candidate) ||
+                    exists(partial) ||
+                    candidate in allocated ||
+                    partial in allocated
+            },
+            clock = clock,
+        )
         allocated += outputPath
         allocated += partialOutputPath(outputPath)
 
@@ -146,6 +155,7 @@ fun enqueueDocumentJobs(
             error = null,
             config = configForSource(config, media),
             media = media,
+            createdAtEpochMs = nowMs(),
         )
     }
 

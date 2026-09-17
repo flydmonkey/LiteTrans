@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LiteTrans</string>
+    <string name="app_name">轻转码</string>
+    <string name="privacy_capsule">只在本机</string>
+    <string name="mine_local_promise">所选文件只在这台手机上处理</string>
+    <string name="mine_version">版本 %1$s</string>
+    <string name="tab_convert">转码</string>
     <string name="tab_transcode">视频转码</string>
     <string name="tab_audio">音频转换</string>
     <string name="tab_document">文档</string>
@@ -25,6 +29,9 @@
     <string name="history_empty_hint">转好的文件会出现在这里</string>
     <string name="history_rename_title">重命名</string>
     <string name="history_rename_hint">只改文件名，扩展名会保持原样。</string>
+    <string name="history_running_banner">正在转码 %1$d 项</string>
+    <string name="history_delete_title">删除这个文件？</string>
+    <string name="history_delete_body">转出的文件会从这台手机上删除。</string>
     <string name="untitled">未命名</string>
     <string name="status_queued">排队中</string>
     <string name="status_running">正在转码</string>
@@ -66,20 +73,27 @@
     <string name="action_copy">复制</string>
     <string name="action_copied">已复制</string>
     <string name="action_got_it">知道了</string>
+    <string name="action_clear_finished">清空已完成</string>
+    <string name="action_convert_again">再转一批</string>
     <string name="action_remove">移除</string>
     <string name="action_more">更多</string>
     <string name="action_collapse">收起</string>
+    <string name="section_files">文件</string>
+    <string name="section_settings">设置</string>
     <string name="wizard_step_sources">添加</string>
     <string name="wizard_step_format">格式</string>
     <string name="wizard_step_output">存放</string>
     <string name="wizard_title_sources">添加文件</string>
     <string name="wizard_title_format">选择格式</string>
     <string name="wizard_title_output">存放位置</string>
+    <string name="wizard_title_convert_to">转成</string>
+    <string name="wizard_title_compress">压缩</string>
+    <string name="wizard_title_split">拆分</string>
     <string name="wizard_start_transcode">开始转码</string>
     <string name="wizard_start_convert">开始转换</string>
     <string name="wizard_joining_queue">正在加入队列…</string>
     <string name="wizard_converting">正在转码…</string>
-    <string name="wizard_more_formats">GIF、音频和其他格式</string>
+    <string name="wizard_more_formats">GIF 和其他视频格式</string>
     <string name="wizard_less_formats">只看常用格式</string>
     <string name="wizard_add_audio">添加要转换的音频</string>
     <string name="wizard_add_document">添加要转换的文件</string>
@@ -131,6 +145,7 @@
     <string name="output_movies_hint">进手机视频库</string>
     <string name="output_downloads_hint">系统下载文件夹</string>
     <string name="output_custom_hint">自己选一个文件夹</string>
+    <string name="output_custom_pick">点这里选择文件夹</string>
     <string name="output_music_hint">进手机音乐库</string>
     <string name="output_documents_hint">系统文档文件夹</string>
     <string name="quality_original">原画</string>
@@ -141,6 +156,10 @@
     <string name="quality_original_hint">尽量保留细节</string>
     <string name="quality_standard_hint">一般观看够用</string>
     <string name="quality_small_hint">文件更小，会糊一点</string>
+    <string name="quality_audio_high">高品质</string>
+    <string name="quality_audio_high_hint">尽量保留细节</string>
+    <string name="quality_audio_small">更小文件</string>
+    <string name="quality_audio_small_hint">文件更小</string>
     <string name="quality_high_hint">尽量保留细节</string>
     <string name="quality_smaller_hint">文件更小</string>
     <string name="size_original">原尺寸</string>
@@ -174,6 +193,9 @@
     <string name="document_total_pages">共 %1$d 页</string>
     <string name="document_preview">预览</string>
     <string name="document_preview_failed">无法预览</string>
+    <string name="document_office_preview">将转成 PDF</string>
+    <string name="document_office_word">Word 文档</string>
+    <string name="document_office_excel">Excel 表格</string>
     <string name="duration_seconds">%1$d 秒</string>
     <string name="duration_minutes">%1$d 分钟</string>
     <string name="duration_min_sec">%1$d 分 %2$d 秒</string>

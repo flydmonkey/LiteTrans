@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">LiteTrans</string>
+    <string name="privacy_capsule">이 기기</string>
+    <string name="mine_local_promise">선택한 파일은 이 휴대폰에서만 처리됩니다</string>
+    <string name="mine_version">버전 %1$s</string>
+    <string name="tab_convert">변환</string>
     <string name="tab_transcode">동영상 변환</string>
     <string name="tab_audio">오디오 변환</string>
     <string name="tab_document">문서</string>
@@ -25,6 +29,9 @@
     <string name="history_empty_hint">변환된 파일이 여기에 표시됩니다</string>
     <string name="history_rename_title">이름 변경</string>
     <string name="history_rename_hint">파일 이름만 바뀝니다. 확장자는 그대로입니다.</string>
+    <string name="history_running_banner">변환 중 %1$d건</string>
+    <string name="history_delete_title">이 파일을 삭제할까요?</string>
+    <string name="history_delete_body">변환된 파일이 이 휴대폰에서 삭제됩니다.</string>
     <string name="untitled">제목 없음</string>
     <string name="status_queued">대기 중</string>
     <string name="status_running">변환 중</string>
@@ -66,20 +73,27 @@
     <string name="action_copy">복사</string>
     <string name="action_copied">복사됨</string>
     <string name="action_got_it">확인</string>
+    <string name="action_clear_finished">완료 지우기</string>
+    <string name="action_convert_again">다시 변환</string>
     <string name="action_remove">제거</string>
     <string name="action_more">더보기</string>
     <string name="action_collapse">접기</string>
+    <string name="section_files">파일</string>
+    <string name="section_settings">설정</string>
     <string name="wizard_step_sources">추가</string>
     <string name="wizard_step_format">형식</string>
     <string name="wizard_step_output">저장</string>
     <string name="wizard_title_sources">파일 추가</string>
     <string name="wizard_title_format">형식 선택</string>
     <string name="wizard_title_output">저장 위치</string>
+    <string name="wizard_title_convert_to">변환</string>
+    <string name="wizard_title_compress">압축</string>
+    <string name="wizard_title_split">분할</string>
     <string name="wizard_start_transcode">변환 시작</string>
     <string name="wizard_start_convert">변환 시작</string>
     <string name="wizard_joining_queue">대기열에 추가하는 중…</string>
     <string name="wizard_converting">변환 중…</string>
-    <string name="wizard_more_formats">GIF, 오디오 및 기타 형식</string>
+    <string name="wizard_more_formats">GIF 및 기타 동영상 형식</string>
     <string name="wizard_less_formats">자주 쓰는 형식만 보기</string>
     <string name="wizard_add_audio">변환할 오디오 추가</string>
     <string name="wizard_add_document">변환할 파일 추가</string>
@@ -131,6 +145,7 @@
     <string name="output_movies_hint">휴대폰 동영상 라이브러리로</string>
     <string name="output_downloads_hint">시스템 다운로드 폴더</string>
     <string name="output_custom_hint">폴더를 직접 선택</string>
+    <string name="output_custom_pick">여기를 눌러 폴더 선택</string>
     <string name="output_music_hint">휴대폰 음악 라이브러리로</string>
     <string name="output_documents_hint">시스템 문서 폴더</string>
     <string name="quality_original">원본</string>
@@ -141,6 +156,10 @@
     <string name="quality_original_hint">가능한 한 세부를 유지</string>
     <string name="quality_standard_hint">일상 시청에 충분</string>
     <string name="quality_small_hint">파일은 작아지지만 조금 흐려집니다</string>
+    <string name="quality_audio_high">고음질</string>
+    <string name="quality_audio_high_hint">가능한 한 세부를 유지</string>
+    <string name="quality_audio_small">더 작은 파일</string>
+    <string name="quality_audio_small_hint">파일을 더 작게</string>
     <string name="quality_high_hint">가능한 한 세부를 유지</string>
     <string name="quality_smaller_hint">파일이 더 작아집니다</string>
     <string name="size_original">원본 크기</string>
@@ -174,6 +193,9 @@
     <string name="document_total_pages">총 %1$d페이지</string>
     <string name="document_preview">미리보기</string>
     <string name="document_preview_failed">미리보기 불가</string>
+    <string name="document_office_preview">PDF로 변환됩니다</string>
+    <string name="document_office_word">Word 문서</string>
+    <string name="document_office_excel">Excel 시트</string>
     <string name="duration_seconds">%1$d초</string>
     <string name="duration_minutes">%1$d분</string>
     <string name="duration_min_sec">%1$d분 %2$d초</string>

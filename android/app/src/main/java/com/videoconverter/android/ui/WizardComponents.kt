@@ -2,6 +2,7 @@ package com.videoconverter.android.ui
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,12 +21,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -681,22 +683,15 @@ fun JobRow(
         JobStatus.Completed -> 1f
         else -> (job.progress / 100.0).toFloat().coerceIn(0f, 1f)
     }
-    val markColor = when (job.status) {
-        JobStatus.Completed, JobStatus.Running -> MaterialTheme.colorScheme.primary
-        JobStatus.Failed -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
-    val markForeground = when (job.status) {
-        JobStatus.Completed, JobStatus.Running -> MaterialTheme.colorScheme.onPrimary
-        JobStatus.Failed -> MaterialTheme.colorScheme.onError
-        else -> MaterialTheme.colorScheme.onSurface
-    }
     var sheet by remember { mutableStateOf(false) }
     val primary = jobRowPrimaryAction(job.status)
     val overflow = jobRowOverflowActions(job.status)
     val failed = job.status == JobStatus.Failed
+    val openOnTap = primary == JobRowAction.Open
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (openOnTap) Modifier.clickable(onClick = onOpen) else Modifier),
         colors = CardDefaults.cardColors(
             containerColor = if (failed) {
                 MaterialTheme.colorScheme.errorContainer
@@ -711,107 +706,96 @@ fun JobRow(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            HistoryThumbnail(
+                job = job,
+                modifier = Modifier.size(88.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp, end = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(markColor),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    when (job.status) {
-                        JobStatus.Completed -> Icon(
-                            Icons.Filled.Check,
-                            contentDescription = null,
-                            tint = markForeground,
-                            modifier = Modifier.size(22.dp),
-                        )
-                        JobStatus.Running -> Text(
-                            "${kotlin.math.round(job.progress).toInt()}",
-                            color = markForeground,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                        )
-                        JobStatus.Failed -> Text(
-                            "!",
-                            color = markForeground,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                        )
-                        JobStatus.Cancelled -> Text(
-                            "–",
-                            color = markForeground,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                        )
-                        JobStatus.Queued -> Text(
-                            "…",
-                            color = markForeground,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                        )
-                    }
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
+                Text(
+                    historyTitle(job, stringResource(R.string.untitled)),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (failed) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    historyDetail(
+                        LocalContext.current.resources,
+                        job,
+                        stringResource(statusLabelRes(job.status)),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (failed) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                historyDateLabel(job.createdAtEpochMs)?.let { date ->
                     Text(
-                        historyTitle(job, stringResource(R.string.untitled)),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (failed) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        historyDetail(
-                            LocalContext.current.resources,
-                            job,
-                            stringResource(statusLabelRes(job.status)),
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
+                        date,
+                        style = MaterialTheme.typography.bodySmall,
                         color = if (failed) {
                             MaterialTheme.colorScheme.onErrorContainer
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+                if (active) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
-            if (active) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Column {
                 primary?.let { action ->
-                    Button(
-                        onClick = jobRowActionClick(action, onCancel, onRetry, onOpen, onShare, onRename, onDelete),
+                    IconButton(
+                        onClick = jobRowActionClick(
+                            action,
+                            onCancel,
+                            onRetry,
+                            onOpen,
+                            onShare,
+                            onRename,
+                            onDelete,
+                        ),
+                        modifier = Modifier.size(48.dp),
                     ) {
-                        Text(stringResource(jobRowActionLabelRes(action)))
+                        Icon(
+                            jobRowActionIcon(action),
+                            contentDescription = stringResource(jobRowActionLabelRes(action)),
+                        )
                     }
                 }
                 if (overflow.isNotEmpty()) {
-                    IconButton(onClick = { sheet = true }) {
+                    IconButton(
+                        onClick = { sheet = true },
+                        modifier = Modifier.size(48.dp),
+                    ) {
                         Icon(
                             Icons.Filled.MoreVert,
                             contentDescription = stringResource(R.string.action_more),
@@ -843,6 +827,15 @@ fun JobRow(
             }
         }
     }
+}
+
+private fun jobRowActionIcon(action: JobRowAction) = when (action) {
+    JobRowAction.Cancel -> Icons.Filled.Close
+    JobRowAction.Retry -> Icons.Filled.Refresh
+    JobRowAction.Open -> Icons.Filled.PlayArrow
+    JobRowAction.Share -> Icons.Filled.Share
+    JobRowAction.Rename -> Icons.Filled.MoreVert
+    JobRowAction.Delete -> Icons.Filled.Close
 }
 
 private fun jobRowActionLabelRes(action: JobRowAction): Int = when (action) {

@@ -54,6 +54,7 @@ class TranscodeServiceStateTest {
         assertEquals(null, cancelled.single().error)
         assertEquals(JobStatus.Queued, retried.single().status)
         assertEquals(JobStatus.Queued, afterLateCompletion.single().status)
+        assertEquals(99L, listOf(job(JobStatus.Failed)).retryJob("job-1") { 99L }.single().createdAtEpochMs)
     }
 
     @Test

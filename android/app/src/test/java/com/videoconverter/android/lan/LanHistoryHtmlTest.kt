@@ -27,7 +27,11 @@ class LanHistoryHtmlTest {
         assertTrue(html.contains("class=\"player\""))
         assertTrue(html.contains("<video"))
         assertTrue(html.contains("data-media=\"/m/v\""))
-        assertTrue(html.contains("data-download=\"/d/v?k="))
+        assertTrue(html.contains("class=\"row-dl\""))
+        assertTrue(html.contains("href=\"/d/v?k="))
+        val videoItem = html.substringAfter("data-id=\"v\"").substringBefore("data-id=\"img\"")
+        assertTrue(videoItem.indexOf("v.mp4") < videoItem.indexOf("class=\"row-dl\""))
+        assertTrue(videoItem.contains("href=\"/d/v?k="))
         assertTrue(html.contains("data-tab=\"video\""))
         assertTrue(html.contains("data-media=\"/m/d/0\""))
         assertTrue(html.contains("data-media=\"/m/d/1\""))
@@ -72,6 +76,7 @@ class LanHistoryHtmlTest {
         ) { it == "/tmp/a.pdf" }
         assertTrue(html.contains("data-media=\"/m/d/0\"") || html.contains("data-media=\"/m/d\""))
         assertFalse(html.contains("/m/d/1"))
+        assertTrue(html.contains("class=\"row-dl\"") && html.contains("href=\"/d/d/0\""))
         assertTrue(html.contains(">Download</a>"))
     }
 

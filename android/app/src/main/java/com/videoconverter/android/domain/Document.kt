@@ -53,6 +53,11 @@ fun clampPageRange(start: Int, end: Int, pageCount: Int): Pair<Int, Int> {
     return lo to hi
 }
 
+fun stepPage(value: Int, total: Int, delta: Int): Int {
+    val pages = if (total < 1) 1 else total
+    return (value + delta).coerceIn(1, pages)
+}
+
 fun defaultDocumentPreset(kind: DocumentSourceKind): String = when (kind) {
     DocumentSourceKind.Image -> "image-jpg"
     DocumentSourceKind.Pdf -> "pdf-image"

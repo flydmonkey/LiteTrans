@@ -11,10 +11,10 @@ import org.junit.Test
 
 class OutputStoreTest {
     @Test
-    fun collisionUsesNumericSuffix() {
+    fun collisionAppendsTimestamp() {
         assertEquals(
-            "clip-1.mp4",
-            uniqueDisplayName("clip", "mp4", setOf("clip.mp4")),
+            "clip_20260918_033012.mp4",
+            uniqueDisplayName("clip", "mp4", setOf("clip.mp4"), clock = { "20260918_033012" }),
         )
     }
 

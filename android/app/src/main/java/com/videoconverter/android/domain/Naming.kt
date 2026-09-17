@@ -27,21 +27,39 @@ fun ffmpegFileArg(path: String): String {
     return "file:$path"
 }
 
+fun uniqueFileName(
+    stem: String,
+    ext: String,
+    taken: (String) -> Boolean,
+    clock: () -> String = ::outputCollisionStamp,
+): String {
+    val base = "$stem.$ext"
+    if (!taken(base)) return base
+    val stamp = clock()
+    val stamped = "${stem}_$stamp.$ext"
+    if (!taken(stamped)) return stamped
+    var index = 1
+    while (taken("${stem}_${stamp}_$index.$ext")) {
+        index++
+    }
+    return "${stem}_${stamp}_$index.$ext"
+}
+
+fun outputCollisionStamp(): String {
+    val now = java.time.LocalDateTime.now()
+    return java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(now)
+}
+
 fun allocateOutputPath(
     outputDir: String,
     stem: String,
     ext: String,
     exists: (String) -> Boolean,
+    clock: () -> String = ::outputCollisionStamp,
 ): String {
     val dir = outputDir.trimEnd('/')
-    val candidate = "$dir/$stem.$ext"
-    if (!exists(candidate)) return candidate
-    var index = 1
-    while (true) {
-        val numbered = "$dir/$stem-$index.$ext"
-        if (!exists(numbered)) return numbered
-        index++
-    }
+    val name = uniqueFileName(stem, ext, { exists("$dir/$it") }, clock)
+    return "$dir/$name"
 }
 
 fun sanitizeRenameStem(raw: String): String? {

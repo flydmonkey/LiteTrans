@@ -95,8 +95,12 @@ class AppViewModelTest {
         assertEquals("mp4-copy", video.preset)
         assertEquals("small", video.quality)
         assertEquals("720p", video.size)
-        assertEquals(OutputTarget.Kind.Movies, video.output.kind)
+        assertEquals(OutputTarget.Kind.Gallery, video.output.kind)
         assertEquals("audio-mp3", defaultAudioSession().preset)
+        assertEquals(
+            SessionStore.DEFAULT_PRESET,
+            videoSessionFromSettings(settings.copy(preset = "audio-mp3")).preset,
+        )
     }
 
     @Test

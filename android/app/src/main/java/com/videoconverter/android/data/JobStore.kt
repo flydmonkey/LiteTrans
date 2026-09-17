@@ -96,6 +96,7 @@ private fun Job.toJson(): JSONObject = JSONObject()
     .putNullable("outputKind", outputKind)
     .putNullable("outputTreeUri", outputTreeUri)
     .put("outputPaths", JSONArray(outputPaths))
+    .putNullable("createdAtEpochMs", createdAtEpochMs)
 
 private fun JSONObject.toJob(): Job = Job(
     id = getString("id"),
@@ -110,6 +111,7 @@ private fun JSONObject.toJob(): Job = Job(
     outputKind = nullableString("outputKind"),
     outputTreeUri = nullableString("outputTreeUri"),
     outputPaths = stringList("outputPaths"),
+    createdAtEpochMs = nullableLong("createdAtEpochMs"),
 )
 
 private fun OutputConfig.toJson(): JSONObject = JSONObject()
@@ -196,6 +198,9 @@ private fun JSONObject.nullableDouble(name: String): Double? =
 
 private fun JSONObject.nullableBoolean(name: String): Boolean? =
     if (isNull(name)) null else getBoolean(name)
+
+private fun JSONObject.nullableLong(name: String): Long? =
+    if (isNull(name)) null else getLong(name)
 
 private fun JSONObject.stringList(name: String): List<String> {
     if (isNull(name)) return emptyList()

@@ -31,6 +31,9 @@ class DocumentTest {
         assertEquals(1 to 3, clampPageRange(0, 99, 3))
         assertEquals(2 to 2, clampPageRange(2, 2, 5))
         assertEquals(1 to 1, clampPageRange(8, 1, 1))
+        assertEquals(2, stepPage(1, 5, 1))
+        assertEquals(1, stepPage(1, 5, -1))
+        assertEquals(5, stepPage(5, 5, 1))
     }
 
     @Test

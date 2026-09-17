@@ -86,10 +86,10 @@ fun applyProbedSource(media: MediaInfo, mode: ConvertMode, noAudioError: String)
     if (mode == ConvertMode.Audio) restrictAudioSource(media, noAudioError) else media
 
 fun videoSessionFromSettings(settings: SessionSettings): WizardSession = defaultVideoSession().copy(
-    preset = settings.preset ?: SessionStore.DEFAULT_PRESET,
+    preset = coerceVideoPreset(settings.preset),
     quality = settings.quality ?: SessionStore.DEFAULT_QUALITY,
     size = sizeFor(settings.maxWidth, settings.maxHeight),
-    output = settings.output,
+    output = coerceVideoOutput(settings.output),
 )
 
 fun shouldPersistOutputForMode(mode: ConvertMode): Boolean = mode == ConvertMode.Video

@@ -9,18 +9,31 @@ import org.junit.Test
 class NamingTest {
     @Test
     fun uniqueName() {
-        assertEquals("/out/clip.mp4", allocateOutputPath("/out", "clip", "mp4") { false })
+        assertEquals("/out/clip.mp4", allocateOutputPath("/out", "clip", "mp4", exists = { false }))
+        assertEquals("假期.mp4", uniqueFileName("假期", "mp4", taken = { false }))
     }
 
     @Test
-    fun collisionUsesNumericSuffix() {
-        assertEquals("/out/clip-1.mp4", allocateOutputPath("/out", "clip", "mp4") { it == "/out/clip.mp4" })
+    fun collisionAppendsTimestamp() {
+        val stamp = "20260918_033012"
+        assertEquals(
+            "/out/clip_${stamp}.mp4",
+            allocateOutputPath("/out", "clip", "mp4", { it == "/out/clip.mp4" }, { stamp }),
+        )
+        assertEquals(
+            "假期_${stamp}.mp4",
+            uniqueFileName("假期", "mp4", { it == "假期.mp4" }, { stamp }),
+        )
     }
 
     @Test
-    fun collisionSkipsTakenSuffixes() {
-        val taken = setOf("/out/clip.mp4", "/out/clip-1.mp4")
-        assertEquals("/out/clip-2.mp4", allocateOutputPath("/out", "clip", "mp4") { it in taken })
+    fun collisionSkipsTakenTimestamps() {
+        val stamp = "20260918_033012"
+        val taken = setOf("/out/clip.mp4", "/out/clip_${stamp}.mp4")
+        assertEquals(
+            "/out/clip_${stamp}_1.mp4",
+            allocateOutputPath("/out", "clip", "mp4", { it in taken }, { stamp }),
+        )
     }
 
     @Test

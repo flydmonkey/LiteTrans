@@ -12,6 +12,8 @@ class ConvertTest {
     fun audioSessionDefaultsToMp3AndMusic() {
         val audio = defaultAudioSession()
         assertEquals("audio-mp3", audio.preset)
+        assertEquals("original", audio.quality)
+        assertEquals("original", defaultVideoSession().quality)
         assertEquals(OutputTarget.Kind.Music, audio.output.kind)
         assertTrue(defaultVideoSession().sources.isEmpty())
     }

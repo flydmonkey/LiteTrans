@@ -1,6 +1,7 @@
 package com.videoconverter.android.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -98,7 +98,7 @@ fun RootNavigationBar(
 }
 
 fun rootTabIcon(tab: RootTab): ImageVector = when (tab) {
-    RootTab.Convert -> Icons.Filled.PlayArrow
+    RootTab.Convert -> ConvertTabIcon
     RootTab.History -> Icons.Filled.List
     RootTab.Mine -> Icons.Filled.Person
 }
@@ -186,5 +186,19 @@ fun AppCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = MaterialTheme.shapes.medium,
         content = { Column(modifier = Modifier.padding(vertical = 4.dp), content = { content() }) },
+    )
+}
+
+@Composable
+fun OutlinedAppCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = MaterialTheme.shapes.medium,
+        content = content,
     )
 }

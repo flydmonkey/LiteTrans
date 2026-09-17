@@ -11,7 +11,9 @@ import androidx.documentfile.provider.DocumentFile
 import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.allocateOutputPath
+import com.videoconverter.android.domain.outputCollisionStamp
 import com.videoconverter.android.domain.partialOutputPath
+import com.videoconverter.android.domain.uniqueFileName
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -59,16 +61,12 @@ data class ExportedOutput(
     val target: OutputTarget,
 )
 
-fun uniqueDisplayName(stem: String, ext: String, existing: Set<String>): String {
-    val candidate = "$stem.$ext"
-    if (candidate !in existing) return candidate
-
-    var index = 1
-    while ("$stem-$index.$ext" in existing) {
-        index++
-    }
-    return "$stem-$index.$ext"
-}
+fun uniqueDisplayName(
+    stem: String,
+    ext: String,
+    existing: Set<String>,
+    clock: () -> String = ::outputCollisionStamp,
+): String = uniqueFileName(stem, ext, { it in existing }, clock)
 
 class OutputStore(
     private val context: Context,
@@ -218,7 +216,12 @@ class OutputStore(
         val outputDir = File(root, "轻转码").apply {
             if (!exists() && !mkdirs()) throw IOException(context.getString(R.string.error_cannot_create_app_output))
         }
-        val outputPath = allocateOutputPath(outputDir.absolutePath, stem, ext) { File(it).exists() }
+        val outputPath = allocateOutputPath(
+            outputDir.absolutePath,
+            stem,
+            ext,
+            exists = { File(it).exists() },
+        )
         val destination = File(outputPath)
         source.copyTo(destination)
         val actualTarget = OutputTarget(OutputTarget.Kind.AppExternal, outputDir.absolutePath)

@@ -137,7 +137,7 @@ class DocumentEngine(
         val planned = planDocumentOutputs(job)
         val total = planned.size
         val stem = sourceStem(job.displayName)
-        val quality = job.config.quality ?: "standard"
+        val quality = job.config.quality ?: "original"
         val sourceExt = source.extension.ifBlank {
             job.displayName.substringAfterLast('.').lowercase()
         }.lowercase()

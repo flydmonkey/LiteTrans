@@ -47,7 +47,12 @@ fun renderLanHistoryHtml(
             } else {
                 if (tab == LanLibraryTab.Image) append("<div class=\"thumbs\">")
                 tabItems.forEachIndexed { index, item ->
-                    appendLibraryItem(item, token, selected = tab == defaultTab && index == 0)
+                    appendLibraryItem(
+                        item = item,
+                        token = token,
+                        downloadLabel = copy.download,
+                        selected = tab == defaultTab && index == 0,
+                    )
                 }
                 if (tab == LanLibraryTab.Image) append("</div>")
             }
@@ -61,10 +66,7 @@ fun renderLanHistoryHtml(
         append("<img alt=\"\">")
         append("<iframe title=\"preview\"></iframe>")
         append("</div>")
-        append("<div class=\"meta\">")
-        append("<p id=\"hint\"></p>")
-        append("<a id=\"download\" href=\"#\" style=\"display:none\">").append(escapeHtml(copy.download)).append("</a>")
-        append("</div></div></main>")
+        append("<div class=\"meta\"><p id=\"hint\"></p></div></div></main>")
         append("<script>")
         append("var previewFailed=").append(jsString(copy.previewFailed)).append(";")
         append("var downloadToOpen=").append(jsString(copy.downloadToOpen)).append(";")
@@ -77,6 +79,7 @@ fun renderLanHistoryHtml(
 private fun StringBuilder.appendLibraryItem(
     item: LanLibraryItem,
     token: String,
+    downloadLabel: String,
     selected: Boolean,
 ) {
     val media = lanHistoryDownloadHref(item.jobId, item.index, item.needsIndex, "", "m")
@@ -91,6 +94,7 @@ private fun StringBuilder.appendLibraryItem(
     append("\" data-index=\"").append(item.index)
     append("\" data-tab=\"").append(item.tab.wireName())
     append("\">")
+    append("<span class=\"name\">")
     when (item.tab) {
         LanLibraryTab.Image -> {
             val thumb = lanHistoryDownloadHref(item.jobId, item.index, item.needsIndex, token, "m")
@@ -102,6 +106,10 @@ private fun StringBuilder.appendLibraryItem(
         }
         else -> append(escapeHtml(item.label))
     }
+    append("</span>")
+    append("<a class=\"row-dl\" href=\"").append(escapeHtml(download)).append("\">")
+    append(escapeHtml(downloadLabel))
+    append("</a>")
     append("</div>")
 }
 
@@ -142,11 +150,16 @@ main{display:flex;flex:1;min-height:0;gap:16px;padding:16px 18px 20px}
 .rail{width:320px;flex:0 0 320px;background:#fff;border:1px solid #d5d2cc;border-radius:14px;overflow:auto;padding:10px;box-sizing:border-box}
 .pane[hidden]{display:none}
 .empty{margin:18px 10px;color:#5c6460}
-.item{padding:10px 12px;border-radius:8px;cursor:pointer}
+.item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer}
+.item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item.selected{background:#f6f1ea;box-shadow:inset 3px 0 0 #c45a2a}
+.row-dl{flex:0 0 auto;color:#c45a2a;font-weight:600;font-size:.9rem;text-decoration:none}
+.row-dl:hover{text-decoration:underline}
 .thumbs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.item.thumb{padding:0;overflow:hidden;border:2px solid transparent}
+.item.thumb{display:block;padding:0;overflow:hidden;border:2px solid transparent;position:relative}
 .item.thumb.selected{box-shadow:none;border-color:#c45a2a;background:transparent}
+.item.thumb .name{display:block}
+.item.thumb .row-dl{position:absolute;right:6px;bottom:6px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.92)}
 .thumb-src{display:block;width:100%;height:88px;object-fit:cover;background:#d5d2cc}
 .fmt{color:#5c6460;font-size:.85em;margin-left:.35em}
 .stage{flex:1;display:flex;flex-direction:column;min-width:0}
@@ -155,9 +168,7 @@ main{display:flex;flex:1;min-height:0;gap:16px;padding:16px 18px 20px}
 .player iframe{width:100%;height:100%;border:0}
 .player audio{width:80%}
 .meta{padding:12px 4px 0}
-#hint{margin:0 0 8px;color:#5c6460}
-#download{color:#c45a2a;font-weight:600;text-decoration:none}
-#download:hover{text-decoration:underline}
+#hint{margin:0;color:#5c6460}
 @media (max-width:720px){main{flex-direction:column}.rail{width:auto;flex:none;max-height:40vh}.player{min-height:200px}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 """
@@ -172,16 +183,14 @@ var audio=document.querySelector('audio');
 var img=document.querySelector('.player img');
 var iframe=document.querySelector('iframe');
 var hint=document.getElementById('hint');
-var download=document.getElementById('download');
 function hideAll(){
   video.removeAttribute('src');video.load();video.style.display='none';
   audio.removeAttribute('src');audio.load();audio.style.display='none';
   img.removeAttribute('src');img.style.display='none';
   iframe.removeAttribute('src');iframe.style.display='none';
   hint.textContent='';
-  download.style.display='none';
 }
-function showError(){hideAll();hint.textContent=previewFailed;download.style.display='inline';}
+function showError(){hideAll();hint.textContent=previewFailed;}
 video.onerror=showError;audio.onerror=showError;img.onerror=showError;iframe.onerror=showError;
 function showTab(name){
   document.querySelectorAll('[data-tab-btn]').forEach(function(btn){
@@ -200,14 +209,12 @@ function select(el){
   el.classList.add('selected');
   var kind=el.getAttribute('data-kind');
   var media=el.getAttribute('data-media');
-  var dl=el.getAttribute('data-download');
   hideAll();
-  if(dl){download.setAttribute('href',dl);download.style.display='inline';}
   if(kind==='video'){video.style.display='block';video.src=withToken(media);}
   else if(kind==='audio'){audio.style.display='block';audio.src=withToken(media);}
   else if(kind==='image'){img.style.display='block';img.src=withToken(media);}
   else if(kind==='pdf'){iframe.style.display='block';iframe.src=withToken(media);}
-  else {hint.textContent=downloadToOpen;download.style.display='inline';}
+  else {hint.textContent=downloadToOpen;}
 }
 document.querySelectorAll('[data-tab-btn]').forEach(function(btn){
   btn.addEventListener('click',function(){
@@ -219,6 +226,9 @@ document.querySelectorAll('[data-tab-btn]').forEach(function(btn){
 });
 document.querySelectorAll('[data-media]').forEach(function(el){
   el.addEventListener('click',function(){select(el);});
+});
+document.querySelectorAll('.row-dl').forEach(function(a){
+  a.addEventListener('click',function(e){e.stopPropagation();});
 });
 function fromHash(){
   var m=location.hash.match(/^#m\/([^/]+)(?:\/(\d+))?$/);

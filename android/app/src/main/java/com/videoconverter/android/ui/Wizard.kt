@@ -3,12 +3,20 @@ package com.videoconverter.android.ui
 import android.content.res.Resources
 import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputTarget
+import com.videoconverter.android.data.SessionStore
 import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.documentExtension
 import com.videoconverter.android.domain.documentResultIsImage
 import com.videoconverter.android.domain.documentSourceKind
+import com.videoconverter.android.domain.isDocumentPreset
+import com.videoconverter.android.domain.resolveConfig
+import com.videoconverter.android.domain.sourceStem
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 enum class WizardStep { Sources, Format, Output }
 
@@ -32,8 +40,6 @@ val WIZARD_PRESET_CARDS = listOf(
     WizardPresetCard("webm-vp9", title = "WebM · VP9", hintRes = R.string.preset_webm_vp9_desc),
     WizardPresetCard("avi-mpeg4", title = "AVI · MPEG-4", hintRes = R.string.preset_avi_mpeg4_desc),
     WizardPresetCard("gif", title = "GIF", hintRes = R.string.preset_gif_desc),
-    WizardPresetCard("audio-mp3", title = "MP3", hintRes = R.string.preset_audio_mp3_desc),
-    WizardPresetCard("audio-aac", title = "M4A · AAC", hintRes = R.string.preset_audio_aac_desc),
 )
 
 val AUDIO_PRESET_CARDS = listOf(
@@ -124,14 +130,54 @@ private val CODEC_LABELS = mapOf(
     "flac" to "FLAC",
 )
 
-fun wizardScreenTitleRes(step: WizardStep): Int = when (step) {
-    WizardStep.Sources -> R.string.wizard_title_sources
-    WizardStep.Format -> R.string.wizard_title_format
-    WizardStep.Output -> R.string.wizard_title_output
+fun wizardScreenTitleRes(
+    step: WizardStep,
+    mode: ConvertMode = ConvertMode.Video,
+    preset: String = "",
+): Int = when {
+    step == WizardStep.Sources -> R.string.wizard_title_sources
+    step == WizardStep.Output -> R.string.wizard_title_output
+    step == WizardStep.Format && mode == ConvertMode.Document -> when {
+        "compress" in preset -> R.string.wizard_title_compress
+        "split" in preset -> R.string.wizard_title_split
+        else -> R.string.wizard_title_convert_to
+    }
+    else -> R.string.wizard_title_format
 }
 
 fun canEnterStep(step: WizardStep, importableCount: Int): Boolean =
     step == WizardStep.Sources || importableCount > 0
+
+enum class SourcesBlock { Preview, Files, Add }
+
+fun sourcesBlocks(hasFiles: Boolean, hasPreview: Boolean): List<SourcesBlock> = when {
+    !hasFiles -> listOf(SourcesBlock.Add)
+    hasPreview -> listOf(SourcesBlock.Preview, SourcesBlock.Files, SourcesBlock.Add)
+    else -> listOf(SourcesBlock.Files, SourcesBlock.Add)
+}
+
+fun coerceVideoPreset(preset: String?): String {
+    val id = preset ?: SessionStore.DEFAULT_PRESET
+    return if (WIZARD_PRESET_CARDS.any { it.id == id }) id else SessionStore.DEFAULT_PRESET
+}
+
+fun coerceVideoOutput(output: OutputTarget): OutputTarget =
+    if (output.kind == OutputTarget.Kind.Movies) OutputTarget(OutputTarget.Kind.Gallery) else output
+
+fun customOutputTapOpensPicker(output: OutputTarget): Boolean =
+    output.kind == OutputTarget.Kind.SafTree || output.kind == OutputTarget.Kind.AppExternal
+
+fun outputReadyToStart(output: OutputTarget): Boolean =
+    output.kind != OutputTarget.Kind.SafTree || !output.treeUri.isNullOrBlank()
+
+fun customOutputHintRes(selected: Boolean, hasFolder: Boolean): Int =
+    if (selected && !hasFolder) R.string.output_custom_pick else R.string.output_custom_hint
+
+fun officePreviewTitleRes(kind: DocumentSourceKind): Int = when (kind) {
+    DocumentSourceKind.Word -> R.string.document_office_word
+    DocumentSourceKind.Excel -> R.string.document_office_excel
+    else -> 0
+}
 
 fun advanceStep(current: WizardStep, importableCount: Int): WizardStep? = when (current) {
     WizardStep.Sources -> WizardStep.Format.takeIf { importableCount > 0 }
@@ -149,6 +195,7 @@ data class WizardReset(
     val step: WizardStep = WizardStep.Sources,
     val showAll: Boolean = false,
     val selectedUri: String? = null,
+    val clearSources: Boolean = false,
 )
 
 fun resetWizardAfterStart(): WizardReset = WizardReset()
@@ -168,7 +215,6 @@ data class OutputChoiceCard(
 
 val OUTPUT_CHOICE_CARDS = listOf(
     OutputChoiceCard(OUTPUT_CHOICE_GALLERY, R.string.output_gallery, R.string.output_gallery_hint),
-    OutputChoiceCard(OUTPUT_CHOICE_MOVIES, R.string.output_movies, R.string.output_movies_hint),
     OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, R.string.output_downloads, R.string.output_downloads_hint),
     OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, R.string.output_custom, R.string.output_custom_hint),
 )
@@ -194,6 +240,7 @@ fun outputKindForChoice(id: String): OutputTarget.Kind? = when (id) {
     OUTPUT_CHOICE_DOWNLOADS -> OutputTarget.Kind.Downloads
     OUTPUT_CHOICE_MUSIC -> OutputTarget.Kind.Music
     OUTPUT_CHOICE_DOCUMENTS -> OutputTarget.Kind.Documents
+    OUTPUT_CHOICE_CUSTOM -> OutputTarget.Kind.SafTree
     else -> null
 }
 
@@ -301,9 +348,9 @@ fun presetTitle(resources: Resources, id: String): String {
     return if (card.titleRes != 0) resources.getString(card.titleRes) else card.title.ifBlank { id }
 }
 
-fun qualityLabelRes(id: String): Int = when (id) {
-    "original" -> R.string.quality_original
-    "small" -> R.string.quality_small
+fun qualityLabelRes(id: String, audio: Boolean = false): Int = when (id) {
+    "original" -> if (audio) R.string.quality_audio_high else R.string.quality_original
+    "small" -> if (audio) R.string.quality_audio_small else R.string.quality_small
     "high" -> R.string.quality_high
     else -> R.string.quality_standard
 }
@@ -354,15 +401,43 @@ fun clampTrim(start: Double, end: Double, duration: Double): Pair<Double, Double
 
 fun outputFileName(outputPath: String?, untitled: String): String {
     val raw = outputPath?.substringAfterLast('/')?.substringAfterLast('\\')?.substringBefore('?')
-    return raw?.takeIf { it.isNotBlank() } ?: untitled
+    val name = raw?.takeIf { it.isNotBlank() } ?: return untitled
+    return if (looksLikeStoredFileName(name)) name else untitled
+}
+
+fun looksLikeStoredFileName(name: String): Boolean {
+    val ext = name.substringAfterLast('.', missingDelimiterValue = "")
+    return ext.isNotEmpty() && ext.any(Char::isLetter)
 }
 
 fun historyTitle(job: Job, untitled: String): String {
     val output = outputFileName(job.outputPath, untitled)
-    return if (output != untitled) output else job.displayName
+    if (output != untitled) return output
+    val ext = historyOutputExtension(job)
+    val composed = if (ext.isNullOrBlank()) job.displayName else "${sourceStem(job.displayName)}.$ext"
+    return composed.ifBlank { untitled }
 }
 
-fun historyDetail(resources: Resources, job: Job, status: String): String {
+fun historyOutputExtension(job: Job): String? =
+    if (isDocumentPreset(job.config.preset)) {
+        documentExtension(job.config.preset, job.config.container)
+    } else {
+        resolveConfig(job.config).getOrNull()?.extension
+    }
+
+fun formatHistoryDate(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        .withZone(zone)
+        .format(Instant.ofEpochMilli(epochMs))
+
+fun historyDateLabel(epochMs: Long?, zone: ZoneId = ZoneId.systemDefault()): String? =
+    epochMs?.let { formatHistoryDate(it, zone) }
+
+fun historyDetail(
+    resources: Resources,
+    job: Job,
+    status: String,
+): String {
     val preset = presetTitle(resources, job.config.preset)
     return buildString {
         append(status)

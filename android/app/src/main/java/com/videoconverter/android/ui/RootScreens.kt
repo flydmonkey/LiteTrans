@@ -1,26 +1,33 @@
 package com.videoconverter.android.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -33,11 +40,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.sourceStem
+import com.videoconverter.android.ui.theme.ShapeTokens
 
 @Composable
 fun HistoryScreen(
@@ -175,22 +185,21 @@ fun MineScreen(
             AppTopBar(title = stringResource(R.string.tab_mine))
             Column(
                 modifier = Modifier
+                    .weight(1f)
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .padding(top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 mineItemGroups().forEach { group ->
-                    AppCard {
+                    OutlinedAppCard {
                         group.forEachIndexed { index, item ->
-                            ListItem(
-                                headlineContent = { Text(stringResource(item.titleRes)) },
-                                trailingContent = {
-                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-                                },
-                                modifier = Modifier.clickable { onOpen(item.page) },
+                            MineNavRow(
+                                item = item,
+                                showDivider = index < group.lastIndex,
+                                onClick = { onOpen(item.page) },
                             )
-                            if (index < group.lastIndex) HorizontalDivider()
                         }
                     }
                 }
@@ -198,13 +207,13 @@ fun MineScreen(
                     stringResource(R.string.mine_version, versionName),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
                 Text(
                     stringResource(R.string.mine_local_promise),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
         }
@@ -224,6 +233,70 @@ fun MineScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(top = 12.dp, bottom = 24.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MineNavRow(
+    item: MineItem,
+    showDivider: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        MineRowLeading(icon = mineRowIcon(item.page))
+        Text(
+            stringResource(item.titleRes),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (showDivider) {
+        HorizontalDivider(modifier = Modifier.padding(start = 64.dp))
+    }
+}
+
+@Composable
+fun MineRowLeading(icon: MineRowIcon) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (icon == MineRowIcon.Language) {
+            Text(
+                "A",
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        } else {
+            Icon(
+                imageVector = when (icon) {
+                    MineRowIcon.Share -> Icons.Filled.Share
+                    MineRowIcon.Lock -> Icons.Filled.Lock
+                    MineRowIcon.List -> Icons.Filled.List
+                    MineRowIcon.Info, MineRowIcon.Language -> Icons.Filled.Info
+                },
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(22.dp),
             )
         }
     }

@@ -4,7 +4,12 @@ import androidx.test.core.app.ApplicationProvider
 import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.DocumentSourceKind
+import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.OutputConfig
+import java.time.Instant
+import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -34,6 +39,22 @@ class WizardTest {
         assertEquals(R.string.wizard_title_sources, wizardScreenTitleRes(WizardStep.Sources))
         assertEquals(R.string.wizard_title_format, wizardScreenTitleRes(WizardStep.Format))
         assertEquals(R.string.wizard_title_output, wizardScreenTitleRes(WizardStep.Output))
+        assertEquals(
+            R.string.wizard_title_convert_to,
+            wizardScreenTitleRes(WizardStep.Format, ConvertMode.Document, "office-pdf"),
+        )
+        assertEquals(
+            R.string.wizard_title_compress,
+            wizardScreenTitleRes(WizardStep.Format, ConvertMode.Document, "pdf-compress"),
+        )
+        assertEquals(
+            R.string.wizard_title_split,
+            wizardScreenTitleRes(WizardStep.Format, ConvertMode.Document, "pdf-split"),
+        )
+        assertEquals(
+            R.string.wizard_title_compress,
+            wizardScreenTitleRes(WizardStep.Format, ConvertMode.Document, "image-compress"),
+        )
     }
 
     @Test
@@ -42,18 +63,18 @@ class WizardTest {
         assertEquals(WizardStep.Sources, reset.step)
         assertFalse(reset.showAll)
         assertNull(reset.selectedUri)
+        assertFalse(reset.clearSources)
     }
 
     @Test
-    fun outputChoicesAreGalleryMoviesDownloadsAndCustom() {
+    fun outputChoicesAreGalleryDownloadsAndCustom() {
         assertEquals(
-            listOf("gallery", "movies", "downloads", "custom"),
+            listOf("gallery", "downloads", "custom"),
             OUTPUT_CHOICE_CARDS.map { it.id },
         )
         assertEquals(R.string.output_gallery, OUTPUT_CHOICE_CARDS[0].titleRes)
-        assertEquals(R.string.output_movies, OUTPUT_CHOICE_CARDS[1].titleRes)
-        assertEquals(R.string.output_downloads, OUTPUT_CHOICE_CARDS[2].titleRes)
-        assertEquals(R.string.output_custom, OUTPUT_CHOICE_CARDS[3].titleRes)
+        assertEquals(R.string.output_downloads, OUTPUT_CHOICE_CARDS[1].titleRes)
+        assertEquals(R.string.output_custom, OUTPUT_CHOICE_CARDS[2].titleRes)
         assertEquals(OUTPUT_CHOICE_GALLERY, outputChoiceId(OutputTarget(OutputTarget.Kind.Gallery)))
         assertEquals(OUTPUT_CHOICE_MOVIES, outputChoiceId(OutputTarget(OutputTarget.Kind.Movies)))
         assertEquals(OUTPUT_CHOICE_DOWNLOADS, outputChoiceId(OutputTarget(OutputTarget.Kind.Downloads)))
@@ -62,7 +83,24 @@ class WizardTest {
             outputChoiceId(OutputTarget(OutputTarget.Kind.SafTree, "content://tree")),
         )
         assertEquals(OutputTarget.Kind.Gallery, outputKindForChoice("gallery"))
-        assertNull(outputKindForChoice("custom"))
+        assertEquals(OutputTarget.Kind.SafTree, outputKindForChoice("custom"))
+        assertEquals(
+            OutputTarget.Kind.Gallery,
+            coerceVideoOutput(OutputTarget(OutputTarget.Kind.Movies)).kind,
+        )
+        assertEquals(
+            OutputTarget.Kind.Downloads,
+            coerceVideoOutput(OutputTarget(OutputTarget.Kind.Downloads)).kind,
+        )
+        assertFalse(customOutputTapOpensPicker(OutputTarget(OutputTarget.Kind.Gallery)))
+        assertTrue(customOutputTapOpensPicker(OutputTarget(OutputTarget.Kind.SafTree)))
+        assertTrue(customOutputTapOpensPicker(OutputTarget(OutputTarget.Kind.SafTree, "content://tree")))
+        assertTrue(outputReadyToStart(OutputTarget(OutputTarget.Kind.Gallery)))
+        assertFalse(outputReadyToStart(OutputTarget(OutputTarget.Kind.SafTree)))
+        assertTrue(outputReadyToStart(OutputTarget(OutputTarget.Kind.SafTree, "content://tree")))
+        assertEquals(R.string.output_custom_hint, customOutputHintRes(selected = false, hasFolder = false))
+        assertEquals(R.string.output_custom_pick, customOutputHintRes(selected = true, hasFolder = false))
+        assertEquals(R.string.output_custom_hint, customOutputHintRes(selected = true, hasFolder = true))
     }
 
     @Test
@@ -71,7 +109,24 @@ class WizardTest {
         assertEquals(listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"), primary)
         val withGif = collapsedPresetCards("gif", showAll = false).map { it.id }
         assertEquals(listOf("mp4-h264", "mp4-copy", "mp4-h265", "gif"), withGif)
-        assertTrue(collapsedPresetCards("mp4-h264", showAll = true).size >= 11)
+        val all = collapsedPresetCards("mp4-h264", showAll = true)
+        assertEquals(9, all.size)
+        assertTrue(all.none { it.id.startsWith("audio-") })
+        assertTrue(WIZARD_PRESET_CARDS.none { it.id.startsWith("audio-") })
+        assertEquals(listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"), collapsedPresetCards("audio-mp3", false).map { it.id })
+    }
+
+    @Test
+    fun sourcesStepPutsPreviewAboveFiles() {
+        assertEquals(listOf(SourcesBlock.Add), sourcesBlocks(hasFiles = false, hasPreview = false))
+        assertEquals(
+            listOf(SourcesBlock.Preview, SourcesBlock.Files, SourcesBlock.Add),
+            sourcesBlocks(hasFiles = true, hasPreview = true),
+        )
+        assertEquals(
+            listOf(SourcesBlock.Files, SourcesBlock.Add),
+            sourcesBlocks(hasFiles = true, hasPreview = false),
+        )
     }
 
     @Test
@@ -228,8 +283,14 @@ class WizardTest {
         assertEquals(R.string.preset_mp4_copy_title, presetTitleRes("mp4-copy"))
         assertEquals("MP4 · Remux", presetTitle(resources, "mp4-copy"))
         assertEquals(R.string.quality_original, qualityLabelRes("original"))
+        assertEquals(R.string.quality_audio_high, qualityLabelRes("original", audio = true))
+        assertEquals(R.string.quality_audio_small, qualityLabelRes("small", audio = true))
+        assertEquals(R.string.quality_standard, qualityLabelRes("standard", audio = true))
         assertEquals(R.string.size_original, sizeLabelRes("original"))
         assertEquals("Original size", sizeLabel(resources, "original"))
+        assertEquals(R.string.document_office_word, officePreviewTitleRes(DocumentSourceKind.Word))
+        assertEquals(R.string.document_office_excel, officePreviewTitleRes(DocumentSourceKind.Excel))
+        assertEquals(0, officePreviewTitleRes(DocumentSourceKind.Pdf))
     }
 
     @Test
@@ -242,6 +303,29 @@ class WizardTest {
         assertTrue(clamped.second - clamped.first >= 0.2 - 1e-6)
         assertEquals("out.mp4", outputFileName("content://x/out.mp4", "Untitled"))
         assertEquals("Untitled", outputFileName(null, "Untitled"))
+        assertEquals("Untitled", outputFileName("content://media/external/video/media/12345", "Untitled"))
+        assertEquals("假期.mp4", historyTitle(mediaStoreJob("假期.mov"), "Untitled"))
+        assertEquals("clip.mp4", historyTitle(mediaStoreJob("clip.mp4", "/sdcard/轻转码/clip.mp4"), "Untitled"))
+    }
+
+    @Test
+    fun historyDateStaysOnItsOwnLabel() {
+        assertEquals(
+            "2026-09-18 03:43",
+            formatHistoryDate(
+                Instant.parse("2026-09-18T03:43:00Z").toEpochMilli(),
+                ZoneOffset.UTC,
+            ),
+        )
+        assertNull(historyDateLabel(null))
+        val dated = mediaStoreJob("假期.mov").copy(
+            createdAtEpochMs = Instant.parse("2026-09-18T03:43:00Z").toEpochMilli(),
+        )
+        assertEquals(
+            "2026-09-18 03:43",
+            historyDateLabel(dated.createdAtEpochMs, ZoneOffset.UTC),
+        )
+        assertFalse(historyDetail(resources, dated, "Done").contains("2026-09-18"))
     }
 
     @Test
@@ -263,6 +347,18 @@ class WizardTest {
         )
         assertTrue(sourceFromLabel(aacFile).startsWith("AAC") || sourceFromLabel(aacFile).startsWith("M4A"))
     }
+
+    private fun mediaStoreJob(sourceName: String, outputPath: String = "content://media/external/video/media/12345") = Job(
+        id = "job-1",
+        sourceUri = "content://source",
+        displayName = sourceName,
+        outputPath = outputPath,
+        status = JobStatus.Completed,
+        progress = 100.0,
+        error = null,
+        config = OutputConfig(preset = "mp4-h264"),
+        media = MediaInfo(sourceUri = "content://source", displayName = sourceName, importable = true),
+    )
 
     private fun media(
         name: String,

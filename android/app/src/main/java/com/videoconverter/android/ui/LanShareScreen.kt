@@ -2,12 +2,12 @@ package com.videoconverter.android.ui
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,10 +30,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.videoconverter.android.R
 import com.videoconverter.android.data.LanShareStore
 import com.videoconverter.android.lan.lanPublicUrl
@@ -100,28 +100,41 @@ fun LanShareScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(top = 20.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 16.dp)
+                .padding(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.mine_lan),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Switch(
-                    checked = settings.enabled,
-                    onCheckedChange = { on ->
-                        persistEnabled(on)
-                        if (on) LanShareService.start(context) else LanShareService.stop(context)
-                    },
-                )
+            OutlinedAppCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    MineRowLeading(icon = MineRowIcon.Share)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.mine_lan),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            stringResource(R.string.lan_open_warning),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Switch(
+                        checked = settings.enabled,
+                        onCheckedChange = { on ->
+                            persistEnabled(on)
+                            if (on) LanShareService.start(context) else LanShareService.stop(context)
+                        },
+                    )
+                }
             }
             OutlinedTextField(
                 value = tokenDraft,
@@ -146,37 +159,46 @@ fun LanShareScreen(onBack: () -> Unit) {
             if (settings.token.isEmpty()) {
                 Text(
                     stringResource(R.string.lan_token_empty_hint),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                    lineHeight = 20.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
             if (settings.enabled) {
                 val ipv4 = boundIpv4
                 val port = boundPort
-                if (ipv4 != null && port != null) {
-                    val url = lanPublicUrl(ipv4, port, settings.token)
-                    Text(
-                        url,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 15.sp,
-                    )
-                    Text(
-                        stringResource(if (copied) R.string.action_copied else R.string.action_copy),
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable {
-                            context.getSystemService(ClipboardManager::class.java)
-                                ?.setPrimaryClip(ClipData.newPlainText("url", url))
-                            copied = true
-                        },
-                    )
-                } else {
-                    Text(
-                        boundError ?: stringResource(R.string.lan_need_wifi),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 15.sp,
-                    )
+                OutlinedAppCard {
+                    if (ipv4 != null && port != null) {
+                        val url = lanPublicUrl(ipv4, port, settings.token)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                url,
+                                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            TextButton(
+                                onClick = {
+                                    context.getSystemService(ClipboardManager::class.java)
+                                        ?.setPrimaryClip(ClipData.newPlainText("url", url))
+                                    copied = true
+                                },
+                            ) {
+                                Text(stringResource(if (copied) R.string.action_copied else R.string.action_copy))
+                            }
+                        }
+                    } else {
+                        Text(
+                            boundError ?: stringResource(R.string.lan_need_wifi),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                        )
+                    }
                 }
             }
         }

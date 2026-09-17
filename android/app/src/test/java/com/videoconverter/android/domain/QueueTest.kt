@@ -53,11 +53,17 @@ class QueueTest {
             outputDir = "/out",
             nextId = { "job-${id.getAndIncrement()}" },
             exists = { false },
+            clock = { "20260918_033012" },
+            nowMs = { 1_779_160_980_000L },
         ).getOrThrow()
 
         assertEquals(listOf("job-1", "job-2"), report.jobs.map { it.id })
-        assertEquals(listOf("/out/clip.mp4", "/out/clip-1.mp4"), report.jobs.map { it.outputPath })
+        assertEquals(
+            listOf("/out/clip.mp4", "/out/clip_20260918_033012.mp4"),
+            report.jobs.map { it.outputPath },
+        )
         assertEquals(listOf(JobStatus.Queued, JobStatus.Queued), report.jobs.map { it.status })
+        assertEquals(listOf(1_779_160_980_000L, 1_779_160_980_000L), report.jobs.map { it.createdAtEpochMs })
     }
 
     @Test
@@ -68,9 +74,10 @@ class QueueTest {
             outputDir = "/out",
             nextId = { "job-1" },
             exists = { it == "/out/clip.partial.mp4" },
+            clock = { "20260918_033012" },
         ).getOrThrow()
 
-        assertEquals("/out/clip-1.mp4", report.jobs.single().outputPath)
+        assertEquals("/out/clip_20260918_033012.mp4", report.jobs.single().outputPath)
     }
 
     @Test

@@ -70,6 +70,7 @@ data class Job(
     val outputKind: String? = null,
     val outputTreeUri: String? = null,
     val outputPaths: List<String> = emptyList(),
+    val createdAtEpochMs: Long? = null,
 )
 
 data class SkippedSource(val sourceUri: String, val displayName: String, val reason: String)

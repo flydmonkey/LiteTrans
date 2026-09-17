@@ -57,7 +57,7 @@ class SessionStore(private val context: Context) {
 
     private object Keys {
         val PRESET = stringPreferencesKey("preset")
-        val QUALITY = stringPreferencesKey("quality")
+        val QUALITY = stringPreferencesKey("quality_v2")
         val MAX_WIDTH = intPreferencesKey("maxWidth")
         val MAX_HEIGHT = intPreferencesKey("maxHeight")
         val OUTPUT_KIND = stringPreferencesKey("outputKind")
@@ -66,7 +66,7 @@ class SessionStore(private val context: Context) {
 
     companion object {
         const val DEFAULT_PRESET = "mp4-h264"
-        const val DEFAULT_QUALITY = "standard"
+        const val DEFAULT_QUALITY = "original"
     }
 }
 

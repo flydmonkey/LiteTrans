@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">LiteTrans</string>
+    <string name="privacy_capsule">この端末</string>
+    <string name="mine_local_promise">選んだファイルはこの端末だけで処理します</string>
+    <string name="mine_version">バージョン %1$s</string>
+    <string name="tab_convert">変換</string>
     <string name="tab_transcode">動画変換</string>
     <string name="tab_audio">音声変換</string>
     <string name="tab_document">ドキュメント</string>
@@ -25,6 +29,9 @@
     <string name="history_empty_hint">変換したファイルがここに表示されます</string>
     <string name="history_rename_title">名前を変更</string>
     <string name="history_rename_hint">ファイル名だけが変わります。拡張子はそのままです。</string>
+    <string name="history_running_banner">変換中 %1$d 件</string>
+    <string name="history_delete_title">このファイルを削除しますか？</string>
+    <string name="history_delete_body">変換済みファイルをこの端末から削除します。</string>
     <string name="untitled">無題</string>
     <string name="status_queued">待機中</string>
     <string name="status_running">変換中</string>
@@ -66,20 +73,27 @@
     <string name="action_copy">コピー</string>
     <string name="action_copied">コピーしました</string>
     <string name="action_got_it">了解</string>
+    <string name="action_clear_finished">完了を消去</string>
+    <string name="action_convert_again">もう一度変換</string>
     <string name="action_remove">取り除く</string>
     <string name="action_more">その他</string>
     <string name="action_collapse">閉じる</string>
+    <string name="section_files">ファイル</string>
+    <string name="section_settings">設定</string>
     <string name="wizard_step_sources">追加</string>
     <string name="wizard_step_format">形式</string>
     <string name="wizard_step_output">保存</string>
     <string name="wizard_title_sources">ファイルを追加</string>
     <string name="wizard_title_format">形式を選ぶ</string>
     <string name="wizard_title_output">保存先</string>
+    <string name="wizard_title_convert_to">変換先</string>
+    <string name="wizard_title_compress">圧縮</string>
+    <string name="wizard_title_split">分割</string>
     <string name="wizard_start_transcode">変換を開始</string>
     <string name="wizard_start_convert">変換を開始</string>
     <string name="wizard_joining_queue">キューに追加しています…</string>
     <string name="wizard_converting">変換中…</string>
-    <string name="wizard_more_formats">GIF、音声、その他の形式</string>
+    <string name="wizard_more_formats">GIFとその他の動画形式</string>
     <string name="wizard_less_formats">よく使う形式だけ表示</string>
     <string name="wizard_add_audio">変換する音声を追加</string>
     <string name="wizard_add_document">変換するファイルを追加</string>
@@ -131,6 +145,7 @@
     <string name="output_movies_hint">端末の動画ライブラリへ</string>
     <string name="output_downloads_hint">システムのダウンロードフォルダ</string>
     <string name="output_custom_hint">フォルダを自分で選ぶ</string>
+    <string name="output_custom_pick">ここをタップしてフォルダを選択</string>
     <string name="output_music_hint">端末の音楽ライブラリへ</string>
     <string name="output_documents_hint">システムのドキュメントフォルダ</string>
     <string name="quality_original">オリジナル</string>
@@ -141,6 +156,10 @@
     <string name="quality_original_hint">できるだけ細部を残す</string>
     <string name="quality_standard_hint">日常視聴には十分</string>
     <string name="quality_small_hint">ファイルは小さいが、ややぼやけます</string>
+    <string name="quality_audio_high">高音質</string>
+    <string name="quality_audio_high_hint">できるだけ細部を残す</string>
+    <string name="quality_audio_small">小さいファイル</string>
+    <string name="quality_audio_small_hint">ファイルを小さく</string>
     <string name="quality_high_hint">できるだけ細部を残す</string>
     <string name="quality_smaller_hint">ファイルを小さく</string>
     <string name="size_original">元のサイズ</string>
@@ -174,6 +193,9 @@
     <string name="document_total_pages">全 %1$d ページ</string>
     <string name="document_preview">プレビュー</string>
     <string name="document_preview_failed">プレビューできません</string>
+    <string name="document_office_preview">PDF に変換します</string>
+    <string name="document_office_word">Word 文書</string>
+    <string name="document_office_excel">Excel シート</string>
     <string name="duration_seconds">%1$d 秒</string>
     <string name="duration_minutes">%1$d 分</string>
     <string name="duration_min_sec">%1$d 分 %2$d 秒</string>

@@ -275,7 +275,10 @@ fun AppScreen(
                     onRename = { job, name -> appViewModel.rename(job.id, name) },
                     onDelete = appViewModel::delete,
                     onClearFinished = { appViewModel.clearFinished(historySegment) },
-                    onConvertAgain = { tab = RootTab.Convert },
+                    onConvertAgain = {
+                        convertMode = convertModeForHistorySegment(historySegment)
+                        tab = RootTab.Convert
+                    },
                 )
                 RootTab.Mine -> when (minePage) {
                     MinePage.LanShare -> LanShareScreen(onBack = { minePage = MinePage.Root })

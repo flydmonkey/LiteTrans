@@ -1,9 +1,9 @@
 package com.videoconverter.android.ui
 
 import android.net.Uri
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
@@ -12,16 +12,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,16 +50,20 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.videoconverter.android.R
 import com.videoconverter.android.domain.MediaInfo
@@ -87,6 +101,8 @@ private fun TrimPanelContent(
     val startState = rememberUpdatedState(start)
     val endState = rememberUpdatedState(end)
     val onChangeState = rememberUpdatedState(onChange)
+    val previewWell = MaterialTheme.colorScheme.surfaceVariant
+    val previewWellArgb = previewWell.toArgb()
 
     val player = remember(media.sourceUri, playPreview) {
         if (!playPreview) {
@@ -134,13 +150,24 @@ private fun TrimPanelContent(
         )
     }
 
+    fun togglePlayback() {
+        val exo = player ?: return
+        if (exo.isPlaying) {
+            exo.pause()
+            playing = false
+        } else {
+            val current = exo.currentPosition / 1000.0
+            if (current < start || current >= end - 0.04) {
+                exo.seekTo((start * 1000).toLong())
+                playhead = start
+            }
+            exo.play()
+            playing = true
+        }
+    }
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(ShapeTokens.Panel))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Panel))
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
@@ -148,74 +175,127 @@ private fun TrimPanelContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top,
         ) {
-            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                Text(stringResource(R.string.trim_title), color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp, top = 8.dp)) {
+                Text(
+                    stringResource(R.string.trim_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
                 Text(
                     stringResource(R.string.trim_hint),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
                 )
             }
-            Text(
-                stringResource(R.string.trim_reset),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable {
+            TextButton(
+                onClick = {
                     onChange(media.copy(trimStartSecs = null, trimEndSecs = null))
                     seekPlayhead(0.0)
                 },
-            )
+            ) {
+                Text(stringResource(R.string.trim_reset))
+            }
         }
 
         if (videoSurface && player != null) {
-            AndroidView(
-                factory = { viewContext ->
-                    PlayerView(viewContext).apply {
-                        useController = false
-                        this.player = player
-                    }
-                },
-                update = { it.player = player },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(ShapeTokens.Panel))
-                    .background(MaterialTheme.colorScheme.surface),
-            )
+                    .background(previewWell),
+                contentAlignment = Alignment.Center,
+            ) {
+                AndroidView(
+                    factory = { viewContext ->
+                        PlayerView(viewContext).apply {
+                            useController = false
+                            controllerAutoShow = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            setShutterBackgroundColor(previewWellArgb)
+                            setBackgroundColor(previewWellArgb)
+                            isClickable = false
+                            isFocusable = false
+                            this.player = player
+                        }
+                    },
+                    update = { view ->
+                        view.player = player
+                        view.useController = false
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+                FilledIconButton(
+                    onClick = ::togglePlayback,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    PlayPauseIcon(
+                        playing = playing,
+                        contentDescription = stringResource(
+                            if (playing) R.string.trim_pause else R.string.trim_play_selection,
+                        ),
+                    )
+                }
+            }
         } else if (!playPreview) {
             Text(
                 stringResource(R.string.trim_no_preview),
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(ShapeTokens.Panel))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Panel))
+                    .background(previewWell)
                     .padding(horizontal = 16.dp, vertical = 28.dp),
             )
+        } else if (player != null) {
+            FilledTonalButton(
+                onClick = ::togglePlayback,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                PlayPauseIcon(
+                    playing = playing,
+                    contentDescription = null,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(if (playing) R.string.trim_pause else R.string.trim_play_selection),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (player != null) {
-                InkChip(stringResource(if (playing) R.string.trim_pause else R.string.trim_play_selection)) {
-                    if (player.isPlaying) {
-                        player.pause()
-                        playing = false
-                    } else {
-                        val current = player.currentPosition / 1000.0
-                        if (current < start || current >= end - 0.04) {
-                            player.seekTo((start * 1000).toLong())
-                            playhead = start
-                        }
-                        player.play()
-                        playing = true
-                    }
-                }
+            FilledTonalButton(
+                onClick = { applyTrim(playhead, end) },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(
+                    stringResource(R.string.trim_set_start),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            InkChip(stringResource(R.string.trim_set_start)) { applyTrim(playhead, end) }
-            InkChip(stringResource(R.string.trim_set_end)) { applyTrim(start, playhead) }
+            FilledTonalButton(
+                onClick = { applyTrim(start, playhead) },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(
+                    stringResource(R.string.trim_set_end),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
 
         TrimTrack(
@@ -228,15 +308,84 @@ private fun TrimPanelContent(
             onPlayhead = ::seekPlayhead,
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(stringResource(R.string.trim_start, formatClock(start)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-            Text(stringResource(R.string.trim_current, formatClock(playhead)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-            Text(stringResource(R.string.trim_end, formatClock(end)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-            Text(stringResource(R.string.trim_keep, formatDurationLabel(end - start, LocalContext.current.resources)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+        Row(modifier = Modifier.fillMaxWidth()) {
+            TrimTimeLabel(
+                text = stringResource(R.string.trim_start, formatClock(start)),
+                alignStart = true,
+                modifier = Modifier.weight(1f),
+            )
+            TrimTimeLabel(
+                text = stringResource(R.string.trim_end, formatClock(end)),
+                alignStart = false,
+                modifier = Modifier.weight(1f),
+            )
         }
+        Row(modifier = Modifier.fillMaxWidth()) {
+            TrimTimeLabel(
+                text = stringResource(R.string.trim_current, formatClock(playhead)),
+                alignStart = true,
+                modifier = Modifier.weight(1f),
+            )
+            TrimTimeLabel(
+                text = stringResource(R.string.trim_keep, formatDurationLabel(end - start, LocalContext.current.resources)),
+                alignStart = false,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrimTimeLabel(
+    text: String,
+    alignStart: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text,
+        modifier = modifier,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = if (alignStart) TextAlign.Start else TextAlign.End,
+    )
+}
+
+@Composable
+private fun PlayPauseIcon(
+    playing: Boolean,
+    contentDescription: String?,
+) {
+    val tint = LocalContentColor.current
+    if (playing) {
+        Canvas(
+            modifier = Modifier
+                .size(24.dp)
+                .then(
+                    if (contentDescription != null) {
+                        Modifier.semantics { this.contentDescription = contentDescription }
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
+            val w = size.width
+            val bar = w * 0.22f
+            val gap = w * 0.18f
+            val h = w * 0.72f
+            val top = (size.height - h) / 2f
+            val left = (w - bar * 2 - gap) / 2f
+            val radius = CornerRadius(bar / 2f)
+            drawRoundRect(tint, Offset(left, top), Size(bar, h), radius)
+            drawRoundRect(tint, Offset(left + bar + gap, top), Size(bar, h), radius)
+        }
+    } else {
+        Icon(
+            Icons.Filled.PlayArrow,
+            contentDescription = contentDescription,
+            tint = tint,
+        )
     }
 }
 
@@ -260,17 +409,19 @@ private fun TrimTrack(
     val onPlayheadState = rememberUpdatedState(onPlayhead)
     val rangeColor = MaterialTheme.colorScheme.onSurface
     val playheadColor = MaterialTheme.colorScheme.primary
+    val handleInset = 10.dp
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(28.dp)
+            .padding(horizontal = handleInset)
             .pointerInput(duration) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     val width = size.width.toFloat()
                     val startX = ((startState.value / duration) * width).toFloat()
                     val endX = ((endState.value / duration) * width).toFloat()
-                    val hit = 18.dp.toPx()
+                    val hit = 24.dp.toPx()
                     val kind = when {
                         abs(down.position.x - startX) <= hit -> TrimDrag.Start
                         abs(down.position.x - endX) <= hit -> TrimDrag.End
@@ -337,20 +488,6 @@ private fun Handle(x: Float) {
             .border(2.dp, Color.White, CircleShape)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primary),
-    )
-}
-
-@Composable
-private fun InkChip(label: String, onClick: () -> Unit) {
-    Text(
-        label,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier
-            .clip(RoundedCornerShape(ShapeTokens.Chip))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        fontWeight = FontWeight.SemiBold,
     )
 }
 
