@@ -117,30 +117,6 @@ fun lanFileIsRegular(path: String): Boolean {
     }
 }
 
-fun lanContentType(fileName: String): String = when (fileName.substringAfterLast('.', "").lowercase()) {
-    "mp4" -> "video/mp4"
-    "mp3" -> "audio/mpeg"
-    "m4a" -> "audio/mp4"
-    "wav" -> "audio/wav"
-    "ogg" -> "audio/ogg"
-    "flac" -> "audio/flac"
-    "amr" -> "audio/amr"
-    "jpg", "jpeg" -> "image/jpeg"
-    "png" -> "image/png"
-    "webp" -> "image/webp"
-    "gif" -> "image/gif"
-    "bmp" -> "image/bmp"
-    "pdf" -> "application/pdf"
-    "txt" -> "text/plain; charset=utf-8"
-    else -> "application/octet-stream"
-}
-
-fun lanContentDisposition(fileName: String): String {
-    val safe = fileName.replace(Regex("[\r\n\"]"), "_")
-    val encoded = java.net.URLEncoder.encode(safe, "UTF-8").replace("+", "%20")
-    return "attachment; filename=\"$safe\"; filename*=UTF-8''$encoded"
-}
-
 const val LAN_SHARE_PREFERRED_PORT = 17890
 const val LAN_SHARE_PORT_ATTEMPTS = 10
 
