@@ -103,6 +103,56 @@ class QueueTest {
     }
 
     @Test
+    fun enqueueDocumentJobsDoesNotUseVideoPresets() {
+        val media = MediaInfo(
+            sourceUri = "content://doc",
+            displayName = "a.pdf",
+            importable = true,
+            pageCount = 2,
+            pageStart = 1,
+            pageEnd = 2,
+        )
+        val report = enqueueDocumentJobs(
+            sources = listOf(media),
+            config = OutputConfig(preset = "pdf-split"),
+            outputDir = "/tmp/planned",
+            nextId = { "id1" },
+            exists = { false },
+        ).getOrThrow()
+        assertEquals(1, report.jobs.size)
+        assertEquals("pdf-split", report.jobs[0].config.preset)
+        assertEquals("a.pdf", report.jobs[0].displayName)
+    }
+
+    @Test
+    fun enqueueDocumentJobsSkipsUnsupported() {
+        val bad = MediaInfo("u", "a.doc", importable = false, error = "不支持此格式")
+        val report = enqueueDocumentJobs(
+            listOf(bad), OutputConfig(preset = "office-pdf"), "/tmp", { "x" }, { false },
+        ).getOrThrow()
+        assertTrue(report.jobs.isEmpty())
+        assertEquals(1, report.skipped.size)
+    }
+
+    @Test
+    fun enqueueDocumentJobsSkipsPdfWithoutPageCount() {
+        val media = MediaInfo(
+            sourceUri = "content://doc",
+            displayName = "a.pdf",
+            importable = true,
+        )
+        val report = enqueueDocumentJobs(
+            listOf(media),
+            OutputConfig(preset = "pdf-split"),
+            "/tmp",
+            { "id1" },
+            { false },
+        ).getOrThrow()
+        assertTrue(report.jobs.isEmpty())
+        assertEquals("无法读取页数", report.skipped.single().reason)
+    }
+
+    @Test
     fun markInterruptedConvertsOnlyRunningToFailed() {
         val running = Job(
             id = "job-1",

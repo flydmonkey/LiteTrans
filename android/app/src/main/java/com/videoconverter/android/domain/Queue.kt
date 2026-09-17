@@ -87,6 +87,69 @@ fun enqueueJobs(
     EnqueueReport(jobs = jobs, skipped = skipped)
 }
 
+fun enqueueDocumentJobs(
+    sources: List<MediaInfo>,
+    config: OutputConfig,
+    outputDir: String,
+    nextId: () -> String,
+    exists: (String) -> Boolean,
+): Result<EnqueueReport> = runCatching {
+    if (outputDir.isBlank()) {
+        throw IllegalArgumentException("请先选择输出目录")
+    }
+
+    val (accepted, initialSkipped) = splitImportable(sources)
+    val skipped = initialSkipped.toMutableList()
+    val jobs = mutableListOf<Job>()
+    val allocated = mutableSetOf<String>()
+    val extension = documentExtension(config.preset, config.container)
+
+    for (media in accepted) {
+        if (needsPdfPageCount(config.preset) && media.pageCount == null) {
+            skipped += SkippedSource(
+                sourceUri = media.sourceUri,
+                displayName = media.displayName,
+                reason = "无法读取页数",
+            )
+            continue
+        }
+
+        val outputPath = allocateOutputPath(
+            outputDir = outputDir,
+            stem = sourceStem(media.displayName),
+            ext = extension,
+        ) { candidate ->
+            val partial = partialOutputPath(candidate)
+            exists(candidate) ||
+                exists(partial) ||
+                candidate in allocated ||
+                partial in allocated
+        }
+        allocated += outputPath
+        allocated += partialOutputPath(outputPath)
+
+        jobs += Job(
+            id = nextId(),
+            sourceUri = media.sourceUri,
+            displayName = media.displayName,
+            outputPath = outputPath,
+            status = JobStatus.Queued,
+            progress = 0.0,
+            error = null,
+            config = configForSource(config, media),
+            media = media,
+        )
+    }
+
+    EnqueueReport(jobs = jobs, skipped = skipped)
+}
+
+private fun needsPdfPageCount(preset: String): Boolean =
+    preset == "pdf-image" ||
+        preset == "pdf-txt" ||
+        preset == "pdf-compress" ||
+        preset == "pdf-split"
+
 fun markInterrupted(jobs: List<Job>): List<Job> = jobs.map { job ->
     if (job.status == JobStatus.Running) {
         job.copy(status = JobStatus.Failed, error = "转码被中断")

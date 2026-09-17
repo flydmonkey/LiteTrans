@@ -14,8 +14,11 @@ import com.videoconverter.android.MainActivity
 import com.videoconverter.android.data.JobStore
 import com.videoconverter.android.data.SessionStore
 import com.videoconverter.android.data.outputTargetForJob
+import com.videoconverter.android.document.DocumentEngine
+import com.videoconverter.android.document.shouldRunDocumentEngine
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.isDocumentPreset
 import com.videoconverter.android.engine.FfmpegProcess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +33,7 @@ class TranscodeService : Service() {
     private lateinit var jobStore: JobStore
     private lateinit var sessionStore: SessionStore
     private lateinit var ffmpeg: FfmpegProcess
+    private lateinit var documentEngine: DocumentEngine
     private lateinit var commands: SerialServiceCommands<ServiceCommand>
     private val pumpCoordinator = PumpCoordinator()
     private val stateLock = Any()
@@ -44,6 +48,7 @@ class TranscodeService : Service() {
         jobStore = JobStore(this)
         sessionStore = SessionStore(this)
         ffmpeg = FfmpegProcess(this)
+        documentEngine = DocumentEngine(this)
         commands = SerialServiceCommands(scope, ::executeCommand)
     }
 
@@ -69,7 +74,14 @@ class TranscodeService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        runningJobId?.let(ffmpeg::interrupt)
+        runningJobId?.let { jobId ->
+            val preset = jobStore.load().firstOrNull { it.id == jobId }?.config?.preset
+            if (preset != null && isDocumentPreset(preset)) {
+                documentEngine.cancel(jobId)
+            } else {
+                ffmpeg.interrupt(jobId)
+            }
+        }
         scope.cancel()
         recordDestroyed()
         super.onDestroy()
@@ -112,7 +124,7 @@ class TranscodeService : Service() {
                         running.outputTreeUri,
                         sessionStore.load().output,
                     )
-                    val result = ffmpeg.transcode(running, target) { progress ->
+                    val onProgress: (Double) -> Unit = { progress ->
                         val updated = jobStore.update { jobs ->
                             jobs.map { job ->
                                 if (job.id == running.id && job.status == JobStatus.Running) {
@@ -123,6 +135,11 @@ class TranscodeService : Service() {
                             }
                         }.firstOrNull { it.id == running.id }
                         if (updated?.status == JobStatus.Running) showForeground(updated)
+                    }
+                    val result = if (shouldRunDocumentEngine(running.config.preset)) {
+                        documentEngine.convert(running, target, onProgress)
+                    } else {
+                        ffmpeg.transcode(running, target, onProgress)
                     }
                     synchronized(stateLock) {
                         jobStore.update { jobs -> jobs.completeRunningJob(result) }
@@ -164,7 +181,13 @@ class TranscodeService : Service() {
     private fun cancelJob(jobId: String) {
         synchronized(stateLock) {
             jobStore.update { jobs -> jobs.cancelJob(jobId, runningJobId) }
-            if (runningJobId == jobId) ffmpeg.cancel(jobId)
+            if (runningJobId == jobId) {
+                if (isDocumentPreset(jobStore.load().first { it.id == jobId }.config.preset)) {
+                    documentEngine.cancel(jobId)
+                } else {
+                    ffmpeg.cancel(jobId)
+                }
+            }
         }
     }
 
