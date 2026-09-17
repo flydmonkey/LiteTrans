@@ -222,9 +222,20 @@ public struct SkippedSource: Equatable, Sendable {
     public var sourceUri: String
     public var displayName: String
     public var reason: String
+
+    public init(sourceUri: String, displayName: String, reason: String) {
+        self.sourceUri = sourceUri
+        self.displayName = displayName
+        self.reason = reason
+    }
 }
 
 public struct EnqueueReport: Equatable, Sendable {
     public var jobs: [Job]
     public var skipped: [SkippedSource]
+
+    public init(jobs: [Job], skipped: [SkippedSource]) {
+        self.jobs = jobs
+        self.skipped = skipped
+    }
 }

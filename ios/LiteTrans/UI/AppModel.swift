@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+@MainActor
 @Observable
 final class AppModel {
     var tab: RootTab = .convert
@@ -8,21 +9,97 @@ final class AppModel {
     var minePage: MinePage = .root
     var sources: [MediaInfo] = []
     var selectedUri: String?
-    var preset: String = defaultPreset
-    var quality: String = "standard"
-    var size: String = "original"
-    var output: OutputTarget = .init(kind: .downloads)
+    var preset: String = defaultPreset {
+        didSet { persistSession() }
+    }
+    var quality: String = "standard" {
+        didSet { persistSession() }
+    }
+    var size: String = "original" {
+        didSet { persistSession() }
+    }
+    var output: OutputTarget = .init(kind: .downloads) {
+        didSet { persistSession() }
+    }
     var jobs: [Job] = []
     var transcoding: Bool = false
     var message: String?
-    var language: AppLanguage = .system
+    var language: AppLanguage = .system {
+        didSet { persistSession() }
+    }
 
     var importableCount: Int { sources.filter(\.importable).count }
     var probing: Bool { sources.contains(where: \.probing) }
     var startEnabled: Bool { canStart(importable: importableCount, probing: probing, transcoding: transcoding, output: output) }
 
+    private let jobStore: JobStore
+    private let sessionStore: SessionStore
+    private let probeService: ProbeService
+    private let pump: QueuePump
+    private var hydrating = true
+    private var outputAccessStop: (() -> Void)?
+
+    init(
+        jobStore: JobStore = JobStore(),
+        sessionStore: SessionStore = SessionStore(),
+        probeService: ProbeService = ProbeService(),
+        pump: QueuePump = QueuePump()
+    ) {
+        self.jobStore = jobStore
+        self.sessionStore = sessionStore
+        self.probeService = probeService
+        self.pump = pump
+        jobs = markInterrupted(jobStore.load())
+        jobStore.save(jobs)
+        if let session = sessionStore.load() {
+            preset = session.preset
+            quality = session.quality
+            size = session.size
+            output = session.output
+            language = session.language
+        }
+        hydrating = false
+    }
+
     func startConversion() {
+        start()
+    }
+
+    func start() {
         guard startEnabled else { return }
+        do {
+            let dir = try resolvedOutputDir()
+            let bounds = shouldShowResolution(preset) ? resolutionBounds(size) : (nil, nil)
+            let report = try enqueueJobs(
+                sources: sources,
+                config: OutputConfig(
+                    preset: preset,
+                    maxWidth: bounds.0,
+                    maxHeight: bounds.1,
+                    quality: quality
+                ),
+                outputDir: dir,
+                nextId: { UUID().uuidString },
+                exists: { FileManager.default.fileExists(atPath: $0) }
+            )
+            if report.jobs.isEmpty {
+                message = skippedSourcesMessage(report.skipped)
+                releaseOutputAccess()
+                return
+            }
+            jobs.insert(contentsOf: report.jobs, at: 0)
+            message = skippedSourcesMessage(report.skipped)
+            sources = []
+            selectedUri = nil
+            convertPage = .home
+            tab = .history
+            persistJobs()
+            persistSession()
+            pump.start(model: self)
+        } catch {
+            message = error.localizedDescription
+            releaseOutputAccess()
+        }
     }
 
     func canRemove(_ source: MediaInfo) -> Bool {
@@ -40,6 +117,25 @@ final class AppModel {
     func replaceSource(_ source: MediaInfo) {
         guard let index = sources.firstIndex(where: { $0.sourceUri == source.sourceUri }) else { return }
         sources[index] = source
+    }
+
+    func replaceJob(_ job: Job) {
+        guard let index = jobs.firstIndex(where: { $0.id == job.id }) else { return }
+        jobs[index] = job
+    }
+
+    func updateProgress(id: String, progress: Double) {
+        guard let index = jobs.firstIndex(where: { $0.id == id }) else { return }
+        jobs[index].progress = min(max(progress, 0), 100)
+    }
+
+    func persistJobs() {
+        jobStore.save(jobs)
+    }
+
+    func releaseOutputAccess() {
+        outputAccessStop?()
+        outputAccessStop = nil
     }
 
     func importPickedURLs(_ urls: [URL]) {
@@ -64,6 +160,7 @@ final class AppModel {
             if selectedUri == nil {
                 selectedUri = info.sourceUri
             }
+            Task { await self.finishProbe(sourceUri: info.sourceUri, displayName: displayName) }
         } catch {
             sources.append(
                 MediaInfo(
@@ -83,6 +180,61 @@ final class AppModel {
         }
         let bookmark = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
         output = OutputTarget(kind: .custom, bookmark: bookmark)
+    }
+
+    func resolvedOutputDir() throws -> String {
+        releaseOutputAccess()
+        switch output.kind {
+        case .photos:
+            return FileManager.default.temporaryDirectory.path
+        case .downloads:
+            let directory = documentsDownloadsDirectory()
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            return directory.path
+        case .custom:
+            guard let bookmark = output.bookmark else {
+                throw VideoExportError.bookmarkUnresolved
+            }
+            var stale = false
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            )
+            let accessed = url.startAccessingSecurityScopedResource()
+            outputAccessStop = {
+                if accessed {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+            return url.path
+        }
+    }
+
+    private func finishProbe(sourceUri: String, displayName: String) async {
+        guard let url = URL(string: sourceUri) else { return }
+        let probed = await probeService.probe(url: url, displayName: displayName)
+        replaceSource(probed)
+    }
+
+    private func persistSession() {
+        guard !hydrating else { return }
+        sessionStore.save(
+            SessionSnapshot(
+                preset: preset,
+                quality: quality,
+                size: size,
+                output: output,
+                language: language
+            )
+        )
+    }
+
+    private func documentsDownloadsDirectory() -> URL {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return documents.appendingPathComponent("Downloads", isDirectory: true)
     }
 
     private func copyIntoImports(_ url: URL, preferredName: String) throws -> URL {

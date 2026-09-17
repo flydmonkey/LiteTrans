@@ -17,6 +17,27 @@ struct ConvertHomeView: View {
 
     var body: some View {
         List {
+            if let message = model.message {
+                Section {
+                    HStack(alignment: .top, spacing: 12) {
+                        Text(message)
+                            .font(.body)
+                            .foregroundStyle(Color(uiColor: .label))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button {
+                            model.message = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(Color(uiColor: .secondaryLabel))
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(String(localized: "action_dismiss"))
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+
             if let selected, selected.importable, selected.durationSecs != nil {
                 Section {
                     ConvertTrimCard(source: selected)

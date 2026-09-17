@@ -4,7 +4,7 @@ public enum RootTab: String, CaseIterable, Sendable { case convert, history, min
 public enum ConvertPage: String, Sendable, Hashable { case home, format, quality, size, output }
 public enum ConvertSetting: String, Sendable, Hashable { case format, quality, size, output }
 public enum MinePage: String, Sendable { case root, language, privacy, terms, about }
-public enum AppLanguage: String, Sendable { case system, zhHans, zhHant, en, ja, ko }
+public enum AppLanguage: String, Sendable, Codable { case system, zhHans, zhHant, en, ja, ko }
 public enum OutputKind: String, Sendable, Codable { case photos, downloads, custom }
 
 public struct OutputTarget: Equatable, Sendable, Codable {
