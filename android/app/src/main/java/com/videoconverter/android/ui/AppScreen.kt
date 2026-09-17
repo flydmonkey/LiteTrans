@@ -115,9 +115,8 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
             }
         }
         appViewModel.clearSources(mode)
-        historySegmentAfterStart(
-            if (mode == ConvertMode.Audio) RootTab.Audio else RootTab.Transcode,
-        )?.let { historySegment = it }
+        val preset = sessionFor(state.video, state.audio, mode).preset
+        historySegment = historySegmentAfterEnqueue(mode, preset)
         tab = RootTab.History
     }
 

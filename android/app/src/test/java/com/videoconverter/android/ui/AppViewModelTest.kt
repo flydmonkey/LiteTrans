@@ -200,6 +200,14 @@ class AppViewModelTest {
         assertEquals("video/mp4", intent.type)
     }
 
+    @Test
+    fun untitledDisplayNameAvoidsWrongCategory() {
+        assertEquals("clip.mp4", sourceDisplayNameOrUntitled("clip.mp4", "ignored"))
+        assertEquals("from-path.m4a", sourceDisplayNameOrUntitled(null, "dir/from-path.m4a"))
+        assertEquals("未命名", sourceDisplayNameOrUntitled(null, null))
+        assertEquals("未命名", sourceDisplayNameOrUntitled("", "/"))
+    }
+
     private fun media(name: String, container: String) = MediaInfo(
         sourceUri = "content://video/$name",
         displayName = name,

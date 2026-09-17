@@ -93,9 +93,25 @@ class RootTabsTest {
             consumeRootBack(RootTab.Audio, MinePage.Root, WizardStep.Format),
         )
         assertNull(consumeRootBack(RootTab.Audio, MinePage.Root, WizardStep.Sources))
-        assertEquals(HistorySegment.Audio, historySegmentAfterStart(RootTab.Audio))
-        assertEquals(HistorySegment.Video, historySegmentAfterStart(RootTab.Transcode))
-        assertNull(historySegmentAfterStart(RootTab.History))
+        assertEquals(
+            HistorySegment.Audio,
+            historySegmentAfterEnqueue(ConvertMode.Audio, "audio-mp3"),
+        )
+        assertEquals(
+            HistorySegment.Video,
+            historySegmentAfterEnqueue(ConvertMode.Video, "mp4-h264"),
+        )
+        assertEquals(
+            HistorySegment.Audio,
+            historySegmentAfterEnqueue(ConvertMode.Video, "audio-mp3"),
+        )
+    }
+
+    @Test
+    fun customContainerMp3CountsAsAudioHistory() {
+        val customMp3 = job("c", OutputConfig(preset = "custom", container = "mp3"))
+        assertEquals("mp3", com.videoconverter.android.domain.resolveConfig(customMp3.config).getOrThrow().container)
+        assertTrue(isAudioHistoryJob(customMp3))
     }
 
     @Test

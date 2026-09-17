@@ -190,6 +190,26 @@ class WizardTest {
         assertEquals("未命名", outputFileName(null))
     }
 
+    @Test
+    fun m4aSourceIsLabeledM4aNotMp4() {
+        val m4a = MediaInfo(
+            sourceUri = "content://song.m4a",
+            displayName = "song.m4a",
+            container = "mov,mp4,m4a,3gp,3g2,mj2",
+            audioCodec = "aac",
+            importable = true,
+        )
+        assertEquals("M4A · AAC", sourceFromLabel(m4a))
+        val aacFile = MediaInfo(
+            sourceUri = "content://song.aac",
+            displayName = "song.aac",
+            container = "mov,mp4,m4a,3gp,3g2,mj2",
+            audioCodec = "aac",
+            importable = true,
+        )
+        assertTrue(sourceFromLabel(aacFile).startsWith("AAC") || sourceFromLabel(aacFile).startsWith("M4A"))
+    }
+
     private fun media(
         name: String,
         codecLabel: String,

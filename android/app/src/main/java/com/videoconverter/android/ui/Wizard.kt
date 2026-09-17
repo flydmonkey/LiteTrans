@@ -284,6 +284,8 @@ private fun friendlyContainer(container: String?, name: String): String {
         "matroska" in value || ext == "MKV" -> "MKV"
         "webm" in value || ext == "WEBM" -> "WebM"
         "mp3" in value || ext == "MP3" -> "MP3"
+        ext == "M4A" || value == "m4a" || value.startsWith("m4a,") -> "M4A"
+        ext == "AAC" || value == "aac" || value.startsWith("aac,") -> "AAC"
         "avi" in value || ext == "AVI" -> "AVI"
         ext == "MOV" -> "MOV"
         "mp4" in value || "mov" in value || ext == "MP4" || ext == "M4V" -> "MP4"

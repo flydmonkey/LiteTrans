@@ -70,11 +70,9 @@ fun remainingJobsAfterClearFinished(jobs: List<Job>, segment: HistorySegment): L
         else job.status == JobStatus.Queued || job.status == JobStatus.Running
     }
 
-fun historySegmentAfterStart(tab: RootTab): HistorySegment? = when (tab) {
-    RootTab.Transcode -> HistorySegment.Video
-    RootTab.Audio -> HistorySegment.Audio
-    else -> null
-}
+fun historySegmentAfterEnqueue(mode: ConvertMode, preset: String): HistorySegment =
+    if (mode == ConvertMode.Audio || isAudioPreset(preset)) HistorySegment.Audio
+    else HistorySegment.Video
 
 fun consumeRootBack(
     tab: RootTab,

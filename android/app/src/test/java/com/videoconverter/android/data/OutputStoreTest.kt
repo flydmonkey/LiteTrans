@@ -1,5 +1,9 @@
 package com.videoconverter.android.data
 
+import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.OutputConfig
 import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -53,4 +57,57 @@ class OutputStoreTest {
 
         assertEquals("无法写入输出目录，请重新选择", error.message)
     }
+
+    @Test
+    fun outputTargetForJobUsesNamedKind() {
+        val fallback = OutputTarget(OutputTarget.Kind.Downloads)
+        assertEquals(
+            OutputTarget(OutputTarget.Kind.Music),
+            outputTargetForJob("Music", null, fallback),
+        )
+        assertEquals(
+            OutputTarget(OutputTarget.Kind.SafTree, "content://tree"),
+            outputTargetForJob("SafTree", "content://tree", fallback),
+        )
+    }
+
+    @Test
+    fun unknownOrNullKindFallsBackToSessionTarget() {
+        val fallback = OutputTarget(OutputTarget.Kind.Downloads)
+        assertEquals(fallback, outputTargetForJob(null, null, fallback))
+        assertEquals(fallback, outputTargetForJob("Unknown", null, fallback))
+        assertEquals(fallback, outputTargetForJob("", "content://tree", fallback))
+    }
+
+    @Test
+    fun stampedJobsKeepIndependentOutputKinds() {
+        val downloads = OutputTarget(OutputTarget.Kind.Downloads)
+        val music = OutputTarget(OutputTarget.Kind.Music)
+        val video = stampJobOutputTarget(sampleJob("v"), downloads)
+        val audio = stampJobOutputTarget(sampleJob("a"), music)
+        assertEquals(
+            downloads,
+            outputTargetForJob(video.outputKind, video.outputTreeUri, music),
+        )
+        assertEquals(
+            music,
+            outputTargetForJob(audio.outputKind, audio.outputTreeUri, downloads),
+        )
+    }
+
+    private fun sampleJob(id: String) = Job(
+        id = id,
+        sourceUri = "content://$id",
+        displayName = "$id.mp4",
+        outputPath = null,
+        status = JobStatus.Queued,
+        progress = 0.0,
+        error = null,
+        config = OutputConfig(),
+        media = MediaInfo(
+            sourceUri = "content://$id",
+            displayName = "$id.mp4",
+            importable = true,
+        ),
+    )
 }

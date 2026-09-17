@@ -91,6 +91,8 @@ private fun Job.toJson(): JSONObject = JSONObject()
     .putNullable("error", error)
     .put("config", config.toJson())
     .put("media", media.toJson())
+    .putNullable("outputKind", outputKind)
+    .putNullable("outputTreeUri", outputTreeUri)
 
 private fun JSONObject.toJob(): Job = Job(
     id = getString("id"),
@@ -102,6 +104,8 @@ private fun JSONObject.toJob(): Job = Job(
     error = nullableString("error"),
     config = getJSONObject("config").toOutputConfig(),
     media = getJSONObject("media").toMediaInfo(),
+    outputKind = nullableString("outputKind"),
+    outputTreeUri = nullableString("outputTreeUri"),
 )
 
 private fun OutputConfig.toJson(): JSONObject = JSONObject()

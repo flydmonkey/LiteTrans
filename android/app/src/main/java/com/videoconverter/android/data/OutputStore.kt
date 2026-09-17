@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Process
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
+import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.allocateOutputPath
 import com.videoconverter.android.domain.partialOutputPath
 import java.io.File
@@ -34,6 +35,14 @@ data class OutputTarget(
 ) {
     enum class Kind { Downloads, SafTree, AppExternal, Gallery, Movies, Music }
 }
+
+fun outputTargetForJob(kindName: String?, treeUri: String?, fallback: OutputTarget): OutputTarget {
+    val kind = OutputTarget.Kind.entries.firstOrNull { it.name == kindName } ?: return fallback
+    return OutputTarget(kind, treeUri)
+}
+
+fun stampJobOutputTarget(job: Job, target: OutputTarget): Job =
+    job.copy(outputKind = target.kind.name, outputTreeUri = target.treeUri)
 
 data class JobOutput(
     val partial: File,

@@ -13,6 +13,7 @@ import android.os.IBinder
 import com.videoconverter.android.MainActivity
 import com.videoconverter.android.data.JobStore
 import com.videoconverter.android.data.SessionStore
+import com.videoconverter.android.data.outputTargetForJob
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.engine.FfmpegProcess
@@ -106,7 +107,11 @@ class TranscodeService : Service() {
 
                     showForeground(running)
 
-                    val target = sessionStore.load().output
+                    val target = outputTargetForJob(
+                        running.outputKind,
+                        running.outputTreeUri,
+                        sessionStore.load().output,
+                    )
                     val result = ffmpeg.transcode(running, target) { progress ->
                         val updated = jobStore.update { jobs ->
                             jobs.map { job ->

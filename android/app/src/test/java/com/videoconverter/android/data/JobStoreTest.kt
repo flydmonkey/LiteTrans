@@ -1,11 +1,15 @@
 package com.videoconverter.android.data
 
 import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.OutputConfig
 import java.io.File
 import java.nio.file.NoSuchFileException
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -58,4 +62,42 @@ class JobStoreTest {
             directory.deleteRecursively()
         }
     }
+
+    @Test
+    fun jobJsonRoundTripKeepsOutputKindAndTreeUri() {
+        val job = sampleJob(outputKind = "Music", outputTreeUri = "content://tree")
+        val parsed = jobsFromJson(jobsToJson(listOf(job))).single()
+        assertEquals("Music", parsed.outputKind)
+        assertEquals("content://tree", parsed.outputTreeUri)
+    }
+
+    @Test
+    fun missingOutputKeysOnOldJobsLoadAsNull() {
+        val oldJson = """
+            [{"id":"j1","sourceUri":"content://a","displayName":"a.mp4","outputPath":null,
+              "status":"Queued","progress":0,"error":null,
+              "config":{"preset":"mp4-h264"},
+              "media":{"sourceUri":"content://a","displayName":"a.mp4","importable":true}}]
+        """.trimIndent()
+        val parsed = jobsFromJson(oldJson).single()
+        assertNull(parsed.outputKind)
+        assertNull(parsed.outputTreeUri)
+    }
+
+    private fun sampleJob(
+        outputKind: String? = null,
+        outputTreeUri: String? = null,
+    ) = Job(
+        id = "j1",
+        sourceUri = "content://a",
+        displayName = "a.mp4",
+        outputPath = null,
+        status = JobStatus.Queued,
+        progress = 0.0,
+        error = null,
+        config = OutputConfig(),
+        media = MediaInfo(sourceUri = "content://a", displayName = "a.mp4", importable = true),
+        outputKind = outputKind,
+        outputTreeUri = outputTreeUri,
+    )
 }

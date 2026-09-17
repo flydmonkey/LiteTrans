@@ -12,6 +12,7 @@ import com.videoconverter.android.data.OutputStore
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.data.SessionSettings
 import com.videoconverter.android.data.SessionStore
+import com.videoconverter.android.data.stampJobOutputTarget
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
@@ -73,6 +74,13 @@ suspend fun persistOutputBeforeStart(
 ) {
     persist(output)
     start()
+}
+
+fun sourceDisplayNameOrUntitled(queryName: String?, lastPathSegment: String?): String {
+    val queried = queryName?.takeIf { it.isNotBlank() }
+    if (queried != null) return queried
+    val segment = lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+    return segment ?: "未命名"
 }
 
 fun outputMimeType(config: OutputConfig): String =
@@ -293,8 +301,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             mutableState.value = snapshot.copy(message = reason)
             return false
         }
+        val stamped = report.jobs.map { stampJobOutputTarget(it, session.output) }
         mutableState.value = snapshot.copy(
-            jobs = snapshot.jobs + report.jobs,
+            jobs = snapshot.jobs + stamped,
             message = report.skipped.firstOrNull()?.reason,
         )
         markSourcesChanged(mode, false)
@@ -302,7 +311,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             persistOutputBeforeStart(
                 output = session.output,
                 persist = { persistOutputTarget(it) },
-                start = { TranscodeService.enqueue(app, report.jobs) },
+                start = { TranscodeService.enqueue(app, stamped) },
             )
         }
         return true
@@ -451,7 +460,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )?.use { cursor ->
             val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
-        } ?: uri.lastPathSegment?.substringAfterLast('/') ?: "视频"
+        }.let { sourceDisplayNameOrUntitled(it, uri.lastPathSegment) }
 
     private fun takeReadPermission(uri: Uri) {
         runCatching {

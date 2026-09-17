@@ -64,6 +64,8 @@ data class Job(
     val error: String?,
     val config: OutputConfig,
     val media: MediaInfo,
+    val outputKind: String? = null,
+    val outputTreeUri: String? = null,
 )
 
 data class SkippedSource(val sourceUri: String, val displayName: String, val reason: String)
