@@ -1,5 +1,9 @@
 package com.videoconverter.android.lan
 
+import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.OutputConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -57,6 +61,37 @@ class LanMediaTest {
         assertEquals("bytes 0-49/100", lanContentRangeValue(0, 49, 100))
         assertEquals("bytes */100", lanUnsatisfiableContentRange(100))
     }
+
+    @Test
+    fun previewNameFollowsHistoryTitleForContentUris() {
+        val video = job(
+            "content://media/external/video/media/42",
+            "假期.mov",
+            "mp4-h264",
+        )
+        assertEquals("假期.mp4", lanPreviewFileName(video.outputPath!!, video))
+        val audio = job(
+            "content://media/external/audio/media/99",
+            "假期.mp4",
+            "audio-mp3",
+        )
+        assertEquals("假期.mp3", lanPreviewFileName(audio.outputPath!!, audio))
+        val stamped = job("/tmp/clip_20260918_033012.mp4", "假期.mov", "mp4-h264")
+        assertEquals("clip_20260918_033012.mp4", lanPreviewFileName(stamped.outputPath!!, stamped))
+    }
+
+    private fun job(path: String, displayName: String, preset: String) = Job(
+        id = "j1",
+        sourceUri = "content://source",
+        displayName = displayName,
+        outputPath = path,
+        status = JobStatus.Completed,
+        progress = 100.0,
+        error = null,
+        config = OutputConfig(preset = preset),
+        media = MediaInfo(sourceUri = "content://source", displayName = displayName, importable = true),
+        outputPaths = listOf(path),
+    )
 
     @Test
     fun copyLanRangeSkipsAndLimits() {

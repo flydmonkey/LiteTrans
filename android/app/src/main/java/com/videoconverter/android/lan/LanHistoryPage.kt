@@ -1,14 +1,16 @@
 package com.videoconverter.android.lan
 
 import com.videoconverter.android.domain.Job
+import java.time.ZoneId
 
 fun renderLanHistoryHtml(
     jobs: List<Job>,
     token: String,
     copy: LanHistoryCopy,
+    zone: ZoneId = ZoneId.systemDefault(),
     fileExists: (String) -> Boolean,
 ): String {
-    val items = lanLibraryItems(jobs, fileExists)
+    val items = lanLibraryItems(jobs, zone, fileExists = fileExists)
     val defaultTab = lanDefaultLibraryTab(items)
     return buildString {
         append("<!DOCTYPE html><html><head>")
@@ -93,20 +95,17 @@ private fun StringBuilder.appendLibraryItem(
     append("\" data-id=\"").append(escapeHtml(item.jobId))
     append("\" data-index=\"").append(item.index)
     append("\" data-tab=\"").append(item.tab.wireName())
+    append("\" data-label=\"").append(escapeHtml(item.label))
+    append("\" data-info=\"").append(escapeHtml(item.detail))
     append("\">")
-    append("<span class=\"name\">")
-    when (item.tab) {
-        LanLibraryTab.Image -> {
-            val thumb = lanHistoryDownloadHref(item.jobId, item.index, item.needsIndex, token, "m")
-            append("<img class=\"thumb-src\" alt=\"\" src=\"").append(escapeHtml(thumb)).append("\">")
-        }
-        LanLibraryTab.Document -> {
-            append(escapeHtml(item.label))
-            append(" <span class=\"fmt\">").append(escapeHtml(item.format)).append("</span>")
-        }
-        else -> append(escapeHtml(item.label))
+    if (item.tab == LanLibraryTab.Image) {
+        val thumb = lanHistoryDownloadHref(item.jobId, item.index, item.needsIndex, token, "m")
+        append("<img class=\"thumb-src\" alt=\"\" src=\"").append(escapeHtml(thumb)).append("\">")
     }
-    append("</span>")
+    append("<span class=\"name\">").append(escapeHtml(item.label)).append("</span>")
+    if (item.detail.isNotBlank()) {
+        append("<span class=\"info\">").append(escapeHtml(item.detail)).append("</span>")
+    }
     append("<a class=\"row-dl\" href=\"").append(escapeHtml(download)).append("\">")
     append(escapeHtml(downloadLabel))
     append("</a>")
@@ -150,18 +149,20 @@ main{display:flex;flex:1;min-height:0;gap:16px;padding:16px 18px 20px}
 .rail{width:320px;flex:0 0 320px;background:#fff;border:1px solid #d5d2cc;border-radius:14px;overflow:auto;padding:10px;box-sizing:border-box}
 .pane[hidden]{display:none}
 .empty{margin:18px 10px;color:#5c6460}
-.item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer}
-.item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item{display:grid;grid-template-columns:1fr auto;column-gap:10px;row-gap:2px;align-items:center;padding:10px 12px;border-radius:8px;cursor:pointer}
+.item .name{grid-column:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .info{grid-column:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5c6460;font-size:.82rem}
 .item.selected{background:#f6f1ea;box-shadow:inset 3px 0 0 #c45a2a}
-.row-dl{flex:0 0 auto;color:#c45a2a;font-weight:600;font-size:.9rem;text-decoration:none}
+.row-dl{grid-column:2;grid-row:1 / span 2;flex:0 0 auto;color:#c45a2a;font-weight:600;font-size:.9rem;text-decoration:none}
 .row-dl:hover{text-decoration:underline}
 .thumbs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.item.thumb{display:block;padding:0;overflow:hidden;border:2px solid transparent;position:relative}
+.item.thumb{display:flex;flex-direction:column;align-items:stretch;padding:0;overflow:hidden;border:2px solid transparent;position:relative;gap:0}
 .item.thumb.selected{box-shadow:none;border-color:#c45a2a;background:transparent}
-.item.thumb .name{display:block}
-.item.thumb .row-dl{position:absolute;right:6px;bottom:6px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.92)}
+.item.thumb .thumb-src{display:block;width:100%;height:88px;object-fit:cover;background:#d5d2cc}
+.item.thumb .name{display:block;padding:6px 8px 0;font-size:.85rem}
+.item.thumb .info{display:block;padding:0 8px 8px}
+.item.thumb .row-dl{position:absolute;right:6px;top:6px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.92);grid-column:auto;grid-row:auto}
 .thumb-src{display:block;width:100%;height:88px;object-fit:cover;background:#d5d2cc}
-.fmt{color:#5c6460;font-size:.85em;margin-left:.35em}
 .stage{flex:1;display:flex;flex-direction:column;min-width:0}
 .player{flex:1;min-height:240px;background:#111;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .player video,.player audio,.player img,.player iframe{max-width:100%;max-height:100%;display:none}
@@ -214,7 +215,9 @@ function select(el){
   else if(kind==='audio'){audio.style.display='block';audio.src=withToken(media);}
   else if(kind==='image'){img.style.display='block';img.src=withToken(media);}
   else if(kind==='pdf'){iframe.style.display='block';iframe.src=withToken(media);}
-  else {hint.textContent=downloadToOpen;}
+  var bits=[el.getAttribute('data-label'), el.getAttribute('data-info')].filter(function(s){return !!s;});
+  if(kind==='file') bits.push(downloadToOpen);
+  hint.textContent=bits.join(' · ');
 }
 document.querySelectorAll('[data-tab-btn]').forEach(function(btn){
   btn.addEventListener('click',function(){

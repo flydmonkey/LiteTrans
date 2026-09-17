@@ -102,6 +102,9 @@ class LanHistoryHtmlTest {
             englishLanHistoryCopy(),
         ) { true }
         assertTrue(html.contains("data-kind=\"video\""))
+        assertTrue(html.contains("假期.mp4"))
+        assertFalse(html.contains(">file.mp4<") || html.contains(">file.mp4 "))
+        assertTrue(html.contains("class=\"info\""))
         assertTrue(html.contains("data-media=\"/m/v\""))
         assertFalse(html.contains(location))
         assertFalse(html.contains("content://secret"))
@@ -147,6 +150,8 @@ class LanHistoryHtmlTest {
             englishLanHistoryCopy(),
         ) { true }
         assertTrue(html.contains("data-kind=\"audio\""))
+        assertTrue(html.contains("假期.mp3"))
+        assertFalse(html.contains("假期.mp4"))
         assertTrue(html.contains("data-media=\"/m/a\""))
         assertFalse(html.contains(location))
         assertFalse(html.contains("content://secret"))
@@ -163,6 +168,24 @@ class LanHistoryHtmlTest {
         assertFalse(docPane.contains("data-id=\"p\""))
         val imagePane = html.substringAfter("data-pane=\"image\"").substringBefore("data-pane=\"document\"")
         assertTrue(imagePane.contains("data-id=\"p\""))
+        assertTrue(imagePane.contains("p.png"))
+    }
+
+    @Test
+    fun listsHistoryDateWithFileName() {
+        val dated = job("v", JobStatus.Completed, listOf("/tmp/v.mp4"), "假期.mp4").copy(
+            createdAtEpochMs = java.time.Instant.parse("2026-09-18T03:43:00Z").toEpochMilli(),
+        )
+        val html = renderLanHistoryHtml(
+            listOf(dated),
+            "",
+            englishLanHistoryCopy(),
+            java.time.ZoneOffset.UTC,
+        ) { true }
+        val videoItem = html.substringAfter("data-id=\"v\"").substringBefore("</div>")
+        assertTrue(videoItem.contains("v.mp4"))
+        assertTrue(videoItem.contains("2026-09-18 03:43"))
+        assertTrue(videoItem.contains("mp4"))
     }
 
     private fun job(

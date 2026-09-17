@@ -1,9 +1,7 @@
 package com.videoconverter.android.lan
 
 import com.videoconverter.android.domain.Job
-import com.videoconverter.android.domain.documentExtension
-import com.videoconverter.android.domain.isDocumentPreset
-import com.videoconverter.android.domain.resolveConfig
+import com.videoconverter.android.ui.historyTitle
 
 enum class LanPreviewKind { Video, Audio, Pdf, Image, File }
 
@@ -47,23 +45,8 @@ fun lanContentDisposition(fileName: String, inline: Boolean = false): String {
 fun isLanContentLocation(location: String): Boolean =
     location.startsWith("content:", ignoreCase = true)
 
-internal fun lanPreviewFileName(path: String, job: Job): String {
-    val base = java.io.File(path).name
-    val extension = base.substringAfterLast('.', "")
-    val needsOutputExtension = isLanContentLocation(path) || extension.isBlank()
-    if (!needsOutputExtension) return base
-    val outputExtension = previewExtensionFromOutput(job)
-    if (!outputExtension.isNullOrBlank()) return "file.$outputExtension"
-    if ('.' in job.displayName) return job.displayName
-    return base
-}
-
-private fun previewExtensionFromOutput(job: Job): String? =
-    if (isDocumentPreset(job.config.preset)) {
-        documentExtension(job.config.preset, job.config.container)
-    } else {
-        resolveConfig(job.config).getOrNull()?.container
-    }
+internal fun lanPreviewFileName(path: String, job: Job, untitled: String = "Untitled"): String =
+    historyTitle(job.copy(outputPath = path), untitled)
 
 sealed class LanByteRange {
     data object Whole : LanByteRange()

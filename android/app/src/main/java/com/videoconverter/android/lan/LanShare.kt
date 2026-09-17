@@ -300,7 +300,7 @@ fun handleLanRequest(
     }
     return when (val route = parseLanRoute(request.path)) {
         is LanRoute.Home -> {
-            val html = renderLanHistoryHtml(jobs, token, copy, exists)
+            val html = renderLanHistoryHtml(jobs, token, copy, fileExists = exists)
             LanHttpResponse(
                 status = 200,
                 contentType = "text/html; charset=utf-8",
