@@ -140,7 +140,11 @@ final class AppModel {
     }
 
     func outputFileURL(for job: Job) -> URL? {
-        guard let path = job.outputPath, FileManager.default.fileExists(atPath: path) else { return nil }
+        let started = beginHistoryOutputAccess()
+        guard let path = job.outputPath, FileManager.default.fileExists(atPath: path) else {
+            endHistoryOutputAccess(started)
+            return nil
+        }
         return URL(fileURLWithPath: path)
     }
 
@@ -178,6 +182,8 @@ final class AppModel {
 
     func deleteJob(_ job: Job) {
         guard jobRowActions(job.status).contains(.delete) else { return }
+        let started = beginHistoryOutputAccess()
+        defer { endHistoryOutputAccess(started) }
         if let path = job.outputPath {
             try? FileManager.default.removeItem(atPath: path)
             try? FileManager.default.removeItem(atPath: partialOutputPath(path))
@@ -193,6 +199,8 @@ final class AppModel {
             return
         }
         guard let currentPath = job.outputPath else { return }
+        let started = beginHistoryOutputAccess()
+        defer { endHistoryOutputAccess(started) }
         let currentURL = URL(fileURLWithPath: currentPath)
         let ext = currentURL.pathExtension
         let newName = ext.isEmpty ? stem : "\(stem).\(ext)"
@@ -222,6 +230,11 @@ final class AppModel {
     func releaseOutputAccess() {
         outputAccessStop?()
         outputAccessStop = nil
+    }
+
+    func releaseHistoryOutputAccess() {
+        guard !transcoding else { return }
+        releaseOutputAccess()
     }
 
     func importPickedURLs(_ urls: [URL]) {
@@ -278,23 +291,51 @@ final class AppModel {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             return directory.path
         case .custom:
-            guard let bookmark = output.bookmark else {
-                throw VideoExportError.bookmarkUnresolved
-            }
-            var stale = false
-            let url = try URL(
-                resolvingBookmarkData: bookmark,
-                options: [],
-                relativeTo: nil,
-                bookmarkDataIsStale: &stale
-            )
-            let accessed = url.startAccessingSecurityScopedResource()
-            outputAccessStop = {
-                if accessed {
-                    url.stopAccessingSecurityScopedResource()
-                }
-            }
+            let url = try resolveCustomOutputURL()
+            beginAccessing(url)
             return url.path
+        }
+    }
+
+    @discardableResult
+    private func beginHistoryOutputAccess() -> Bool {
+        switch historyOutputAccess(kind: output.kind, alreadyAccessing: outputAccessStop != nil) {
+        case .none, .reuseExisting:
+            return false
+        case .startThenStop:
+            do {
+                beginAccessing(try resolveCustomOutputURL())
+                return true
+            } catch {
+                return false
+            }
+        }
+    }
+
+    private func endHistoryOutputAccess(_ started: Bool) {
+        guard started else { return }
+        releaseOutputAccess()
+    }
+
+    private func resolveCustomOutputURL() throws -> URL {
+        guard let bookmark = output.bookmark else {
+            throw VideoExportError.bookmarkUnresolved
+        }
+        var stale = false
+        return try URL(
+            resolvingBookmarkData: bookmark,
+            options: [],
+            relativeTo: nil,
+            bookmarkDataIsStale: &stale
+        )
+    }
+
+    private func beginAccessing(_ url: URL) {
+        let accessed = url.startAccessingSecurityScopedResource()
+        outputAccessStop = {
+            if accessed {
+                url.stopAccessingSecurityScopedResource()
+            }
         }
     }
 

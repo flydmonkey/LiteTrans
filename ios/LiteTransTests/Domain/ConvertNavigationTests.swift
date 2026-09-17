@@ -86,6 +86,18 @@ struct ConvertNavigationTests {
         #expect(resolvedLocaleIdentifier(.ja) == "en")
         #expect(resolvedLocaleIdentifier(.ko) == "en")
     }
+
+    @Test func historyFileOpsSkipScopedAccessForPhotosAndDownloads() {
+        #expect(historyOutputAccess(kind: .photos, alreadyAccessing: false) == .none)
+        #expect(historyOutputAccess(kind: .photos, alreadyAccessing: true) == .none)
+        #expect(historyOutputAccess(kind: .downloads, alreadyAccessing: false) == .none)
+        #expect(historyOutputAccess(kind: .downloads, alreadyAccessing: true) == .none)
+    }
+
+    @Test func historyFileOpsReaccessCustomFolderUnlessAlreadyOpen() {
+        #expect(historyOutputAccess(kind: .custom, alreadyAccessing: false) == .startThenStop)
+        #expect(historyOutputAccess(kind: .custom, alreadyAccessing: true) == .reuseExisting)
+    }
 }
 
 private func sampleJob(id: String, status: JobStatus) -> Job {

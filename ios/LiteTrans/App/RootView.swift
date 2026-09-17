@@ -13,7 +13,7 @@ struct RootView: View {
                     }
             }
             .tabItem {
-                Label(String(localized: "tab_convert"), systemImage: "arrow.triangle.2.circlepath")
+                Label(tabTitle("tab_convert"), systemImage: "arrow.triangle.2.circlepath")
             }
             .tag(RootTab.convert)
 
@@ -21,7 +21,7 @@ struct RootView: View {
                 HistoryView()
             }
             .tabItem {
-                Label(String(localized: "tab_history"), systemImage: "clock")
+                Label(tabTitle("tab_history"), systemImage: "clock")
             }
             .tag(RootTab.history)
 
@@ -32,7 +32,7 @@ struct RootView: View {
                     }
             }
             .tabItem {
-                Label(String(localized: "tab_mine"), systemImage: "person.crop.circle")
+                Label(tabTitle("tab_mine"), systemImage: "person.crop.circle")
             }
             .tag(RootTab.mine)
         }
@@ -42,6 +42,13 @@ struct RootView: View {
                 model.minePage = .root
             }
         }
+    }
+
+    private func tabTitle(_ key: String.LocalizationValue) -> String {
+        if let identifier = resolvedLocaleIdentifier(model.language) {
+            return String(localized: key, locale: Locale(identifier: identifier))
+        }
+        return String(localized: key)
     }
 
     private var convertPath: Binding<[ConvertPage]> {

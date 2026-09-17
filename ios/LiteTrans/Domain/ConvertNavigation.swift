@@ -96,6 +96,17 @@ public func resolvedLocaleIdentifier(_ language: AppLanguage) -> String? {
     }
 }
 
+public enum HistoryOutputAccess: Equatable, Sendable {
+    case none
+    case reuseExisting
+    case startThenStop
+}
+
+public func historyOutputAccess(kind: OutputKind, alreadyAccessing: Bool) -> HistoryOutputAccess {
+    guard kind == .custom else { return .none }
+    return alreadyAccessing ? .reuseExisting : .startThenStop
+}
+
 public func resolutionBounds(_ size: String) -> (Int?, Int?) {
     switch size {
     case "1080p": return (1920, 1080)

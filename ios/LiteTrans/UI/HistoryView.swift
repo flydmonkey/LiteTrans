@@ -62,6 +62,9 @@ struct HistoryView: View {
         }
         .navigationTitle(text("tab_history"))
         .navigationBarTitleDisplayMode(.large)
+        .onDisappear {
+            model.releaseHistoryOutputAccess()
+        }
         .toolbar {
             if model.hasFinishedJobs {
                 ToolbarItem(placement: .topBarTrailing) {
