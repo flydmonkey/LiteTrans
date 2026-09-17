@@ -98,6 +98,10 @@ private final class ExportSessionBox: @unchecked Sendable {
     }
 }
 
+private final class PhotosRequestFlag: @unchecked Sendable {
+    var value = false
+}
+
 private func trimRange(for job: Job, asset: AVAsset) async throws -> CMTimeRange? {
     let start = job.config.trimStartSecs ?? job.media.trimStartSecs
     let end = job.config.trimEndSecs ?? job.media.trimEndSecs
@@ -128,11 +132,15 @@ private func saveVideoToPhotos(_ url: URL) async throws {
     guard status == .authorized || status == .limited else {
         throw VideoExportError.photosDenied
     }
+    let created = PhotosRequestFlag()
     do {
         try await PHPhotoLibrary.shared().performChanges {
-            PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+            created.value = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url) != nil
         }
     } catch {
+        throw VideoExportError.photosSaveFailed
+    }
+    guard created.value else {
         throw VideoExportError.photosSaveFailed
     }
 }

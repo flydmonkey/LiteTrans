@@ -51,6 +51,17 @@ public func outputReadyToStart(_ output: OutputTarget) -> Bool {
     output.kind != .custom || output.bookmark != nil
 }
 
+public func shouldSaveToPhotos(_ kind: OutputKind) -> Bool {
+    kind == .photos
+}
+
+public func shouldApplyJobProgress(_ status: JobStatus) -> Bool {
+    switch status {
+    case .queued, .running: return true
+    case .completed, .failed, .cancelled: return false
+    }
+}
+
 public func canStart(importable: Int, probing: Bool, transcoding: Bool, output: OutputTarget) -> Bool {
     importable > 0 && !probing && !transcoding && outputReadyToStart(output)
 }

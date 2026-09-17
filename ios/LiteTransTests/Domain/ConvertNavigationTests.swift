@@ -30,6 +30,20 @@ struct ConvertNavigationTests {
         #expect(popMineBack(.root) == nil)
     }
 
+    @Test func photosKindIsTheOnlySaveToPhotosDestination() {
+        #expect(shouldSaveToPhotos(.photos))
+        #expect(!shouldSaveToPhotos(.downloads))
+        #expect(!shouldSaveToPhotos(.custom))
+    }
+
+    @Test func terminalJobsIgnoreProgressUpdates() {
+        #expect(shouldApplyJobProgress(.queued))
+        #expect(shouldApplyJobProgress(.running))
+        #expect(!shouldApplyJobProgress(.completed))
+        #expect(!shouldApplyJobProgress(.failed))
+        #expect(!shouldApplyJobProgress(.cancelled))
+    }
+
     @Test func appLanguageHasRequiredCases() {
         #expect(AppLanguage.system.rawValue == "system")
         #expect(AppLanguage.zhHans.rawValue == "zhHans")

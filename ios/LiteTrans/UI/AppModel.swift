@@ -88,6 +88,7 @@ final class AppModel {
                 return
             }
             jobs.insert(contentsOf: report.jobs, at: 0)
+            transcoding = true
             message = skippedSourcesMessage(report.skipped)
             sources = []
             selectedUri = nil
@@ -126,6 +127,7 @@ final class AppModel {
 
     func updateProgress(id: String, progress: Double) {
         guard let index = jobs.firstIndex(where: { $0.id == id }) else { return }
+        guard shouldApplyJobProgress(jobs[index].status) else { return }
         jobs[index].progress = min(max(progress, 0), 100)
     }
 

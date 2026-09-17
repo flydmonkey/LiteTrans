@@ -10,18 +10,21 @@ final class QueuePump {
     }
 
     func start(model: AppModel) {
-        guard !model.transcoding else { return }
-        task = Task { await run(model: model) }
+        guard task == nil else { return }
+        let saveToPhotos = shouldSaveToPhotos(model.output.kind)
+        task = Task { await run(model: model, saveToPhotos: saveToPhotos) }
     }
 
-    private func run(model: AppModel) async {
+    private func run(model: AppModel, saveToPhotos: Bool) async {
+        defer {
+            task = nil
+            model.transcoding = false
+            model.releaseOutputAccess()
+        }
         while !Task.isCancelled {
             guard let job = model.jobs.first(where: { $0.status == .queued }) else {
-                model.transcoding = false
-                model.releaseOutputAccess()
                 return
             }
-            model.transcoding = true
             var current = job
             current.status = .running
             model.replaceJob(current)
@@ -31,7 +34,6 @@ final class QueuePump {
                     throw VideoExportError.missingOutput
                 }
                 let outputURL = URL(fileURLWithPath: path)
-                let saveToPhotos = model.output.kind == .photos
                 let jobID = current.id
                 try await exporter.export(
                     job: current,
@@ -54,7 +56,5 @@ final class QueuePump {
             model.replaceJob(current)
             model.persistJobs()
         }
-        model.transcoding = false
-        model.releaseOutputAccess()
     }
 }
