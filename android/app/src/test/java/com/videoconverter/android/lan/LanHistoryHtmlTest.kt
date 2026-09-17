@@ -79,6 +79,20 @@ class LanHistoryHtmlTest {
         assertFalse(html.contains("data-media=\"/m/v\""))
     }
 
+    @Test
+    fun contentUriOutputUsesDisplayNameForVideoKind() {
+        val location = "content://media/external/video/media/42"
+        val html = renderLanHistoryHtml(
+            listOf(job("v", JobStatus.Completed, location, listOf(location), "假期.mp4")),
+            "",
+            englishLanHistoryCopy(),
+        ) { true }
+        assertTrue(html.contains("data-kind=\"video\""))
+        assertTrue(html.contains("data-media=\"/m/v\""))
+        assertFalse(html.contains(location))
+        assertFalse(html.contains("content://secret"))
+    }
+
     private fun job(
         id: String,
         status: JobStatus,

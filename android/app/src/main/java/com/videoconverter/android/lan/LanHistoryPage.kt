@@ -104,7 +104,7 @@ private fun StringBuilder.appendJobItems(
         for ((index, path) in existing) {
             val base = java.io.File(path).name.ifBlank { job.displayName }
             selected = appendOpenableItem(
-                jobId = job.id,
+                job = job,
                 index = index,
                 multi = true,
                 path = path,
@@ -121,7 +121,7 @@ private fun StringBuilder.appendJobItems(
     if (openable != null) {
         val (index, path) = openable
         return appendOpenableItem(
-            jobId = job.id,
+            job = job,
             index = index,
             multi = false,
             path = path,
@@ -142,7 +142,7 @@ private fun StringBuilder.appendJobItems(
 }
 
 private fun StringBuilder.appendOpenableItem(
-    jobId: String,
+    job: Job,
     index: Int,
     multi: Boolean,
     path: String,
@@ -151,21 +151,29 @@ private fun StringBuilder.appendOpenableItem(
     extraClass: String,
     selected: Boolean,
 ): Boolean {
-    val kind = lanPreviewKind(java.io.File(path).name).wireName()
-    val media = lanHistoryDownloadHref(jobId, index, multi, "", "m")
-    val download = lanHistoryDownloadHref(jobId, index, multi, token, "d")
+    val kind = lanPreviewKind(lanPreviewFileName(path, job)).wireName()
+    val media = lanHistoryDownloadHref(job.id, index, multi, "", "m")
+    val download = lanHistoryDownloadHref(job.id, index, multi, token, "d")
     append("<div class=\"item")
     append(extraClass)
     if (selected) append(" selected")
     append("\" data-media=\"").append(escapeHtml(media))
     append("\" data-download=\"").append(escapeHtml(download))
     append("\" data-kind=\"").append(kind)
-    append("\" data-id=\"").append(escapeHtml(jobId))
+    append("\" data-id=\"").append(escapeHtml(job.id))
     append("\" data-index=\"").append(index)
     append("\">")
     append(escapeHtml(label))
     append("</div>")
     return true
+}
+
+private fun lanPreviewFileName(path: String, job: Job): String {
+    val base = java.io.File(path).name
+    if ('.' in base) return base
+    if ('.' in job.displayName) return job.displayName
+    val container = resolveConfig(job.config).getOrNull()?.container
+    return if (!container.isNullOrBlank()) "file.$container" else base
 }
 
 private fun LanPreviewKind.wireName(): String = when (this) {
