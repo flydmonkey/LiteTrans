@@ -14,7 +14,7 @@ import com.videoconverter.android.domain.markInterrupted
 import com.videoconverter.android.service.LanShareService
 import com.videoconverter.android.service.TranscodeService
 import com.videoconverter.android.ui.AppScreen
-import com.videoconverter.android.ui.theme.LightTranscodeTheme
+import com.videoconverter.android.ui.theme.AppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
         }
         applyOpenLanShare(intent)
         setContent {
-            LightTranscodeTheme {
+            AppTheme {
                 AppScreen(
                     openLanShare = openLanShareState.value,
                     onOpenLanShareConsumed = ::clearOpenLanShare,
