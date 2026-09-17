@@ -93,6 +93,20 @@ class LanHistoryHtmlTest {
         assertFalse(html.contains("content://secret"))
     }
 
+    @Test
+    fun contentUriAudioOutputUsesPresetContainerNotSourceDisplayName() {
+        val location = "content://media/external/audio/media/99"
+        val html = renderLanHistoryHtml(
+            listOf(job("a", JobStatus.Completed, location, listOf(location), "假期.mp4", "audio-mp3")),
+            "",
+            englishLanHistoryCopy(),
+        ) { true }
+        assertTrue(html.contains("data-kind=\"audio\""))
+        assertTrue(html.contains("data-media=\"/m/a\""))
+        assertFalse(html.contains(location))
+        assertFalse(html.contains("content://secret"))
+    }
+
     private fun job(
         id: String,
         status: JobStatus,

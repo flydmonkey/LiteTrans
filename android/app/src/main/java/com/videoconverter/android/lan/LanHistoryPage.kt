@@ -2,6 +2,8 @@ package com.videoconverter.android.lan
 
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.documentExtension
+import com.videoconverter.android.domain.isDocumentPreset
 import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.ui.HistorySegment
 import com.videoconverter.android.ui.historyJobs
@@ -170,11 +172,21 @@ private fun StringBuilder.appendOpenableItem(
 
 private fun lanPreviewFileName(path: String, job: Job): String {
     val base = java.io.File(path).name
-    if ('.' in base) return base
+    val extension = base.substringAfterLast('.', "")
+    val needsOutputExtension = isLanContentLocation(path) || extension.isBlank()
+    if (!needsOutputExtension) return base
+    val outputExtension = previewExtensionFromOutput(job)
+    if (!outputExtension.isNullOrBlank()) return "file.$outputExtension"
     if ('.' in job.displayName) return job.displayName
-    val container = resolveConfig(job.config).getOrNull()?.container
-    return if (!container.isNullOrBlank()) "file.$container" else base
+    return base
 }
+
+private fun previewExtensionFromOutput(job: Job): String? =
+    if (isDocumentPreset(job.config.preset)) {
+        documentExtension(job.config.preset, job.config.container)
+    } else {
+        resolveConfig(job.config).getOrNull()?.container
+    }
 
 private fun LanPreviewKind.wireName(): String = when (this) {
     LanPreviewKind.Video -> "video"
