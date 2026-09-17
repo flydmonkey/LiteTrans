@@ -7,6 +7,7 @@ import com.videoconverter.android.ui.HistorySegment
 import com.videoconverter.android.ui.historyEmptyLabel
 import com.videoconverter.android.ui.historyJobs
 import com.videoconverter.android.ui.statusLabel
+import java.net.NetworkInterface
 
 data class LanShareSettings(
     val enabled: Boolean = false,
@@ -92,6 +93,18 @@ const val LAN_SHARE_PREFERRED_PORT = 17890
 const val LAN_SHARE_PORT_ATTEMPTS = 10
 
 data class LanIface(val name: String, val hostAddress: String, val loopback: Boolean)
+
+fun collectLanIfaces(ifaces: Iterable<NetworkInterface>): List<LanIface> =
+    ifaces.flatMap { ni ->
+        ni.inetAddresses.toList().mapNotNull { addr ->
+            val host = addr.hostAddress ?: return@mapNotNull null
+            LanIface(
+                name = ni.name,
+                hostAddress = host.substringBefore('%'),
+                loopback = ni.isLoopback || addr.isLoopbackAddress,
+            )
+        }
+    }
 
 fun pickLanIpv4(ifaces: List<LanIface>): String? {
     val usable = ifaces.filter { iface ->
@@ -194,6 +207,22 @@ data class LanHttpResponse(
     val headers: Map<String, String> = emptyMap(),
     val filePath: String? = null,
 )
+
+fun parseHttpRequestLine(line: String): LanHttpRequest? {
+    val trimmed = line.trim()
+    val firstSpace = trimmed.indexOf(' ')
+    if (firstSpace <= 0) return null
+    val method = trimmed.substring(0, firstSpace)
+    val rest = trimmed.substring(firstSpace + 1).trimStart()
+    if (rest.isEmpty()) return null
+    val targetEnd = rest.indexOf(' ')
+    val target = if (targetEnd < 0) rest else rest.substring(0, targetEnd)
+    if (target.isEmpty()) return null
+    val queryStart = target.indexOf('?')
+    val path = if (queryStart < 0) target else target.substring(0, queryStart)
+    val query = if (queryStart < 0) emptyMap() else parseLanQuery(target.substring(queryStart + 1))
+    return LanHttpRequest(method, path, query)
+}
 
 fun parseLanQuery(rawQuery: String?): Map<String, String> {
     if (rawQuery.isNullOrEmpty()) return emptyMap()

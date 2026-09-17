@@ -1,0 +1,269 @@
+package com.videoconverter.android.service
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.IBinder
+import com.videoconverter.android.MainActivity
+import com.videoconverter.android.R
+import com.videoconverter.android.data.JobStore
+import com.videoconverter.android.data.LanShareStore
+import com.videoconverter.android.lan.LAN_SHARE_PORT_ATTEMPTS
+import com.videoconverter.android.lan.LanHttpResponse
+import com.videoconverter.android.lan.chooseLanPort
+import com.videoconverter.android.lan.collectLanIfaces
+import com.videoconverter.android.lan.handleLanRequest
+import com.videoconverter.android.lan.parseHttpRequestLine
+import com.videoconverter.android.lan.pickLanIpv4
+import java.io.File
+import java.io.IOException
+import java.net.NetworkInterface
+import java.net.ServerSocket
+import java.net.Socket
+import java.net.SocketException
+import java.nio.file.Files
+
+class LanShareService : Service() {
+    private lateinit var lanShareStore: LanShareStore
+    private lateinit var jobStore: JobStore
+
+    @Volatile
+    private var running = false
+    private var serverThread: Thread? = null
+    private var serverSocket: ServerSocket? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        lanShareStore = LanShareStore(this)
+        jobStore = JobStore(this)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForegroundNotification()
+        if (intent?.action == ACTION_STOP) {
+            try {
+                val current = lanShareStore.load()
+                lanShareStore.save(current.copy(enabled = false))
+            } finally {
+                shutdownServer()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+            return START_NOT_STICKY
+        }
+        startServerIfNeeded()
+        return START_STICKY
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        shutdownServer()
+        super.onDestroy()
+    }
+
+    private fun startServerIfNeeded() {
+        if (running) return
+        running = true
+        serverThread = Thread(::serveLoop, "lan-share").also { it.start() }
+    }
+
+    private fun serveLoop() {
+        while (running) {
+            val ipv4 = pickLanIpv4(currentLanIfaces())
+            if (ipv4 == null) {
+                clearBound()
+                sleepInterruptibly(RETRY_MS)
+                continue
+            }
+            val server = bindLanServer()
+            if (server == null) {
+                clearBound()
+                sleepInterruptibly(RETRY_MS)
+                continue
+            }
+            serverSocket = server
+            boundPort = server.localPort
+            boundIpv4 = ipv4
+            try {
+                acceptLoop(server)
+            } finally {
+                runCatching { server.close() }
+                if (serverSocket === server) serverSocket = null
+            }
+        }
+        clearBound()
+    }
+
+    private fun acceptLoop(server: ServerSocket) {
+        while (running) {
+            val socket = try {
+                server.accept()
+            } catch (_: SocketException) {
+                break
+            } catch (_: IOException) {
+                if (!running) break
+                continue
+            }
+            socket.use { handleClient(it) }
+        }
+    }
+
+    private fun handleClient(socket: Socket) {
+        try {
+            socket.soTimeout = CLIENT_TIMEOUT_MS
+            val input = socket.getInputStream().bufferedReader(Charsets.ISO_8859_1)
+            val requestLine = input.readLine() ?: return
+            val request = parseHttpRequestLine(requestLine) ?: return
+            while (true) {
+                val header = input.readLine() ?: break
+                if (header.isEmpty()) break
+            }
+            val token = lanShareStore.load().token
+            val jobs = jobStore.load()
+            val response = handleLanRequest(request, jobs, token) { path -> File(path).isFile }
+            writeResponse(socket, response)
+        } catch (_: Exception) {
+            // Close the client socket without logging request contents (token lives in query).
+        }
+    }
+
+    private fun writeResponse(socket: Socket, response: LanHttpResponse) {
+        val out = socket.getOutputStream()
+        val reason = when (response.status) {
+            200 -> "OK"
+            401 -> "Unauthorized"
+            404 -> "Not Found"
+            405 -> "Method Not Allowed"
+            else -> "OK"
+        }
+        val headers = LinkedHashMap<String, String>()
+        headers["Content-Type"] = response.contentType
+        headers.putAll(response.headers)
+        val file = response.filePath?.let(::File)?.takeIf { it.isFile }
+        val length = file?.length() ?: response.body.size.toLong()
+        headers["Content-Length"] = length.toString()
+        headers["Connection"] = "close"
+        val headerBytes = buildString {
+            append("HTTP/1.1 ${response.status} $reason\r\n")
+            for ((name, value) in headers) {
+                append("$name: $value\r\n")
+            }
+            append("\r\n")
+        }.toByteArray(Charsets.US_ASCII)
+        out.write(headerBytes)
+        if (file != null) {
+            Files.copy(file.toPath(), out)
+        } else {
+            out.write(response.body)
+        }
+        out.flush()
+    }
+
+    private fun bindLanServer(): ServerSocket? {
+        val occupied = mutableSetOf<Int>()
+        repeat(LAN_SHARE_PORT_ATTEMPTS) {
+            val port = chooseLanPort(occupied = occupied) ?: return null
+            try {
+                return ServerSocket(port)
+            } catch (_: IOException) {
+                occupied += port
+            }
+        }
+        return null
+    }
+
+    private fun currentLanIfaces() = try {
+        collectLanIfaces(NetworkInterface.getNetworkInterfaces()?.toList().orEmpty())
+    } catch (_: SocketException) {
+        emptyList()
+    }
+
+    private fun startForegroundNotification() {
+        val openApp = PendingIntent.getActivity(
+            this,
+            NOTIFICATION_ID,
+            Intent(this, MainActivity::class.java).putExtra(EXTRA_OPEN_LAN_SHARE, true),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = Notification.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText("局域网访问已开启")
+            .setContentIntent(openApp)
+            .setOngoing(true)
+            .build()
+        startForeground(
+            NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
+    }
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "局域网访问",
+            NotificationManager.IMPORTANCE_LOW,
+        )
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    }
+
+    private fun shutdownServer() {
+        running = false
+        val socket = serverSocket
+        serverSocket = null
+        runCatching { socket?.close() }
+        serverThread?.interrupt()
+        serverThread?.join(JOIN_TIMEOUT_MS)
+        serverThread = null
+        clearBound()
+    }
+
+    private fun clearBound() {
+        boundPort = null
+        boundIpv4 = null
+    }
+
+    private fun sleepInterruptibly(ms: Long) {
+        try {
+            Thread.sleep(ms)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+    }
+
+    companion object {
+        const val ACTION_STOP = "com.videoconverter.android.service.action.LAN_SHARE_STOP"
+        const val EXTRA_OPEN_LAN_SHARE = "openLanShare"
+        private const val CHANNEL_ID = "lan-share"
+        private const val NOTIFICATION_ID = 1002
+        private const val RETRY_MS = 2_000L
+        private const val CLIENT_TIMEOUT_MS = 15_000
+        private const val JOIN_TIMEOUT_MS = 1_000L
+
+        @Volatile
+        var boundPort: Int? = null
+            private set
+
+        @Volatile
+        var boundIpv4: String? = null
+            private set
+
+        fun start(context: Context) {
+            context.startForegroundService(Intent(context, LanShareService::class.java))
+        }
+
+        fun stop(context: Context) {
+            context.startForegroundService(
+                Intent(context, LanShareService::class.java).setAction(ACTION_STOP),
+            )
+        }
+    }
+}

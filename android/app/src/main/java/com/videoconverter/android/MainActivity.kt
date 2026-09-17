@@ -6,8 +6,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import com.videoconverter.android.data.JobStore
+import com.videoconverter.android.data.LanShareStore
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.markInterrupted
+import com.videoconverter.android.service.LanShareService
 import com.videoconverter.android.service.TranscodeService
 import com.videoconverter.android.ui.AppScreen
 import com.videoconverter.android.ui.theme.LightTranscodeTheme
@@ -18,6 +20,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (LanShareStore(this).load().enabled) {
+            LanShareService.start(this)
+        }
         lifecycleScope.launch(Dispatchers.IO) {
             runCatching {
                 JobStore(this@MainActivity).update { jobs ->
