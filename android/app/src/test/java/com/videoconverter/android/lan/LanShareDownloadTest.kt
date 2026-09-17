@@ -4,7 +4,9 @@ import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
+import java.nio.file.Files
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -50,6 +52,36 @@ class LanShareDownloadTest {
         assertTrue(lanContentDisposition("a\r\nb.mp4").none { it == '\r' || it == '\n' })
         assertEquals("video/mp4", lanContentType("clip.mp4"))
         assertEquals("application/octet-stream", lanContentType("clip.bin"))
+    }
+
+    @Test
+    fun lanFileIsRegularRejectsSymlinkAndMissing() {
+        val directory = Files.createTempDirectory("lan-file-regular")
+        val regular = directory.resolve("out.mp4")
+        Files.write(regular, byteArrayOf(1, 2, 3))
+        val link = directory.resolve("link.mp4")
+        Files.createSymbolicLink(link, regular)
+        try {
+            assertTrue(lanFileIsRegular(regular.toString()))
+            assertFalse(lanFileIsRegular(link.toString()))
+            assertFalse(lanFileIsRegular(directory.resolve("missing.mp4").toString()))
+            val linkedJob = done.copy(
+                outputPath = link.toString(),
+                outputPaths = listOf(link.toString()),
+            )
+            assertNull(resolveLanDownload(listOf(linkedJob), "a1", 0, ::lanFileIsRegular))
+            assertEquals(
+                regular.toString(),
+                resolveLanDownload(
+                    listOf(done.copy(outputPath = regular.toString(), outputPaths = listOf(regular.toString()))),
+                    "a1",
+                    0,
+                    ::lanFileIsRegular,
+                )?.path,
+            )
+        } finally {
+            directory.toFile().deleteRecursively()
+        }
     }
 }
 

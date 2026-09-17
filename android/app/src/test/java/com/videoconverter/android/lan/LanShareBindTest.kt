@@ -25,4 +25,12 @@ class LanShareBindTest {
         assertTrue(loopbackLocal.all { it.loopback })
         assertNull(pickLanIpv4(mapped.filter { it.loopback }))
     }
+
+    @Test
+    fun serverSocketBindsRequestedIpv4NotWildcard() {
+        openLanServerSocket("127.0.0.1", 0).use { server ->
+            assertEquals("127.0.0.1", server.inetAddress.hostAddress)
+            assertTrue(server.localPort > 0)
+        }
+    }
 }

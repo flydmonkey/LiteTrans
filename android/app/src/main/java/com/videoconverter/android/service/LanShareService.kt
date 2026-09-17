@@ -13,11 +13,14 @@ import com.videoconverter.android.MainActivity
 import com.videoconverter.android.R
 import com.videoconverter.android.data.JobStore
 import com.videoconverter.android.data.LanShareStore
+import com.videoconverter.android.lan.LAN_SHARE_PORTS_BUSY_MESSAGE
 import com.videoconverter.android.lan.LAN_SHARE_PORT_ATTEMPTS
 import com.videoconverter.android.lan.LanHttpResponse
 import com.videoconverter.android.lan.chooseLanPort
 import com.videoconverter.android.lan.collectLanIfaces
 import com.videoconverter.android.lan.handleLanRequest
+import com.videoconverter.android.lan.lanFileIsRegular
+import com.videoconverter.android.lan.openLanServerSocket
 import com.videoconverter.android.lan.parseHttpRequestLine
 import com.videoconverter.android.lan.pickLanIpv4
 import java.io.File
@@ -26,7 +29,9 @@ import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.nio.file.Files
+import java.nio.file.LinkOption
 
 class LanShareService : Service() {
     private lateinit var lanShareStore: LanShareStore
@@ -48,18 +53,19 @@ class LanShareService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundNotification()
         if (intent?.action == ACTION_STOP) {
-            try {
-                val current = lanShareStore.load()
-                lanShareStore.save(current.copy(enabled = false))
-            } finally {
-                shutdownServer()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-            }
+            persistDisabledAndStop()
             return START_NOT_STICKY
         }
         startServerIfNeeded()
         return START_STICKY
+    }
+
+    override fun onTimeout(startId: Int) {
+        persistDisabledAndStop()
+    }
+
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        persistDisabledAndStop()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -79,33 +85,43 @@ class LanShareService : Service() {
         while (running) {
             val ipv4 = pickLanIpv4(currentLanIfaces())
             if (ipv4 == null) {
-                clearBound()
+                setUnbound(error = null)
                 sleepInterruptibly(RETRY_MS)
                 continue
             }
-            val server = bindLanServer()
+            val server = bindLanServer(ipv4)
             if (server == null) {
-                clearBound()
+                setUnbound(error = LAN_SHARE_PORTS_BUSY_MESSAGE)
                 sleepInterruptibly(RETRY_MS)
                 continue
             }
             serverSocket = server
             boundPort = server.localPort
             boundIpv4 = ipv4
+            boundError = null
             try {
-                acceptLoop(server)
+                acceptLoop(server, ipv4)
             } finally {
                 runCatching { server.close() }
                 if (serverSocket === server) serverSocket = null
             }
         }
-        clearBound()
+        setUnbound(error = null)
     }
 
-    private fun acceptLoop(server: ServerSocket) {
+    private fun acceptLoop(server: ServerSocket, boundIp: String) {
+        server.soTimeout = RETRY_MS.toInt()
         while (running) {
+            val currentIp = pickLanIpv4(currentLanIfaces())
+            if (currentIp == null || currentIp != boundIp) {
+                setUnbound(error = null)
+                runCatching { server.close() }
+                break
+            }
             val socket = try {
                 server.accept()
+            } catch (_: SocketTimeoutException) {
+                continue
             } catch (_: SocketException) {
                 break
             } catch (_: IOException) {
@@ -128,7 +144,7 @@ class LanShareService : Service() {
             }
             val token = lanShareStore.load().token
             val jobs = jobStore.load()
-            val response = handleLanRequest(request, jobs, token) { path -> File(path).isFile }
+            val response = handleLanRequest(request, jobs, token, ::lanFileIsRegular)
             writeResponse(socket, response)
         } catch (_: Exception) {
             // Close the client socket without logging request contents (token lives in query).
@@ -147,7 +163,7 @@ class LanShareService : Service() {
         val headers = LinkedHashMap<String, String>()
         headers["Content-Type"] = response.contentType
         headers.putAll(response.headers)
-        val file = response.filePath?.let(::File)?.takeIf { it.isFile }
+        val file = response.filePath?.takeIf(::lanFileIsRegular)?.let(::File)
         val length = file?.length() ?: response.body.size.toLong()
         headers["Content-Length"] = length.toString()
         headers["Connection"] = "close"
@@ -160,19 +176,21 @@ class LanShareService : Service() {
         }.toByteArray(Charsets.US_ASCII)
         out.write(headerBytes)
         if (file != null) {
-            Files.copy(file.toPath(), out)
+            Files.newInputStream(file.toPath(), LinkOption.NOFOLLOW_LINKS).use { input ->
+                input.copyTo(out)
+            }
         } else {
             out.write(response.body)
         }
         out.flush()
     }
 
-    private fun bindLanServer(): ServerSocket? {
+    private fun bindLanServer(ip: String): ServerSocket? {
         val occupied = mutableSetOf<Int>()
         repeat(LAN_SHARE_PORT_ATTEMPTS) {
             val port = chooseLanPort(occupied = occupied) ?: return null
             try {
-                return ServerSocket(port)
+                return openLanServerSocket(ip, port)
             } catch (_: IOException) {
                 occupied += port
             }
@@ -234,9 +252,31 @@ class LanShareService : Service() {
         clearBound()
     }
 
-    private fun clearBound() {
+    private fun persistDisabledAndStop() {
+        try {
+            persistEnabledFalse()
+        } finally {
+            shutdownServer()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
+    private fun persistEnabledFalse() {
+        val current = lanShareStore.load()
+        if (current.enabled) {
+            lanShareStore.save(current.copy(enabled = false))
+        }
+    }
+
+    private fun setUnbound(error: String?) {
         boundPort = null
         boundIpv4 = null
+        boundError = error
+    }
+
+    private fun clearBound() {
+        setUnbound(error = null)
     }
 
     private fun sleepInterruptibly(ms: Long) {
@@ -263,6 +303,10 @@ class LanShareService : Service() {
 
         @Volatile
         var boundIpv4: String? = null
+            private set
+
+        @Volatile
+        var boundError: String? = null
             private set
 
         fun start(context: Context) {

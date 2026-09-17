@@ -23,6 +23,9 @@ class LanHistoryHtmlTest {
         assertTrue(html.contains("假期.mp4"))
         assertTrue(html.contains("/d/v?k="))
         assertTrue(html.contains("/d/d/1?k="))
+        assertTrue(html.contains(">下载</a>"))
+        assertTrue(html.contains("下载 a.pdf"))
+        assertTrue(html.contains("下载 b.pdf"))
         assertFalse(html.contains("content://secret"))
         assertTrue(html.contains("排队中"))
         assertFalse(html.contains("/d/a"))
@@ -39,6 +42,17 @@ class LanHistoryHtmlTest {
         assertFalse(html.contains("<img>"))
         assertTrue(html.contains("&lt;img&gt;"))
         assertTrue(html.contains("href=\"/d/x\""))
+    }
+
+    @Test
+    fun singleExistingOfManyKeepsPlainDownloadLabel() {
+        val html = renderLanHistoryHtml(
+            listOf(job("d", JobStatus.Completed, "/tmp/a.pdf", listOf("/tmp/a.pdf", "/tmp/gone.pdf"), "scan.pdf", "pdf-split")),
+            "",
+        ) { it == "/tmp/a.pdf" }
+        assertTrue(html.contains("href=\"/d/d\""))
+        assertTrue(html.contains(">下载</a>"))
+        assertFalse(html.contains("下载 a.pdf"))
     }
 
     @Test

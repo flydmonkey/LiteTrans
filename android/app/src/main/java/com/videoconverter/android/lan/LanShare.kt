@@ -7,7 +7,11 @@ import com.videoconverter.android.ui.HistorySegment
 import com.videoconverter.android.ui.historyEmptyLabel
 import com.videoconverter.android.ui.historyJobs
 import com.videoconverter.android.ui.statusLabel
+import java.net.InetAddress
 import java.net.NetworkInterface
+import java.net.ServerSocket
+import java.nio.file.Files
+import java.nio.file.LinkOption
 
 data class LanShareSettings(
     val enabled: Boolean = false,
@@ -65,6 +69,15 @@ fun resolveLanDownload(
     return LanDownloadTarget(path, downloadName, lanContentType(downloadName))
 }
 
+fun lanFileIsRegular(path: String): Boolean {
+    if (path.isBlank()) return false
+    return try {
+        Files.isRegularFile(java.io.File(path).toPath(), LinkOption.NOFOLLOW_LINKS)
+    } catch (_: Exception) {
+        false
+    }
+}
+
 fun lanContentType(fileName: String): String = when (fileName.substringAfterLast('.', "").lowercase()) {
     "mp4" -> "video/mp4"
     "mp3" -> "audio/mpeg"
@@ -91,6 +104,7 @@ fun lanContentDisposition(fileName: String): String {
 
 const val LAN_SHARE_PREFERRED_PORT = 17890
 const val LAN_SHARE_PORT_ATTEMPTS = 10
+const val LAN_SHARE_PORTS_BUSY_MESSAGE = "端口都被占用，稍后再试"
 
 data class LanIface(val name: String, val hostAddress: String, val loopback: Boolean)
 
@@ -106,16 +120,24 @@ fun collectLanIfaces(ifaces: Iterable<NetworkInterface>): List<LanIface> =
         }
     }
 
+fun isLanWifiOrHotspotName(name: String): Boolean {
+    val n = name.lowercase()
+    return n.startsWith("wlan") ||
+        n.startsWith("ap") ||
+        n.contains("wlan") ||
+        n.contains("swlan") ||
+        n.contains("softap")
+}
+
 fun pickLanIpv4(ifaces: List<LanIface>): String? {
     val usable = ifaces.filter { iface ->
         !iface.loopback && iface.hostAddress.matches(Regex("""\d{1,3}(?:\.\d{1,3}){3}"""))
     }
-    val preferred = usable.firstOrNull { iface ->
-        val n = iface.name.lowercase()
-        n.startsWith("wlan") || n.startsWith("ap") || n.contains("wlan") || n.contains("swlan")
-    }
-    return (preferred ?: usable.firstOrNull())?.hostAddress
+    return usable.firstOrNull { iface -> isLanWifiOrHotspotName(iface.name) }?.hostAddress
 }
+
+fun openLanServerSocket(ip: String, port: Int): ServerSocket =
+    ServerSocket(port, 0, InetAddress.getByName(ip))
 
 fun chooseLanPort(
     preferred: Int = LAN_SHARE_PREFERRED_PORT,
@@ -167,13 +189,16 @@ fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) ->
                     append(escapeHtml(statusLabel(job.status)))
                     if (job.status == JobStatus.Completed) {
                         val paths = jobOutputPaths(job)
-                        val multi = paths.size > 1
-                        paths.forEachIndexed { index, path ->
-                            if (fileExists(path)) {
-                                append(" <a href=\"")
-                                append(lanHistoryDownloadHref(job.id, index, multi, token))
-                                append("\">下载</a>")
-                            }
+                        val existing = paths.mapIndexedNotNull { index, path ->
+                            if (fileExists(path)) index to path else null
+                        }
+                        val multi = existing.size > 1
+                        for ((index, path) in existing) {
+                            append(" <a href=\"")
+                            append(lanHistoryDownloadHref(job.id, index, multi, token))
+                            append("\">")
+                            append(escapeHtml(lanHistoryDownloadLabel(path, index, multi)))
+                            append("</a>")
                         }
                     }
                     append("</li>")
@@ -190,6 +215,12 @@ fun escapeHtml(raw: String): String = raw
     .replace("<", "&lt;")
     .replace(">", "&gt;")
     .replace("\"", "&quot;")
+
+internal fun lanHistoryDownloadLabel(path: String, index: Int, multi: Boolean): String {
+    if (!multi) return "下载"
+    val base = java.io.File(path).name
+    return if (base.isNotBlank()) "下载 $base" else "下载 #$index"
+}
 
 private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, token: String): String {
     val path = if (index > 0 || multi) "/d/$jobId/$index" else "/d/$jobId"
