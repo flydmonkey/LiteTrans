@@ -87,6 +87,7 @@ const val OUTPUT_CHOICE_MOVIES = "movies"
 const val OUTPUT_CHOICE_DOWNLOADS = "downloads"
 const val OUTPUT_CHOICE_CUSTOM = "custom"
 const val OUTPUT_CHOICE_MUSIC = "music"
+const val OUTPUT_CHOICE_DOCUMENTS = "documents"
 
 data class OutputChoiceCard(
     val id: String,
@@ -112,6 +113,7 @@ fun outputChoiceId(output: OutputTarget): String = when (output.kind) {
     OutputTarget.Kind.Movies -> OUTPUT_CHOICE_MOVIES
     OutputTarget.Kind.Downloads -> OUTPUT_CHOICE_DOWNLOADS
     OutputTarget.Kind.Music -> OUTPUT_CHOICE_MUSIC
+    OutputTarget.Kind.Documents -> OUTPUT_CHOICE_DOCUMENTS
     OutputTarget.Kind.SafTree, OutputTarget.Kind.AppExternal -> OUTPUT_CHOICE_CUSTOM
 }
 
@@ -120,6 +122,7 @@ fun outputKindForChoice(id: String): OutputTarget.Kind? = when (id) {
     OUTPUT_CHOICE_MOVIES -> OutputTarget.Kind.Movies
     OUTPUT_CHOICE_DOWNLOADS -> OutputTarget.Kind.Downloads
     OUTPUT_CHOICE_MUSIC -> OutputTarget.Kind.Music
+    OUTPUT_CHOICE_DOCUMENTS -> OutputTarget.Kind.Documents
     else -> null
 }
 

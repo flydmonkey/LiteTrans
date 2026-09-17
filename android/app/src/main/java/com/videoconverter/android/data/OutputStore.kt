@@ -25,6 +25,7 @@ fun mediaStoreRelativePath(kind: OutputTarget.Kind): String = when (kind) {
     OutputTarget.Kind.Movies -> "Movies/轻转码"
     OutputTarget.Kind.Downloads -> "Download/轻转码"
     OutputTarget.Kind.Music -> "Music/轻转码"
+    OutputTarget.Kind.Documents -> "Documents/轻转码"
     OutputTarget.Kind.SafTree, OutputTarget.Kind.AppExternal ->
         throw IllegalArgumentException("not a MediaStore target")
 }
@@ -33,8 +34,11 @@ data class OutputTarget(
     val kind: Kind,
     val treeUri: String? = null,
 ) {
-    enum class Kind { Downloads, SafTree, AppExternal, Gallery, Movies, Music }
+    enum class Kind { Downloads, SafTree, AppExternal, Gallery, Movies, Music, Documents }
 }
+
+fun exportedLocations(job: Job): List<String> =
+    job.outputPaths.ifEmpty { listOfNotNull(job.outputPath) }
 
 fun outputTargetForJob(kindName: String?, treeUri: String?, fallback: OutputTarget): OutputTarget {
     val kind = OutputTarget.Kind.entries.firstOrNull { it.name == kindName } ?: return fallback
@@ -105,6 +109,7 @@ class OutputStore(
             OutputTarget.Kind.Gallery,
             OutputTarget.Kind.Movies,
             OutputTarget.Kind.Music,
+            OutputTarget.Kind.Documents,
             -> exportToMediaStore(source, stem, ext, mimeType, target.kind)
             OutputTarget.Kind.SafTree -> exportToSaf(source, stem, ext, mimeType, target)
             OutputTarget.Kind.AppExternal -> exportToAppExternal(source, stem, ext)
@@ -292,6 +297,7 @@ internal fun mediaStoreCollection(kind: OutputTarget.Kind, mimeType: String): Ur
     return when (kind) {
         OutputTarget.Kind.Downloads -> MediaStore.Downloads.getContentUri(volume)
         OutputTarget.Kind.Music -> MediaStore.Audio.Media.getContentUri(volume)
+        OutputTarget.Kind.Documents -> MediaStore.Files.getContentUri(volume)
         OutputTarget.Kind.Gallery, OutputTarget.Kind.Movies -> when {
             mimeType.startsWith("audio/") -> MediaStore.Audio.Media.getContentUri(volume)
             mimeType.startsWith("image/") -> MediaStore.Images.Media.getContentUri(volume)

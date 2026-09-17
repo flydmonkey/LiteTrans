@@ -49,6 +49,7 @@ fun outputFolderLabel(context: Context, output: OutputTarget): String = when (ou
     OutputTarget.Kind.Movies -> "影库"
     OutputTarget.Kind.Downloads -> "下载"
     OutputTarget.Kind.Music -> "音乐"
+    OutputTarget.Kind.Documents -> "文档"
     OutputTarget.Kind.SafTree -> output.treeUri
         ?.let(Uri::parse)
         ?.let { DocumentFile.fromTreeUri(context, it)?.name }

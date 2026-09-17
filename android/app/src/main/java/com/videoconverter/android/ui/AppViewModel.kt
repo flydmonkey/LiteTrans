@@ -12,6 +12,7 @@ import com.videoconverter.android.data.OutputStore
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.data.SessionSettings
 import com.videoconverter.android.data.SessionStore
+import com.videoconverter.android.data.exportedLocations
 import com.videoconverter.android.data.stampJobOutputTarget
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
@@ -335,7 +336,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             TranscodeService.cancel(app, jobId)
         }
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { outputStore.deleteExported(job.outputPath) }
+            exportedLocations(job).forEach { path ->
+                runCatching { outputStore.deleteExported(path) }
+            }
             jobStore.update { jobs -> jobs.filterNot { it.id == jobId } }
         }
     }

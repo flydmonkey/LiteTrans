@@ -80,6 +80,33 @@ class OutputStoreTest {
     }
 
     @Test
+    fun documentsRelativePath() {
+        assertEquals("Documents/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Documents))
+    }
+
+    @Test
+    fun outputTargetForJobAcceptsDocuments() {
+        val fallback = OutputTarget(OutputTarget.Kind.Downloads)
+        assertEquals(
+            OutputTarget(OutputTarget.Kind.Documents),
+            outputTargetForJob("Documents", null, fallback),
+        )
+    }
+
+    @Test
+    fun exportedLocationsPrefersOutputPaths() {
+        val job = Job(
+            id = "1", sourceUri = "u", displayName = "a.pdf",
+            outputPath = "first", status = JobStatus.Completed, progress = 100.0,
+            error = null, config = OutputConfig(preset = "pdf-split"),
+            media = MediaInfo("u", "a.pdf", importable = true),
+            outputPaths = listOf("first", "second"),
+        )
+        assertEquals(listOf("first", "second"), exportedLocations(job))
+        assertEquals(listOf("only"), exportedLocations(job.copy(outputPath = "only", outputPaths = emptyList())))
+    }
+
+    @Test
     fun stampedJobsKeepIndependentOutputKinds() {
         val downloads = OutputTarget(OutputTarget.Kind.Downloads)
         val music = OutputTarget(OutputTarget.Kind.Music)
