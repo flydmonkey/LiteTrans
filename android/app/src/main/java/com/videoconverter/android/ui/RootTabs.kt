@@ -9,7 +9,7 @@ enum class RootTab { Transcode, Audio, Document, History, Mine }
 
 enum class HistorySegment { Video, Audio, Document }
 
-enum class MinePage { Root, Privacy, Terms, About }
+enum class MinePage { Root, LanShare, Privacy, Terms, About }
 
 data class MineItem(val page: MinePage, val title: String)
 
@@ -28,6 +28,7 @@ fun rootTabLabel(tab: RootTab): String = when (tab) {
 }
 
 fun mineItems(): List<MineItem> = listOf(
+    MineItem(MinePage.LanShare, "局域网访问"),
     MineItem(MinePage.Privacy, "隐私协议"),
     MineItem(MinePage.Terms, "使用条款"),
     MineItem(MinePage.About, "关于"),
@@ -35,20 +36,21 @@ fun mineItems(): List<MineItem> = listOf(
 
 fun minePageTitle(page: MinePage): String = when (page) {
     MinePage.Root -> "我的"
+    MinePage.LanShare -> "局域网访问"
     MinePage.Privacy -> "隐私协议"
     MinePage.Terms -> "使用条款"
     MinePage.About -> "关于"
 }
 
 fun minePageBody(page: MinePage): String = when (page) {
-    MinePage.Root -> ""
+    MinePage.Root, MinePage.LanShare -> ""
     MinePage.Privacy -> PRIVACY_BODY
     MinePage.Terms -> TERMS_BODY
     MinePage.About -> aboutBody("0.1.0")
 }
 
 fun aboutBody(versionName: String): String =
-    "轻转码 $versionName\n\n本机视频转码工具。所选视频只在这台设备上处理，不上传，不要求联网。当前版本仅提供 Android 侧载安装。"
+    "LiteTrans $versionName\n\n轻转码。本机转码工具。所选文件只在这台设备上处理，不上传，不要求联网。当前版本仅提供 Android 侧载安装。"
 
 fun isAudioHistoryJob(job: Job): Boolean {
     val preset = job.config.preset
@@ -107,9 +109,10 @@ fun minePageAfterLeavingTab(nextTab: RootTab, minePage: MinePage): MinePage =
     if (nextTab == RootTab.Mine) minePage else MinePage.Root
 
 private const val PRIVACY_BODY =
-    "轻转码在这台设备上处理你选中的视频。源文件和转出的文件都留在手机或你指定的文件夹里，不会上传到任何服务器。\n\n" +
-        "应用不收集账号、不统计使用行为，也不要求联网才能转码。相册和文件访问只用于读取你选中的视频；通知权限只用于显示转码进度。"
+    "LiteTrans（轻转码）在这台设备上处理你选中的文件。源文件和转出的文件都留在手机或你指定的文件夹里，不会上传到任何服务器。\n\n" +
+        "应用不收集账号、不统计使用行为，也不要求联网才能转码。相册和文件访问只用于读取你选中的视频；通知权限只用于显示转码进度。\n\n" +
+        "用户主动打开局域网访问后，同一网络中持有地址（以及口令，若已设置）的设备可以查看历史并下载已完成文件；转码本身仍不要求联网。"
 
 private const val TERMS_BODY =
-    "轻转码供个人将自己有权处理的视频转成其他格式。请确保你拥有源文件的相应权利。\n\n" +
+    "LiteTrans（轻转码）供个人将自己有权处理的文件转成其他格式。请确保你拥有源文件的相应权利。\n\n" +
         "转出画质取决于源文件和你选择的预设，应用不保证每台设备都能打开结果。转码在本地进行；中断、取消或失败时可能留下不完整文件，可在历史记录里重试或清理。"

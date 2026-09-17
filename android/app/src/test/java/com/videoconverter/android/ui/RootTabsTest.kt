@@ -22,9 +22,10 @@ class RootTabsTest {
     @Test
     fun mineEntriesArePrivacyTermsAndAbout() {
         assertEquals(
-            listOf(MinePage.Privacy, MinePage.Terms, MinePage.About),
+            listOf(MinePage.LanShare, MinePage.Privacy, MinePage.Terms, MinePage.About),
             mineItems().map { it.page },
         )
+        assertEquals("局域网访问", minePageTitle(MinePage.LanShare))
         assertEquals("隐私协议", minePageTitle(MinePage.Privacy))
         assertEquals("使用条款", minePageTitle(MinePage.Terms))
         assertEquals("关于", minePageTitle(MinePage.About))
@@ -34,8 +35,10 @@ class RootTabsTest {
     @Test
     fun legalCopyStaysLocalAndOffline() {
         assertTrue(minePageBody(MinePage.Privacy).contains("不会上传"))
-        assertTrue(minePageBody(MinePage.Privacy).contains("不要求联网"))
+        assertTrue(minePageBody(MinePage.Privacy).contains("不要求联网才能转码"))
+        assertTrue(minePageBody(MinePage.Privacy).contains("局域网访问"))
         assertTrue(minePageBody(MinePage.Terms).contains("历史记录"))
+        assertTrue(aboutBody("0.1.0").contains("LiteTrans"))
         assertTrue(aboutBody("0.1.0").contains("0.1.0"))
         assertTrue(aboutBody("0.1.0").contains("不上传"))
     }
@@ -85,6 +88,10 @@ class RootTabsTest {
         assertEquals(
             RootBack(RootTab.Mine, MinePage.Root, WizardStep.Sources),
             consumeRootBack(RootTab.Mine, MinePage.Privacy, WizardStep.Sources),
+        )
+        assertEquals(
+            RootBack(RootTab.Mine, MinePage.Root, WizardStep.Sources),
+            consumeRootBack(RootTab.Mine, MinePage.LanShare, WizardStep.Sources),
         )
         assertEquals(
             RootBack(RootTab.Transcode, MinePage.Root, WizardStep.Sources),
@@ -138,6 +145,7 @@ class RootTabsTest {
     @Test
     fun leavingMineResetsDetail() {
         assertEquals(MinePage.Root, minePageAfterLeavingTab(RootTab.History, MinePage.Privacy))
+        assertEquals(MinePage.Root, minePageAfterLeavingTab(RootTab.History, MinePage.LanShare))
         assertEquals(MinePage.Privacy, minePageAfterLeavingTab(RootTab.Mine, MinePage.Privacy))
     }
 

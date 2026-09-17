@@ -32,7 +32,9 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             LightTranscodeTheme {
-                AppScreen()
+                AppScreen(
+                    openLanShare = intent.getBooleanExtra(LanShareService.EXTRA_OPEN_LAN_SHARE, false),
+                )
             }
         }
     }

@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,7 +80,10 @@ private val SIZE_CHIPS = listOf(
 )
 
 @Composable
-fun AppScreen(appViewModel: AppViewModel = viewModel()) {
+fun AppScreen(
+    appViewModel: AppViewModel = viewModel(),
+    openLanShare: Boolean = false,
+) {
     val state by appViewModel.state.collectAsState()
     val context = LocalContext.current
     var tab by remember { mutableStateOf(RootTab.Transcode) }
@@ -139,6 +143,13 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
         RootTab.Audio -> audioPreview
         RootTab.Document -> documentPreview
         else -> videoPreview
+    }
+
+    LaunchedEffect(openLanShare) {
+        if (openLanShare) {
+            tab = RootTab.Mine
+            minePage = MinePage.LanShare
+        }
     }
 
     val galleryPicker = rememberLauncherForActivityResult(
@@ -319,12 +330,16 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                     onRename = { job, name -> appViewModel.rename(job.id, name) },
                     onDelete = appViewModel::delete,
                 )
-                RootTab.Mine -> MineScreen(
-                    page = minePage,
-                    versionName = versionName,
-                    onOpen = { minePage = it },
-                    onBack = { minePage = MinePage.Root },
-                )
+                RootTab.Mine -> if (minePage == MinePage.LanShare) {
+                    LanShareScreen(onBack = { minePage = MinePage.Root })
+                } else {
+                    MineScreen(
+                        page = minePage,
+                        versionName = versionName,
+                        onOpen = { minePage = it },
+                        onBack = { minePage = MinePage.Root },
+                    )
+                }
             }
         }
         if ((tab == RootTab.Transcode || tab == RootTab.Audio || tab == RootTab.Document) &&
