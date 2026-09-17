@@ -91,8 +91,34 @@ fun RootTabBar(
 }
 
 @Composable
+private fun HistorySegmentTabs(
+    segment: HistorySegment,
+    onSegment: (HistorySegment) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(HistorySegment.Video to "视频", HistorySegment.Audio to "音频").forEach { (target, label) ->
+            val on = segment == target
+            Text(
+                label,
+                color = if (on) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (on) Color(LightTokens.Ink) else Color(LightTokens.Chip))
+                    .clickable { onSegment(target) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            )
+        }
+    }
+}
+
+@Composable
 fun HistoryScreen(
+    segment: HistorySegment,
+    onSegment: (HistorySegment) -> Unit,
     jobs: List<Job>,
+    emptyLabel: String,
     onCancel: (String) -> Unit,
     onRetry: (String) -> Unit,
     onOpen: (Job) -> Unit,
@@ -106,6 +132,7 @@ fun HistoryScreen(
         PageHeader(
             title = "历史记录",
             subtitle = "打开、分享、重命名或删除转好的文件",
+            below = { HistorySegmentTabs(segment, onSegment) },
         )
         if (jobs.isEmpty()) {
             Box(
@@ -133,7 +160,7 @@ fun HistoryScreen(
                             Text("▶", color = Color.White, fontSize = 16.sp)
                         }
                     }
-                    Text(historyEmptyLabel(HistorySegment.Video), color = Color(LightTokens.Ink), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(emptyLabel, color = Color(LightTokens.Ink), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Text("转好的文件会出现在这里", color = Color(LightTokens.Muted), fontSize = 13.sp)
                 }
             }
@@ -335,30 +362,38 @@ private fun TabGlyph(tab: RootTab, selected: Boolean) {
                 drawPath(play, color, style = Fill)
             }
             RootTab.Audio -> {
+                val head = Offset(center.x - 4.dp.toPx(), center.y + 5.dp.toPx())
+                val stemX = head.x + 3.2.dp.toPx()
+                val stemTop = Offset(stemX, center.y - 6.dp.toPx())
                 drawCircle(
                     color = color,
                     radius = 3.2.dp.toPx(),
-                    center = Offset(center.x - 4.dp.toPx(), center.y + 5.dp.toPx()),
-                    style = Fill,
-                )
-                drawArc(
-                    color = color,
-                    startAngle = 200f,
-                    sweepAngle = 80f,
-                    useCenter = false,
-                    topLeft = Offset(center.x + 1.dp.toPx(), center.y - 7.dp.toPx()),
-                    size = Size(6.dp.toPx(), 8.dp.toPx()),
+                    center = head,
                     style = stroke,
                 )
-                drawArc(
+                drawLine(
                     color = color,
-                    startAngle = 200f,
-                    sweepAngle = 80f,
-                    useCenter = false,
-                    topLeft = Offset(center.x + 4.dp.toPx(), center.y - 5.dp.toPx()),
-                    size = Size(5.dp.toPx(), 7.dp.toPx()),
-                    style = stroke,
+                    start = Offset(stemX, head.y),
+                    end = stemTop,
+                    strokeWidth = 1.7.dp.toPx(),
                 )
+                val flag = Path().apply {
+                    moveTo(stemTop.x, stemTop.y)
+                    quadraticTo(
+                        stemTop.x + 8.dp.toPx(),
+                        stemTop.y + 2.dp.toPx(),
+                        stemTop.x + 5.dp.toPx(),
+                        stemTop.y + 7.dp.toPx(),
+                    )
+                    quadraticTo(
+                        stemTop.x + 3.dp.toPx(),
+                        stemTop.y + 4.dp.toPx(),
+                        stemTop.x,
+                        stemTop.y + 3.dp.toPx(),
+                    )
+                    close()
+                }
+                drawPath(flag, color, style = Fill)
             }
             RootTab.History -> {
                 drawCircle(color = color, radius = 8.dp.toPx(), center = center, style = stroke)

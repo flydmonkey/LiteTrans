@@ -245,63 +245,35 @@ fun NoticeBar(message: String, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun Dropzone(onGallery: () -> Unit, onFiles: () -> Unit, centered: Boolean = false) {
-    if (centered) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            VideoMark()
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    "添加要转码的视频",
-                    color = Color(LightTokens.Ink),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    "从相册选最近拍的，或从文件夹选原片。\n一次能选好几个，文件只留在这台手机上。",
-                    color = Color(LightTokens.Muted),
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                SourceChoiceCard(
-                    title = "相册",
-                    hint = "最近的视频",
-                    onClick = onGallery,
-                    emphasized = true,
-                    modifier = Modifier.weight(1f),
-                )
-                SourceChoiceCard(
-                    title = "文件",
-                    hint = "本机文件夹",
-                    onClick = onFiles,
-                    emphasized = false,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    } else {
+fun Dropzone(
+    onGallery: () -> Unit,
+    onFiles: () -> Unit,
+    onMusic: (() -> Unit)? = null,
+    centered: Boolean = false,
+    audioMode: Boolean = false,
+) {
+    val cards: @Composable (Boolean) -> Unit = { compact ->
+        val gap = if (audioMode) 8.dp else 12.dp
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(gap),
         ) {
+            if (audioMode && onMusic != null) {
+                SourceChoiceCard(
+                    title = "音乐",
+                    hint = "手机音乐库",
+                    onClick = onMusic,
+                    emphasized = true,
+                    compact = compact,
+                    modifier = Modifier.weight(1f),
+                )
+            }
             SourceChoiceCard(
                 title = "相册",
                 hint = "最近的视频",
                 onClick = onGallery,
-                emphasized = true,
-                compact = true,
+                emphasized = !audioMode,
+                compact = compact,
                 modifier = Modifier.weight(1f),
             )
             SourceChoiceCard(
@@ -309,10 +281,44 @@ fun Dropzone(onGallery: () -> Unit, onFiles: () -> Unit, centered: Boolean = fal
                 hint = "本机文件夹",
                 onClick = onFiles,
                 emphasized = false,
-                compact = true,
+                compact = compact,
                 modifier = Modifier.weight(1f),
             )
         }
+    }
+    if (centered) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            if (audioMode) MusicMark() else VideoMark()
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    if (audioMode) "添加要转换的音频" else "添加要转码的视频",
+                    color = Color(LightTokens.Ink),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    if (audioMode) {
+                        "从音乐库选曲子，从相册抽视频音轨，或从文件夹选文件。"
+                    } else {
+                        "从相册选最近拍的，或从文件夹选原片。\n一次能选好几个，文件只留在这台手机上。"
+                    },
+                    color = Color(LightTokens.Muted),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp,
+                )
+            }
+            cards(false)
+        }
+    } else {
+        cards(true)
     }
 }
 
@@ -348,7 +354,11 @@ private fun SourceChoiceCard(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                if (title == "相册") "▶" else "▤",
+                when (title) {
+                    "相册" -> "▶"
+                    "音乐" -> "♪"
+                    else -> "▤"
+                },
                 color = if (emphasized) Color.White else Color(LightTokens.Ink),
                 fontSize = if (compact) 12.sp else 14.sp,
             )
@@ -364,6 +374,28 @@ private fun SourceChoiceCard(
             color = if (emphasized) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
             fontSize = 12.sp,
         )
+    }
+}
+
+@Composable
+private fun MusicMark() {
+    Box(
+        modifier = Modifier
+            .size(72.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(LightTokens.Card))
+            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(20.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(LightTokens.Accent)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("♪", color = Color.White, fontSize = 16.sp)
+        }
     }
 }
 
@@ -441,9 +473,10 @@ fun PresetGrid(
     showAll: Boolean,
     onSelect: (String) -> Unit,
     onToggleMore: () -> Unit,
+    showMore: Boolean = true,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        val cells = cards + null
+        val cells = if (showMore) cards + null else cards
         cells.chunked(2).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -516,12 +549,13 @@ fun OptionChips(
 
 @Composable
 fun OutputChoiceGrid(
+    cards: List<OutputChoiceCard> = OUTPUT_CHOICE_CARDS,
     selectedId: String,
     customHint: String?,
     onSelect: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OUTPUT_CHOICE_CARDS.chunked(2).forEach { row ->
+        cards.chunked(2).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -540,6 +574,7 @@ fun OutputChoiceGrid(
                         modifier = Modifier.weight(1f),
                     )
                 }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }

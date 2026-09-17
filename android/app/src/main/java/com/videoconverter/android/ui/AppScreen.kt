@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.ui.theme.LightTokens
@@ -65,55 +66,88 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
     var step by remember { mutableStateOf(WizardStep.Sources) }
     var showAll by remember { mutableStateOf(false) }
     var selectedUri by remember { mutableStateOf<String?>(null) }
-    val importable = state.video.sources.count { it.media.importable }
+    var audioStep by remember { mutableStateOf(WizardStep.Sources) }
+    var audioShowAll by remember { mutableStateOf(false) }
+    var audioSelectedUri by remember { mutableStateOf<String?>(null) }
+    var historySegment by remember { mutableStateOf(HistorySegment.Video) }
+    var pickerMode by remember { mutableStateOf(ConvertMode.Video) }
+    var pendingStartMode by remember { mutableStateOf(ConvertMode.Video) }
+    val videoImportable = state.video.sources.count { it.media.importable }
+    val audioImportable = state.audio.sources.count { it.media.importable }
     val transcoding = state.jobs.any { it.status == JobStatus.Queued || it.status == JobStatus.Running }
-    val probing = state.video.sources.any { it.probing }
-    val preview = state.video.sources.firstOrNull { it.media.sourceUri == selectedUri }?.media
+    val videoProbing = state.video.sources.any { it.probing }
+    val audioProbing = state.audio.sources.any { it.probing }
+    val videoPreview = state.video.sources.firstOrNull { it.media.sourceUri == selectedUri }?.media
         ?: state.video.sources.firstOrNull { itemHasDuration(it.media) }?.media
+    val audioPreview = state.audio.sources.firstOrNull { it.media.sourceUri == audioSelectedUri }?.media
+        ?: state.audio.sources.firstOrNull { itemHasDuration(it.media) }?.media
     val versionName = remember(context) { installedVersionName(context) }
+    val audioMode = tab == RootTab.Audio
+    val currentMode = if (audioMode) ConvertMode.Audio else ConvertMode.Video
+    val currentStep = if (audioMode) audioStep else step
+    val currentSession = sessionFor(state.video, state.audio, currentMode)
+    val currentImportable = if (audioMode) audioImportable else videoImportable
+    val currentProbing = if (audioMode) audioProbing else videoProbing
+    val currentPreview = if (audioMode) audioPreview else videoPreview
 
     val galleryPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(),
-    ) { appViewModel.addUris(it, ConvertMode.Video) }
+    ) { appViewModel.addUris(it, pickerMode) }
     val filePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments(),
-    ) { appViewModel.addUris(it, ConvertMode.Video) }
+    ) { appViewModel.addUris(it, pickerMode) }
     val outputPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
-    ) { it?.let { uri -> appViewModel.pickOutputTree(uri, ConvertMode.Video) } }
+    ) { it?.let { uri -> appViewModel.pickOutputTree(uri, pickerMode) } }
 
-    fun goToHistoryAndResetWizard() {
+    fun goToHistoryAndResetWizard(mode: ConvertMode) {
         val reset = resetWizardAfterStart()
-        step = reset.step
-        showAll = reset.showAll
-        selectedUri = reset.selectedUri
-        appViewModel.clearSources(ConvertMode.Video)
+        when (mode) {
+            ConvertMode.Video -> {
+                step = reset.step
+                showAll = reset.showAll
+                selectedUri = reset.selectedUri
+            }
+            ConvertMode.Audio -> {
+                audioStep = reset.step
+                audioShowAll = reset.showAll
+                audioSelectedUri = reset.selectedUri
+            }
+        }
+        appViewModel.clearSources(mode)
+        historySegmentAfterStart(
+            if (mode == ConvertMode.Audio) RootTab.Audio else RootTab.Transcode,
+        )?.let { historySegment = it }
         tab = RootTab.History
     }
 
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
-        if (appViewModel.start(ConvertMode.Video)) goToHistoryAndResetWizard()
+        if (appViewModel.start(pendingStartMode)) goToHistoryAndResetWizard(pendingStartMode)
     }
 
-    fun startWithNotificationPermission() {
+    fun startWithNotificationPermission(mode: ConvertMode) {
+        pendingStartMode = mode
         val preferences = context.getSharedPreferences("ui", 0)
         val firstRequest = !preferences.getBoolean("notificationAsked", false)
         if (Build.VERSION.SDK_INT >= 33 && firstRequest) {
             preferences.edit().putBoolean("notificationAsked", true).apply()
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else if (appViewModel.start(ConvertMode.Video)) {
-            goToHistoryAndResetWizard()
+        } else if (appViewModel.start(mode)) {
+            goToHistoryAndResetWizard(mode)
         }
     }
 
-    val backTarget = consumeRootBack(tab, minePage, step)
+    val backTarget = consumeRootBack(tab, minePage, currentStep)
     BackHandler(enabled = backTarget != null) {
-        consumeRootBack(tab, minePage, step)?.let { next ->
+        consumeRootBack(tab, minePage, currentStep)?.let { next ->
             tab = next.tab
             minePage = next.minePage
-            step = next.wizardStep
+            when (next.tab) {
+                RootTab.Audio -> audioStep = next.wizardStep
+                else -> step = next.wizardStep
+            }
         }
     }
 
@@ -123,7 +157,7 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
             .background(Color(LightTokens.Canvas))
             .statusBarsPadding(),
     ) {
-        if (tab != RootTab.Transcode) {
+        if (tab != RootTab.Transcode && tab != RootTab.Audio) {
             state.message?.let {
                 Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                     NoticeBar(it, appViewModel::clearMessage)
@@ -133,34 +167,75 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
                 RootTab.Transcode -> TranscodePane(
+                    mode = ConvertMode.Video,
                     state = state,
                     step = step,
                     showAll = showAll,
                     selectedUri = selectedUri,
-                    preview = preview,
-                    importable = importable,
+                    preview = videoPreview,
+                    importable = videoImportable,
                     onShowAll = { showAll = !showAll },
                     onSelectUri = { selectedUri = it },
-                    onStep = { target -> if (canEnterStep(target, importable)) step = target },
+                    onStep = { target -> if (canEnterStep(target, videoImportable)) step = target },
                     onGallery = {
+                        pickerMode = ConvertMode.Video
                         galleryPicker.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
                         )
                     },
-                    onFiles = { filePicker.launch(arrayOf("video/*")) },
-                    onOutput = { outputPicker.launch(null) },
+                    onFiles = {
+                        pickerMode = ConvertMode.Video
+                        filePicker.launch(arrayOf("video/*"))
+                    },
+                    onOutput = {
+                        pickerMode = ConvertMode.Video
+                        outputPicker.launch(null)
+                    },
                     appViewModel = appViewModel,
                 )
-                RootTab.Audio -> Box {}
+                RootTab.Audio -> TranscodePane(
+                    mode = ConvertMode.Audio,
+                    state = state,
+                    step = audioStep,
+                    showAll = audioShowAll,
+                    selectedUri = audioSelectedUri,
+                    preview = audioPreview,
+                    importable = audioImportable,
+                    onShowAll = { audioShowAll = !audioShowAll },
+                    onSelectUri = { audioSelectedUri = it },
+                    onStep = { target -> if (canEnterStep(target, audioImportable)) audioStep = target },
+                    onGallery = {
+                        pickerMode = ConvertMode.Audio
+                        galleryPicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
+                        )
+                    },
+                    onFiles = {
+                        pickerMode = ConvertMode.Audio
+                        filePicker.launch(arrayOf("audio/*", "video/*"))
+                    },
+                    onMusic = {
+                        pickerMode = ConvertMode.Audio
+                        filePicker.launch(arrayOf("audio/*"))
+                    },
+                    onOutput = {
+                        pickerMode = ConvertMode.Audio
+                        outputPicker.launch(null)
+                    },
+                    appViewModel = appViewModel,
+                )
                 RootTab.History -> HistoryScreen(
-                    jobs = state.jobs,
+                    segment = historySegment,
+                    onSegment = { historySegment = it },
+                    jobs = historyJobs(state.jobs, historySegment),
+                    emptyLabel = historyEmptyLabel(historySegment),
                     onCancel = appViewModel::cancel,
                     onRetry = appViewModel::retry,
                     onOpen = { launchOutput(context, appViewModel.outputIntent(it, false)) },
                     onShare = { launchOutput(context, appViewModel.outputIntent(it, true)) },
                     onRename = { job, name -> appViewModel.rename(job.id, name) },
                     onDelete = appViewModel::delete,
-                    onClearFinished = { appViewModel.clearFinished(HistorySegment.Video) },
+                    onClearFinished = { appViewModel.clearFinished(historySegment) },
                 )
                 RootTab.Mine -> MineScreen(
                     page = minePage,
@@ -170,44 +245,59 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                 )
             }
         }
-        if (tab == RootTab.Transcode && step == WizardStep.Format) {
+        if ((tab == RootTab.Transcode || tab == RootTab.Audio) && currentStep == WizardStep.Format) {
             FormatDetailPanel(
-                preset = state.video.preset,
-                quality = state.video.quality,
-                size = state.video.size,
-                onQuality = { appViewModel.setQuality(it, ConvertMode.Video) },
-                onSize = { appViewModel.setSize(it, ConvertMode.Video) },
+                preset = currentSession.preset,
+                quality = currentSession.quality,
+                size = currentSession.size,
+                onQuality = { appViewModel.setQuality(it, currentMode) },
+                onSize = { appViewModel.setSize(it, currentMode) },
             )
         }
-        if (tab == RootTab.Transcode) {
+        if (tab == RootTab.Transcode || tab == RootTab.Audio) {
             WizardDock(
-                step = step,
+                step = currentStep,
                 summary = dockSummary(
-                    step = step,
-                    importableCount = importable,
-                    presetTitle = presetTitle(state.video.preset),
-                    qualityLabel = qualityLabel(state.video.quality),
-                    sizeLabel = sizeLabel(state.video.size),
-                    audioOnly = isAudioPreset(state.video.preset),
-                    copyOnly = isCopyPreset(state.video.preset),
-                    trimLabel = trimLabel(state.video.sources.map { it.media }, preview),
-                    outputLabel = outputFolderLabel(context, state.video.output),
+                    step = currentStep,
+                    importableCount = currentImportable,
+                    presetTitle = presetTitle(currentSession.preset),
+                    qualityLabel = qualityLabel(currentSession.quality),
+                    sizeLabel = sizeLabel(currentSession.size),
+                    audioOnly = isAudioPreset(currentSession.preset),
+                    copyOnly = isCopyPreset(currentSession.preset),
+                    trimLabel = trimLabel(currentSession.sources.map { it.media }, currentPreview),
+                    outputLabel = outputFolderLabel(context, currentSession.output),
                     formatPreview = conversionPreview(
-                        state.video.sources.map { it.media },
-                        presetTitle(state.video.preset),
+                        currentSession.sources.map { it.media },
+                        presetTitle(currentSession.preset),
                     ),
+                    audioMode = audioMode,
+                    losslessAudio = isLosslessAudioPreset(currentSession.preset),
                 ),
-                action = dockActionLabel(step, busy = false, transcoding = transcoding),
-                actionEnabled = when (step) {
-                    WizardStep.Sources, WizardStep.Format -> importable > 0 && !probing
-                    WizardStep.Output -> importable > 0 && !transcoding && !probing
+                action = dockActionLabel(
+                    currentStep,
+                    busy = false,
+                    transcoding = transcoding,
+                    startLabel = if (audioMode) "开始转换" else "开始转码",
+                ),
+                actionEnabled = when (currentStep) {
+                    WizardStep.Sources, WizardStep.Format -> currentImportable > 0 && !currentProbing
+                    WizardStep.Output -> currentImportable > 0 && !transcoding && !currentProbing &&
+                        !(currentSession.output.kind == OutputTarget.Kind.SafTree &&
+                            currentSession.output.treeUri == null)
                 },
-                onBack = { retreatStep(step)?.let { step = it } },
+                onBack = {
+                    retreatStep(currentStep)?.let { next ->
+                        if (audioMode) audioStep = next else step = next
+                    }
+                },
                 onAction = {
-                    when (step) {
+                    when (currentStep) {
                         WizardStep.Sources, WizardStep.Format ->
-                            advanceStep(step, importable)?.let { step = it }
-                        WizardStep.Output -> startWithNotificationPermission()
+                            advanceStep(currentStep, currentImportable)?.let { next ->
+                                if (audioMode) audioStep = next else step = next
+                            }
+                        WizardStep.Output -> startWithNotificationPermission(currentMode)
                     }
                 },
             )
@@ -221,6 +311,7 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
 
 @Composable
 private fun TranscodePane(
+    mode: ConvertMode,
     state: AppUiState,
     step: WizardStep,
     showAll: Boolean,
@@ -234,17 +325,20 @@ private fun TranscodePane(
     onFiles: () -> Unit,
     onOutput: () -> Unit,
     appViewModel: AppViewModel,
+    onMusic: (() -> Unit)? = null,
 ) {
+    val session = sessionFor(state.video, state.audio, mode)
+    val audioMode = mode == ConvertMode.Audio
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(
             title = wizardScreenTitle(step),
             subtitle = when (step) {
                 WizardStep.Sources -> "预览并裁切要保留的片段"
                 WizardStep.Format -> conversionPreview(
-                    state.video.sources.map { it.media },
-                    presetTitle(state.video.preset),
+                    session.sources.map { it.media },
+                    presetTitle(session.preset),
                 )
-                WizardStep.Output -> outputFolderLabel(LocalContext.current, state.video.output)
+                WizardStep.Output -> outputFolderLabel(LocalContext.current, session.output)
             },
             below = { StepTabs(step, importable, onStep) },
         )
@@ -254,12 +348,18 @@ private fun TranscodePane(
             }
         }
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (step == WizardStep.Sources && state.video.sources.isEmpty()) {
+            if (step == WizardStep.Sources && session.sources.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Dropzone(onGallery = onGallery, onFiles = onFiles, centered = true)
+                    Dropzone(
+                        onGallery = onGallery,
+                        onFiles = onFiles,
+                        onMusic = onMusic,
+                        centered = true,
+                        audioMode = audioMode,
+                    )
                 }
             } else {
                 LazyColumn(
@@ -271,8 +371,15 @@ private fun TranscodePane(
                 ) {
                     when (step) {
                         WizardStep.Sources -> {
-                            item { Dropzone(onGallery = onGallery, onFiles = onFiles) }
-                            items(state.video.sources, key = { it.media.sourceUri }) { source ->
+                            item {
+                                Dropzone(
+                                    onGallery = onGallery,
+                                    onFiles = onFiles,
+                                    onMusic = onMusic,
+                                    audioMode = audioMode,
+                                )
+                            }
+                            items(session.sources, key = { it.media.sourceUri }) { source ->
                                 FileRow(
                                     name = source.media.displayName,
                                     line = sourceFormatLine(source.media, source.probing),
@@ -284,22 +391,27 @@ private fun TranscodePane(
                                     onOpen = {
                                         if (itemHasDuration(source.media)) onSelectUri(source.media.sourceUri)
                                     },
-                                    onRemove = { appViewModel.remove(source.media.sourceUri, ConvertMode.Video) },
+                                    onRemove = { appViewModel.remove(source.media.sourceUri, mode) },
                                 )
                             }
                             if (preview != null) {
                                 item(key = "trim-${preview.sourceUri}") {
-                                    TrimPanel(preview) { appViewModel.updateTrim(it, ConvertMode.Video) }
+                                    TrimPanel(preview) { appViewModel.updateTrim(it, mode) }
                                 }
                             }
                         }
                         WizardStep.Format -> {
                             item {
                                 PresetGrid(
-                                    cards = collapsedPresetCards(state.video.preset, showAll),
-                                    selected = state.video.preset,
+                                    cards = if (audioMode) {
+                                        AUDIO_PRESET_CARDS
+                                    } else {
+                                        collapsedPresetCards(session.preset, showAll)
+                                    },
+                                    selected = session.preset,
                                     showAll = showAll,
-                                    onSelect = { appViewModel.setPreset(it, ConvertMode.Video) },
+                                    showMore = !audioMode,
+                                    onSelect = { appViewModel.setPreset(it, mode) },
                                     onToggleMore = onShowAll,
                                 )
                             }
@@ -307,15 +419,16 @@ private fun TranscodePane(
                         WizardStep.Output -> {
                             item {
                                 OutputChoiceGrid(
-                                    selectedId = outputChoiceId(state.video.output),
-                                    customHint = if (outputChoiceId(state.video.output) == OUTPUT_CHOICE_CUSTOM) {
-                                        outputFolderLabel(LocalContext.current, state.video.output)
+                                    cards = if (audioMode) AUDIO_OUTPUT_CHOICE_CARDS else OUTPUT_CHOICE_CARDS,
+                                    selectedId = outputChoiceId(session.output),
+                                    customHint = if (outputChoiceId(session.output) == OUTPUT_CHOICE_CUSTOM) {
+                                        outputFolderLabel(LocalContext.current, session.output)
                                     } else {
                                         null
                                     },
                                     onSelect = { id ->
                                         if (id == OUTPUT_CHOICE_CUSTOM) onOutput()
-                                        else appViewModel.setOutputChoice(id, ConvertMode.Video)
+                                        else appViewModel.setOutputChoice(id, mode)
                                     },
                                 )
                             }
@@ -364,30 +477,44 @@ private fun FormatDetailPanel(
             .padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        if (isCopyPreset(preset)) {
-            Text(
-                "不重编码只换文件外壳，画质和分辨率都保持原样。源视频编码必须能放进 MP4，不行的文件会提示改用普通转码。",
-                color = Color(LightTokens.Muted),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(LightTokens.Card))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-            )
-        } else {
-            CompactChips(
-                title = if (isAudioPreset(preset)) "音质" else "画质",
-                options = QUALITY_CHIPS,
-                selected = quality,
-                onSelect = onQuality,
-            )
-            if (shouldShowResolution(preset)) {
-                CompactChips(
-                    title = "分辨率",
-                    options = SIZE_CHIPS,
-                    selected = size,
-                    onSelect = onSize,
+        when {
+            isLosslessAudioPreset(preset) -> {
+                Text(
+                    "原始采样，不压缩，文件更大",
+                    color = Color(LightTokens.Muted),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(LightTokens.Card))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                 )
+            }
+            isCopyPreset(preset) -> {
+                Text(
+                    "不重编码只换文件外壳，画质和分辨率都保持原样。源视频编码必须能放进 MP4，不行的文件会提示改用普通转码。",
+                    color = Color(LightTokens.Muted),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(LightTokens.Card))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                )
+            }
+            else -> {
+                CompactChips(
+                    title = if (isAudioPreset(preset)) "音质" else "画质",
+                    options = QUALITY_CHIPS,
+                    selected = quality,
+                    onSelect = onQuality,
+                )
+                if (shouldShowResolution(preset)) {
+                    CompactChips(
+                        title = "分辨率",
+                        options = SIZE_CHIPS,
+                        selected = size,
+                        onSelect = onSize,
+                    )
+                }
             }
         }
     }

@@ -127,6 +127,15 @@ fun supportsSystemPreview(media: MediaInfo): Boolean {
     return extension in setOf("mp4", "m4v", "mov", "webm")
 }
 
+fun canPlayPreview(media: MediaInfo): Boolean {
+    val extension = media.displayName.substringAfterLast('.', "").lowercase()
+    return supportsSystemPreview(media) ||
+        extension in setOf("mp3", "m4a", "aac", "wav", "ogg", "flac", "opus")
+}
+
+fun showVideoSurface(media: MediaInfo): Boolean =
+    media.videoCodec != null && supportsSystemPreview(media)
+
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application.applicationContext
     private val sessionStore = SessionStore(app)
@@ -252,7 +261,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             viewModelScope.launch {
                 persistOutputBeforeStart(
                     output = session.output,
-                    persist = { persistOutputTarget(mode, it) },
+                    persist = { persistOutputTarget(it) },
                     start = { TranscodeService.startPump(app) },
                 )
             }
@@ -292,7 +301,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             persistOutputBeforeStart(
                 output = session.output,
-                persist = { persistOutputTarget(mode, it) },
+                persist = { persistOutputTarget(it) },
                 start = { TranscodeService.enqueue(app, report.jobs) },
             )
         }
@@ -424,11 +433,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun persistOutput(mode: ConvertMode, output: OutputTarget) {
-        viewModelScope.launch { persistOutputTarget(mode, output) }
+        if (mode != ConvertMode.Video) return
+        viewModelScope.launch { persistOutputTarget(output) }
     }
 
-    private suspend fun persistOutputTarget(mode: ConvertMode, output: OutputTarget) {
-        if (mode == ConvertMode.Video) sessionStore.saveOutputTarget(output)
+    private suspend fun persistOutputTarget(output: OutputTarget) {
+        sessionStore.saveOutputTarget(output)
     }
 
     private fun displayName(uri: Uri): String =

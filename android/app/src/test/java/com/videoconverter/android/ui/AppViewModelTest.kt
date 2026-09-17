@@ -129,6 +129,33 @@ class AppViewModelTest {
     }
 
     @Test
+    fun audioCanPlayPreviewWithoutVideoSurface() {
+        val mp3 = media("clip.mp3", "mp3")
+        assertTrue(canPlayPreview(mp3))
+        assertFalse(showVideoSurface(mp3))
+        assertFalse(supportsSystemPreview(mp3))
+        listOf("clip.m4a", "clip.aac", "clip.wav", "clip.ogg", "clip.flac", "clip.opus").forEach { name ->
+            assertTrue(canPlayPreview(media(name, "audio")))
+            assertFalse(showVideoSurface(media(name, "audio")))
+        }
+    }
+
+    @Test
+    fun videoSurfaceRequiresCodecAndSystemPreview() {
+        val mp4 = media("clip.mp4", "mov,mp4,m4a,3gp,3g2,mj2").copy(videoCodec = "h264")
+        assertTrue(canPlayPreview(mp4))
+        assertTrue(showVideoSurface(mp4))
+
+        val mkv = media("clip.mkv", "matroska,webm").copy(videoCodec = "h264")
+        assertFalse(canPlayPreview(mkv))
+        assertFalse(showVideoSurface(mkv))
+
+        val audioOnlyMp4 = media("clip.mp4", "mov,mp4,m4a,3gp,3g2,mj2")
+        assertTrue(canPlayPreview(audioOnlyMp4))
+        assertFalse(showVideoSurface(audioOnlyMp4))
+    }
+
+    @Test
     fun resolutionHiddenPresetClearsBounds() {
         val bounds = effectiveResolution("mp4-copy", "1080p")
         assertNull(bounds.first)

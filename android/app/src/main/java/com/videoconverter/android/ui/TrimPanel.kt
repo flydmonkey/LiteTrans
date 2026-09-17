@@ -76,7 +76,8 @@ private fun TrimPanelContent(
     val duration = (media.durationSecs ?: 0.0).coerceAtLeast(0.01)
     val start = (media.trimStartSecs ?: 0.0).coerceIn(0.0, duration)
     val end = (media.trimEndSecs ?: duration).coerceIn(0.0, duration)
-    val usePreview = supportsSystemPreview(media)
+    val playPreview = canPlayPreview(media)
+    val videoSurface = showVideoSurface(media)
     var playhead by remember { mutableDoubleStateOf(start) }
     var playing by remember { mutableStateOf(false) }
     val mediaState = rememberUpdatedState(media)
@@ -84,8 +85,8 @@ private fun TrimPanelContent(
     val endState = rememberUpdatedState(end)
     val onChangeState = rememberUpdatedState(onChange)
 
-    val player = remember(media.sourceUri, usePreview) {
-        if (!usePreview) {
+    val player = remember(media.sourceUri, playPreview) {
+        if (!playPreview) {
             null
         } else {
             ExoPlayer.Builder(context).build().apply {
@@ -162,7 +163,7 @@ private fun TrimPanelContent(
             )
         }
 
-        if (usePreview && player != null) {
+        if (videoSurface && player != null) {
             AndroidView(
                 factory = { viewContext ->
                     PlayerView(viewContext).apply {
@@ -177,7 +178,7 @@ private fun TrimPanelContent(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.White),
             )
-        } else {
+        } else if (!playPreview) {
             Text(
                 "该格式使用时间轴裁剪，不提供视频预览",
                 color = Color(LightTokens.Muted),
