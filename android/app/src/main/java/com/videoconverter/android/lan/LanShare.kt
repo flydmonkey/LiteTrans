@@ -82,3 +82,38 @@ fun lanContentDisposition(fileName: String): String {
     val encoded = java.net.URLEncoder.encode(safe, Charsets.UTF_8).replace("+", "%20")
     return "attachment; filename=\"$safe\"; filename*=UTF-8''$encoded"
 }
+
+const val LAN_SHARE_PREFERRED_PORT = 17890
+const val LAN_SHARE_PORT_ATTEMPTS = 10
+
+data class LanIface(val name: String, val hostAddress: String, val loopback: Boolean)
+
+fun pickLanIpv4(ifaces: List<LanIface>): String? {
+    val usable = ifaces.filter { iface ->
+        !iface.loopback && iface.hostAddress.matches(Regex("""\d{1,3}(?:\.\d{1,3}){3}"""))
+    }
+    val preferred = usable.firstOrNull { iface ->
+        val n = iface.name.lowercase()
+        n.startsWith("wlan") || n.startsWith("ap") || n.contains("wlan") || n.contains("swlan")
+    }
+    return (preferred ?: usable.firstOrNull())?.hostAddress
+}
+
+fun chooseLanPort(
+    preferred: Int = LAN_SHARE_PREFERRED_PORT,
+    attempts: Int = LAN_SHARE_PORT_ATTEMPTS,
+    occupied: Set<Int>,
+): Int? {
+    repeat(attempts) { offset ->
+        val port = preferred + offset
+        if (port !in occupied) return port
+    }
+    return null
+}
+
+fun lanPublicUrl(ip: String, port: Int, token: String): String {
+    val base = "http://$ip:$port/"
+    if (token.isEmpty()) return base
+    val encoded = java.net.URLEncoder.encode(token, Charsets.UTF_8)
+    return "${base}?k=$encoded"
+}
