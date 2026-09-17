@@ -29,7 +29,7 @@ class LanShareHandlerTest {
         val ok = handleLanRequest(LanHttpRequest("GET", "/", mapOf("k" to "pw")), jobs, "pw", exists, copy)
         assertEquals(200, ok.status)
         assertTrue(ok.contentType.startsWith("text/html"))
-        assertTrue(String(ok.body, Charsets.UTF_8).contains("假期.mp4"))
+        assertTrue(String(ok.body, Charsets.UTF_8).contains("data-media=\"/m/v\""))
     }
 
     @Test

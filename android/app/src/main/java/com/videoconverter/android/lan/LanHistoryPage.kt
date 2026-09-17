@@ -1,10 +1,6 @@
 package com.videoconverter.android.lan
 
 import com.videoconverter.android.domain.Job
-import com.videoconverter.android.domain.JobStatus
-import com.videoconverter.android.domain.resolveConfig
-import com.videoconverter.android.ui.HistorySegment
-import com.videoconverter.android.ui.historyJobs
 
 fun renderLanHistoryHtml(
     jobs: List<Job>,
@@ -12,52 +8,53 @@ fun renderLanHistoryHtml(
     copy: LanHistoryCopy,
     fileExists: (String) -> Boolean,
 ): String {
-    val sections = listOf(
-        Triple(HistorySegment.Video, "video", copy.video),
-        Triple(HistorySegment.Audio, "audio", copy.audio),
-        Triple(HistorySegment.Document, "document", copy.document),
-    )
+    val items = lanLibraryItems(jobs, fileExists)
+    val defaultTab = lanDefaultLibraryTab(items)
     return buildString {
         append("<!DOCTYPE html><html><head>")
         append("<meta charset=\"utf-8\">")
         append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">")
         append("<title>LiteTrans</title>")
         append("<style>")
-        append("body{margin:0;background:#ecece8;color:#1f2428;font-family:-apple-system,sans-serif;display:flex;flex-direction:column;min-height:100vh}")
-        append("header{padding:16px 20px;border-bottom:1px solid #d5d2cc}")
-        append("main{display:flex;flex:1;min-height:0}")
-        append("nav{width:320px;overflow:auto;padding:12px 16px;box-sizing:border-box}")
-        append(".item{padding:10px 12px;border-radius:8px;cursor:pointer}")
-        append(".item.selected{background:#fff;box-shadow:inset 3px 0 0 #c45a2a}")
-        append(".child{padding-left:20px;font-size:13px}")
-        append(".stage{flex:1;display:flex;flex-direction:column;background:#ecece8;padding:16px}")
-        append(".player{flex:1;background:#111;border-radius:12px;display:flex;align-items:center;justify-content:center;min-height:240px;overflow:hidden}")
-        append(".player video,.player audio,.player img,.player iframe{max-width:100%;max-height:100%;display:none}")
-        append(".player iframe{width:100%;height:100%;border:0}")
-        append(".meta{padding:12px 4px}")
-        append("a{color:#c45a2a}")
+        append(LAN_HISTORY_PAGE_CSS)
         append("</style></head><body>")
         append("<header><strong>LiteTrans</strong>")
         if (token.isEmpty()) {
-            append("<p>").append(escapeHtml(copy.warning)).append("</p>")
+            append("<p class=\"warn\">").append(escapeHtml(copy.warning)).append("</p>")
         }
-        append("</header><main><nav>")
-        var selectedAssigned = false
-        for ((segment, key, title) in sections) {
-            append("<section data-segment=\"").append(key).append("\">")
-            append("<h2>").append(escapeHtml(title)).append("</h2>")
-            val items = historyJobs(jobs, segment).asReversed()
-            if (items.isEmpty()) {
-                append("<p>").append(escapeHtml(lanHistoryEmptyLabel(segment, copy))).append("</p>")
-            } else {
-                for (job in items) {
-                    selectedAssigned = appendJobItems(job, token, copy, fileExists, selectedAssigned)
-                }
-            }
-            append("</section>")
+        append("</header>")
+        append("<nav class=\"tabs\" role=\"tablist\">")
+        for (tab in LanLibraryTab.entries) {
+            val count = lanLibraryItemsFor(items, tab).size
+            val on = tab == defaultTab
+            append("<button type=\"button\" data-tab-btn=\"").append(tab.wireName()).append("\"")
+            if (on) append(" class=\"on\"")
+            append(" aria-selected=\"").append(if (on) "true" else "false").append("\" role=\"tab\">")
+            append(escapeHtml(lanLibraryTabLabel(tab, copy)))
+            append(" ").append(count)
+            append("</button>")
         }
         append("</nav>")
-        append("<div id=\"stage\" class=\"stage\">")
+        append("<main>")
+        append("<div class=\"rail\">")
+        for (tab in LanLibraryTab.entries) {
+            val tabItems = lanLibraryItemsFor(items, tab)
+            append("<div class=\"pane\" data-pane=\"").append(tab.wireName()).append("\"")
+            if (tab != defaultTab) append(" hidden")
+            append(">")
+            if (tabItems.isEmpty()) {
+                append("<p class=\"empty\">").append(escapeHtml(lanLibraryEmptyLabel(tab, copy))).append("</p>")
+            } else {
+                if (tab == LanLibraryTab.Image) append("<div class=\"thumbs\">")
+                tabItems.forEachIndexed { index, item ->
+                    appendLibraryItem(item, token, selected = tab == defaultTab && index == 0)
+                }
+                if (tab == LanLibraryTab.Image) append("</div>")
+            }
+            append("</div>")
+        }
+        append("</div>")
+        append("<div class=\"stage\">")
         append("<div class=\"player\">")
         append("<video controls></video>")
         append("<audio controls></audio>")
@@ -66,7 +63,7 @@ fun renderLanHistoryHtml(
         append("</div>")
         append("<div class=\"meta\">")
         append("<p id=\"hint\"></p>")
-        append("<a id=\"download\" href=\"#\">").append(escapeHtml(copy.download)).append("</a>")
+        append("<a id=\"download\" href=\"#\" style=\"display:none\">").append(escapeHtml(copy.download)).append("</a>")
         append("</div></div></main>")
         append("<script>")
         append("var previewFailed=").append(jsString(copy.previewFailed)).append(";")
@@ -77,95 +74,35 @@ fun renderLanHistoryHtml(
     }
 }
 
-private fun StringBuilder.appendJobItems(
-    job: Job,
+private fun StringBuilder.appendLibraryItem(
+    item: LanLibraryItem,
     token: String,
-    copy: LanHistoryCopy,
-    fileExists: (String) -> Boolean,
-    selectedAssigned: Boolean,
-): Boolean {
-    val format = resolveConfig(job.config).getOrNull()?.container ?: job.config.preset
-    val existing = if (job.status == JobStatus.Completed) {
-        jobOutputPaths(job).mapIndexedNotNull { index, path ->
-            if (fileExists(path)) index to path else null
-        }
-    } else {
-        emptyList()
-    }
-    val multi = existing.size > 1
-    var selected = selectedAssigned
-    if (multi) {
-        append("<div class=\"item\">")
-        append(escapeHtml(job.displayName))
-        append(" ")
-        append(escapeHtml(format))
-        append(" ")
-        append(escapeHtml(lanStatusLabel(job.status, copy)))
-        for ((index, path) in existing) {
-            val base = java.io.File(path).name.ifBlank { job.displayName }
-            selected = appendOpenableItem(
-                job = job,
-                index = index,
-                multi = true,
-                path = path,
-                label = base,
-                token = token,
-                extraClass = " child",
-                selected = !selected,
-            )
-        }
-        append("</div>")
-        return selected
-    }
-    val openable = existing.singleOrNull()
-    if (openable != null) {
-        val (index, path) = openable
-        return appendOpenableItem(
-            job = job,
-            index = index,
-            multi = false,
-            path = path,
-            label = "${job.displayName} $format ${lanStatusLabel(job.status, copy)}",
-            token = token,
-            extraClass = "",
-            selected = !selected,
-        )
-    }
-    append("<div class=\"item\">")
-    append(escapeHtml(job.displayName))
-    append(" ")
-    append(escapeHtml(format))
-    append(" ")
-    append(escapeHtml(lanStatusLabel(job.status, copy)))
-    append("</div>")
-    return selected
-}
-
-private fun StringBuilder.appendOpenableItem(
-    job: Job,
-    index: Int,
-    multi: Boolean,
-    path: String,
-    label: String,
-    token: String,
-    extraClass: String,
     selected: Boolean,
-): Boolean {
-    val kind = lanPreviewKind(lanPreviewFileName(path, job)).wireName()
-    val media = lanHistoryDownloadHref(job.id, index, multi, "", "m")
-    val download = lanHistoryDownloadHref(job.id, index, multi, token, "d")
+) {
+    val media = lanHistoryDownloadHref(item.jobId, item.index, item.needsIndex, "", "m")
+    val download = lanHistoryDownloadHref(item.jobId, item.index, item.needsIndex, token, "d")
     append("<div class=\"item")
-    append(extraClass)
+    if (item.tab == LanLibraryTab.Image) append(" thumb")
     if (selected) append(" selected")
     append("\" data-media=\"").append(escapeHtml(media))
     append("\" data-download=\"").append(escapeHtml(download))
-    append("\" data-kind=\"").append(kind)
-    append("\" data-id=\"").append(escapeHtml(job.id))
-    append("\" data-index=\"").append(index)
+    append("\" data-kind=\"").append(item.kind.wireName())
+    append("\" data-id=\"").append(escapeHtml(item.jobId))
+    append("\" data-index=\"").append(item.index)
+    append("\" data-tab=\"").append(item.tab.wireName())
     append("\">")
-    append(escapeHtml(label))
+    when (item.tab) {
+        LanLibraryTab.Image -> {
+            val thumb = lanHistoryDownloadHref(item.jobId, item.index, item.needsIndex, token, "m")
+            append("<img class=\"thumb-src\" alt=\"\" src=\"").append(escapeHtml(thumb)).append("\">")
+        }
+        LanLibraryTab.Document -> {
+            append(escapeHtml(item.label))
+            append(" <span class=\"fmt\">").append(escapeHtml(item.format)).append("</span>")
+        }
+        else -> append(escapeHtml(item.label))
+    }
     append("</div>")
-    return true
 }
 
 private fun LanPreviewKind.wireName(): String = when (this) {
@@ -191,6 +128,40 @@ private fun jsString(raw: String): String = buildString {
     append('"')
 }
 
+private const val LAN_HISTORY_PAGE_CSS = """
+html,body{height:100%}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#ecece8;color:#1f2428;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif}
+header{display:flex;align-items:baseline;gap:16px;padding:18px 22px 10px}
+header strong{font-size:1.25rem;font-weight:650;letter-spacing:-.02em}
+header .warn{margin:0;color:#5c6460;font-size:.92rem}
+.tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid #d5d2cc}
+.tabs button{appearance:none;background:none;border:0;border-bottom:2px solid transparent;margin:0;padding:10px 12px 8px;color:#5c6460;font:inherit;font-weight:500;cursor:pointer;transition:color .15s ease,border-color .15s ease}
+.tabs button.on{color:#c45a2a;font-weight:600;border-bottom-color:#c45a2a}
+.tabs button:focus-visible{outline:2px solid #c45a2a;outline-offset:2px}
+main{display:flex;flex:1;min-height:0;gap:16px;padding:16px 18px 20px}
+.rail{width:320px;flex:0 0 320px;background:#fff;border:1px solid #d5d2cc;border-radius:14px;overflow:auto;padding:10px;box-sizing:border-box}
+.pane[hidden]{display:none}
+.empty{margin:18px 10px;color:#5c6460}
+.item{padding:10px 12px;border-radius:8px;cursor:pointer}
+.item.selected{background:#f6f1ea;box-shadow:inset 3px 0 0 #c45a2a}
+.thumbs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.item.thumb{padding:0;overflow:hidden;border:2px solid transparent}
+.item.thumb.selected{box-shadow:none;border-color:#c45a2a;background:transparent}
+.thumb-src{display:block;width:100%;height:88px;object-fit:cover;background:#d5d2cc}
+.fmt{color:#5c6460;font-size:.85em;margin-left:.35em}
+.stage{flex:1;display:flex;flex-direction:column;min-width:0}
+.player{flex:1;min-height:240px;background:#111;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.player video,.player audio,.player img,.player iframe{max-width:100%;max-height:100%;display:none}
+.player iframe{width:100%;height:100%;border:0}
+.player audio{width:80%}
+.meta{padding:12px 4px 0}
+#hint{margin:0 0 8px;color:#5c6460}
+#download{color:#c45a2a;font-weight:600;text-decoration:none}
+#download:hover{text-decoration:underline}
+@media (max-width:720px){main{flex-direction:column}.rail{width:auto;flex:none;max-height:40vh}.player{min-height:200px}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+"""
+
 private const val LAN_HISTORY_PAGE_JS = """
 function withToken(url){
   if(!token) return url;
@@ -208,9 +179,22 @@ function hideAll(){
   img.removeAttribute('src');img.style.display='none';
   iframe.removeAttribute('src');iframe.style.display='none';
   hint.textContent='';
+  download.style.display='none';
 }
-function showError(){hideAll();hint.textContent=previewFailed;}
+function showError(){hideAll();hint.textContent=previewFailed;download.style.display='inline';}
 video.onerror=showError;audio.onerror=showError;img.onerror=showError;iframe.onerror=showError;
+function showTab(name){
+  document.querySelectorAll('[data-tab-btn]').forEach(function(btn){
+    var on=btn.getAttribute('data-tab-btn')===name;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-selected', on?'true':'false');
+  });
+  document.querySelectorAll('[data-pane]').forEach(function(pane){
+    if(pane.getAttribute('data-pane')===name) pane.removeAttribute('hidden');
+    else pane.setAttribute('hidden','');
+  });
+  hideAll();
+}
 function select(el){
   document.querySelectorAll('.item.selected').forEach(function(n){n.classList.remove('selected');});
   el.classList.add('selected');
@@ -218,13 +202,21 @@ function select(el){
   var media=el.getAttribute('data-media');
   var dl=el.getAttribute('data-download');
   hideAll();
-  if(dl) download.setAttribute('href',dl);
+  if(dl){download.setAttribute('href',dl);download.style.display='inline';}
   if(kind==='video'){video.style.display='block';video.src=withToken(media);}
   else if(kind==='audio'){audio.style.display='block';audio.src=withToken(media);}
   else if(kind==='image'){img.style.display='block';img.src=withToken(media);}
   else if(kind==='pdf'){iframe.style.display='block';iframe.src=withToken(media);}
-  else {hint.textContent=downloadToOpen;}
+  else {hint.textContent=downloadToOpen;download.style.display='inline';}
 }
+document.querySelectorAll('[data-tab-btn]').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var name=btn.getAttribute('data-tab-btn');
+    showTab(name);
+    var first=document.querySelector('[data-pane="'+name+'"] [data-media]');
+    if(first) select(first);
+  });
+});
 document.querySelectorAll('[data-media]').forEach(function(el){
   el.addEventListener('click',function(){select(el);});
 });
@@ -240,6 +232,12 @@ function fromHash(){
   }
   return nodes[0]||null;
 }
-var initial=fromHash()||document.querySelector('.item.selected[data-media]')||document.querySelector('[data-media]');
-if(initial) select(initial);
+var hashed=fromHash();
+if(hashed){
+  showTab(hashed.getAttribute('data-tab'));
+  select(hashed);
+}else{
+  var initial=document.querySelector('.item.selected[data-media]');
+  if(initial) select(initial);
+}
 """
