@@ -33,8 +33,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.videoconverter.android.data.LanShareStore
-import com.videoconverter.android.lan.LanShareSettings
 import com.videoconverter.android.lan.lanPublicUrl
+import com.videoconverter.android.lan.normalizeLanToken
 import com.videoconverter.android.service.LanShareService
 import com.videoconverter.android.ui.theme.LightTokens
 import kotlinx.coroutines.delay
@@ -49,14 +49,33 @@ fun LanShareScreen(onBack: () -> Unit) {
     var tokenFocused by remember { mutableStateOf(false) }
     var boundIpv4 by remember { mutableStateOf(LanShareService.boundIpv4) }
     var boundPort by remember { mutableStateOf(LanShareService.boundPort) }
+    var boundError by remember { mutableStateOf(LanShareService.boundError) }
     var copied by remember { mutableStateOf(false) }
 
-    fun persist(enabled: Boolean = settings.enabled, token: String = tokenDraft): LanShareSettings {
-        store.save(store.load().copy(enabled = enabled, token = token))
+    fun persistToken() {
+        store.save(store.load().copy(token = normalizeLanToken(tokenDraft)))
         val loaded = store.load()
         settings = loaded
         tokenDraft = loaded.token
-        return loaded
+    }
+
+    fun persistEnabled(enabled: Boolean) {
+        store.save(store.load().copy(enabled = enabled, token = normalizeLanToken(tokenDraft)))
+        val loaded = store.load()
+        settings = loaded
+        tokenDraft = loaded.token
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val loaded = store.load()
+            settings = if (tokenFocused) settings.copy(enabled = loaded.enabled) else loaded
+            if (!tokenFocused) tokenDraft = loaded.token
+            boundIpv4 = LanShareService.boundIpv4
+            boundPort = LanShareService.boundPort
+            boundError = LanShareService.boundError
+            delay(1_000)
+        }
     }
 
     LaunchedEffect(settings.enabled) {
@@ -64,12 +83,7 @@ fun LanShareScreen(onBack: () -> Unit) {
         if (!settings.enabled) {
             boundIpv4 = null
             boundPort = null
-            return@LaunchedEffect
-        }
-        while (true) {
-            boundIpv4 = LanShareService.boundIpv4
-            boundPort = LanShareService.boundPort
-            delay(1_000)
+            boundError = null
         }
     }
 
@@ -81,7 +95,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                     "返回",
                     color = Color(LightTokens.Accent),
                     modifier = Modifier.clickable {
-                        persist()
+                        persistToken()
                         onBack()
                     },
                 )
@@ -109,7 +123,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                 Switch(
                     checked = settings.enabled,
                     onCheckedChange = { on ->
-                        persist(enabled = on)
+                        persistEnabled(on)
                         if (on) LanShareService.start(context) else LanShareService.stop(context)
                     },
                 )
@@ -120,7 +134,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .onFocusChanged { focus ->
-                        if (tokenFocused && !focus.isFocused) persist()
+                        if (tokenFocused && !focus.isFocused) persistToken()
                         tokenFocused = focus.isFocused
                     },
                 label = { Text("口令") },
@@ -129,7 +143,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(
                     onDone = {
-                        persist()
+                        persistToken()
                         keyboard?.hide()
                     },
                 ),
@@ -164,7 +178,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                     )
                 } else {
                     Text(
-                        "先连上 Wi‑Fi 或热点",
+                        boundError ?: "先连上 Wi‑Fi 或热点",
                         color = Color(LightTokens.Muted),
                         fontSize = 15.sp,
                     )
