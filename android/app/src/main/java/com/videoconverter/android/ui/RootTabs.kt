@@ -1,6 +1,12 @@
 package com.videoconverter.android.ui
 
-enum class RootTab { Transcode, History, Mine }
+import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.resolveConfig
+
+enum class RootTab { Transcode, Audio, History, Mine }
+
+enum class HistorySegment { Video, Audio }
 
 enum class MinePage { Root, Privacy, Terms, About }
 
@@ -14,6 +20,7 @@ data class RootBack(
 
 fun rootTabLabel(tab: RootTab): String = when (tab) {
     RootTab.Transcode -> "视频转码"
+    RootTab.Audio -> "音频转换"
     RootTab.History -> "历史记录"
     RootTab.Mine -> "我的"
 }
@@ -41,7 +48,33 @@ fun minePageBody(page: MinePage): String = when (page) {
 fun aboutBody(versionName: String): String =
     "轻转码 $versionName\n\n本机视频转码工具。所选视频只在这台设备上处理，不上传，不要求联网。当前版本仅提供 Android 侧载安装。"
 
-fun historyEmptyLabel(): String = "还没有转码记录"
+fun isAudioHistoryJob(job: Job): Boolean {
+    val preset = job.config.preset
+    if (preset in listOf("audio-mp3", "audio-aac", "audio-wav", "audio-ogg")) return true
+    val container = resolveConfig(job.config).getOrNull()?.container
+    return container in listOf("mp3", "m4a", "wav", "ogg")
+}
+
+fun historyJobs(jobs: List<Job>, segment: HistorySegment): List<Job> =
+    jobs.filter { isAudioHistoryJob(it) == (segment == HistorySegment.Audio) }
+
+fun historyEmptyLabel(segment: HistorySegment): String = when (segment) {
+    HistorySegment.Video -> "还没有视频记录"
+    HistorySegment.Audio -> "还没有音频记录"
+}
+
+fun remainingJobsAfterClearFinished(jobs: List<Job>, segment: HistorySegment): List<Job> =
+    jobs.filter { job ->
+        val inSegment = isAudioHistoryJob(job) == (segment == HistorySegment.Audio)
+        if (!inSegment) true
+        else job.status == JobStatus.Queued || job.status == JobStatus.Running
+    }
+
+fun historySegmentAfterStart(tab: RootTab): HistorySegment? = when (tab) {
+    RootTab.Transcode -> HistorySegment.Video
+    RootTab.Audio -> HistorySegment.Audio
+    else -> null
+}
 
 fun consumeRootBack(
     tab: RootTab,
@@ -50,7 +83,7 @@ fun consumeRootBack(
 ): RootBack? = when {
     tab == RootTab.Mine && minePage != MinePage.Root ->
         RootBack(tab, MinePage.Root, wizardStep)
-    tab == RootTab.Transcode ->
+    tab == RootTab.Transcode || tab == RootTab.Audio ->
         retreatStep(wizardStep)?.let { RootBack(tab, minePage, it) }
     else -> null
 }

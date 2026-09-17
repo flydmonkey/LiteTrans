@@ -133,7 +133,7 @@ fun HistoryScreen(
                             Text("▶", color = Color.White, fontSize = 16.sp)
                         }
                     }
-                    Text(historyEmptyLabel(), color = Color(LightTokens.Ink), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(historyEmptyLabel(HistorySegment.Video), color = Color(LightTokens.Ink), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Text("转好的文件会出现在这里", color = Color(LightTokens.Muted), fontSize = 13.sp)
                 }
             }
@@ -333,6 +333,32 @@ private fun TabGlyph(tab: RootTab, selected: Boolean) {
                     close()
                 }
                 drawPath(play, color, style = Fill)
+            }
+            RootTab.Audio -> {
+                drawCircle(
+                    color = color,
+                    radius = 3.2.dp.toPx(),
+                    center = Offset(center.x - 4.dp.toPx(), center.y + 5.dp.toPx()),
+                    style = Fill,
+                )
+                drawArc(
+                    color = color,
+                    startAngle = 200f,
+                    sweepAngle = 80f,
+                    useCenter = false,
+                    topLeft = Offset(center.x + 1.dp.toPx(), center.y - 7.dp.toPx()),
+                    size = Size(6.dp.toPx(), 8.dp.toPx()),
+                    style = stroke,
+                )
+                drawArc(
+                    color = color,
+                    startAngle = 200f,
+                    sweepAngle = 80f,
+                    useCenter = false,
+                    topLeft = Offset(center.x + 4.dp.toPx(), center.y - 5.dp.toPx()),
+                    size = Size(5.dp.toPx(), 7.dp.toPx()),
+                    style = stroke,
+                )
             }
             RootTab.History -> {
                 drawCircle(color = color, radius = 8.dp.toPx(), center = center, style = stroke)

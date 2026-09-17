@@ -1,5 +1,9 @@
 package com.videoconverter.android.ui
 
+import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.OutputConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -9,9 +13,10 @@ import org.junit.Test
 class RootTabsTest {
     @Test
     fun tabLabelsMatchProductCopy() {
-        assertEquals("视频转码", rootTabLabel(RootTab.Transcode))
-        assertEquals("历史记录", rootTabLabel(RootTab.History))
-        assertEquals("我的", rootTabLabel(RootTab.Mine))
+        assertEquals(
+            listOf("视频转码", "音频转换", "历史记录", "我的"),
+            RootTab.entries.map(::rootTabLabel),
+        )
     }
 
     @Test
@@ -33,7 +38,33 @@ class RootTabsTest {
         assertTrue(minePageBody(MinePage.Terms).contains("历史记录"))
         assertTrue(aboutBody("0.1.0").contains("0.1.0"))
         assertTrue(aboutBody("0.1.0").contains("不上传"))
-        assertEquals("还没有转码记录", historyEmptyLabel())
+    }
+
+    @Test
+    fun historySplitsVideoAndAudioJobs() {
+        val video = job("v", OutputConfig(preset = "mp4-h264"))
+        val fromVideoExtract = job("a1", OutputConfig(preset = "audio-mp3"))
+        val wav = job("a2", OutputConfig(preset = "audio-wav"))
+        val jobs = listOf(video, fromVideoExtract, wav)
+        assertFalse(isAudioHistoryJob(video))
+        assertTrue(isAudioHistoryJob(fromVideoExtract))
+        assertTrue(isAudioHistoryJob(wav))
+        assertEquals(listOf(video), historyJobs(jobs, HistorySegment.Video))
+        assertEquals(listOf(fromVideoExtract, wav), historyJobs(jobs, HistorySegment.Audio))
+        assertEquals("还没有视频记录", historyEmptyLabel(HistorySegment.Video))
+        assertEquals("还没有音频记录", historyEmptyLabel(HistorySegment.Audio))
+    }
+
+    @Test
+    fun clearFinishedOnlyDropsCurrentSegment() {
+        val doneVideo = job("v", OutputConfig(preset = "mp4-h264"), JobStatus.Completed)
+        val doneAudio = job("a", OutputConfig(preset = "audio-mp3"), JobStatus.Completed)
+        val runningAudio = job("r", OutputConfig(preset = "audio-ogg"), JobStatus.Running)
+        val kept = remainingJobsAfterClearFinished(
+            listOf(doneVideo, doneAudio, runningAudio),
+            HistorySegment.Audio,
+        )
+        assertEquals(setOf("v", "r"), kept.map { it.id }.toSet())
     }
 
     @Test
@@ -56,8 +87,32 @@ class RootTabsTest {
     }
 
     @Test
+    fun backConsumesAudioWizardSteps() {
+        assertEquals(
+            RootBack(RootTab.Audio, MinePage.Root, WizardStep.Sources),
+            consumeRootBack(RootTab.Audio, MinePage.Root, WizardStep.Format),
+        )
+        assertNull(consumeRootBack(RootTab.Audio, MinePage.Root, WizardStep.Sources))
+        assertEquals(HistorySegment.Audio, historySegmentAfterStart(RootTab.Audio))
+        assertEquals(HistorySegment.Video, historySegmentAfterStart(RootTab.Transcode))
+        assertNull(historySegmentAfterStart(RootTab.History))
+    }
+
+    @Test
     fun leavingMineResetsDetail() {
         assertEquals(MinePage.Root, minePageAfterLeavingTab(RootTab.History, MinePage.Privacy))
         assertEquals(MinePage.Privacy, minePageAfterLeavingTab(RootTab.Mine, MinePage.Privacy))
     }
+
+    private fun job(id: String, config: OutputConfig, status: JobStatus = JobStatus.Completed) = Job(
+        id = id,
+        sourceUri = "content://$id",
+        displayName = "$id.mp4",
+        outputPath = null,
+        status = status,
+        progress = 1.0,
+        error = null,
+        config = config,
+        media = MediaInfo(sourceUri = "content://$id", displayName = "$id.mp4", importable = true),
+    )
 }

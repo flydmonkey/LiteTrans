@@ -153,6 +153,7 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                     onOutput = { outputPicker.launch(null) },
                     appViewModel = appViewModel,
                 )
+                RootTab.Audio -> Box {}
                 RootTab.History -> HistoryScreen(
                     jobs = state.jobs,
                     onCancel = appViewModel::cancel,
