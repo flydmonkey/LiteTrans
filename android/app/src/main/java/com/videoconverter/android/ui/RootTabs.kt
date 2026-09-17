@@ -6,7 +6,7 @@ import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.isDocumentPreset
 import com.videoconverter.android.domain.resolveConfig
 
-enum class RootTab { Transcode, Audio, Document, History, Mine }
+enum class RootTab { Convert, History, Mine }
 
 enum class HistorySegment { Video, Audio, Document }
 
@@ -17,15 +17,75 @@ data class MineItem(val page: MinePage, val titleRes: Int)
 data class RootBack(
     val tab: RootTab,
     val minePage: MinePage,
-    val wizardStep: WizardStep,
+    val convertPage: ConvertPage = ConvertPage.Home,
+)
+
+enum class ConvertPage { Home, Format, Quality, Size, Output }
+
+enum class ConvertSetting { Format, Quality, Size, Output }
+
+fun convertSettingsFor(preset: String): List<ConvertSetting> = buildList {
+    add(ConvertSetting.Format)
+    if (shouldShowQualityRow(preset)) add(ConvertSetting.Quality)
+    if (shouldShowResolution(preset)) add(ConvertSetting.Size)
+    add(ConvertSetting.Output)
+}
+
+fun shouldShowQualityRow(preset: String): Boolean = when {
+    isCopyPreset(preset) || isLosslessAudioPreset(preset) -> false
+    preset == "office-pdf" || preset == "pdf-txt" || preset == "pdf-split" || preset == "pdf-image" -> false
+    preset.startsWith("image-") && preset != "image-compress" -> false
+    else -> true
+}
+
+fun convertPageTitleRes(page: ConvertPage): Int = when (page) {
+    ConvertPage.Home -> R.string.tab_convert
+    ConvertPage.Format -> R.string.wizard_title_format
+    ConvertPage.Quality -> R.string.quality_video_title
+    ConvertPage.Size -> R.string.resolution_title
+    ConvertPage.Output -> R.string.wizard_title_output
+}
+
+fun convertSettingTitleRes(setting: ConvertSetting, preset: String = ""): Int = when (setting) {
+    ConvertSetting.Format -> R.string.wizard_title_format
+    ConvertSetting.Quality -> when {
+        preset == "image-compress" || preset == "pdf-compress" -> R.string.format_compress_title
+        isAudioPreset(preset) -> R.string.quality_audio_title
+        else -> R.string.quality_video_title
+    }
+    ConvertSetting.Size -> R.string.resolution_title
+    ConvertSetting.Output -> R.string.wizard_title_output
+}
+
+fun convertPageFor(setting: ConvertSetting): ConvertPage = when (setting) {
+    ConvertSetting.Format -> ConvertPage.Format
+    ConvertSetting.Quality -> ConvertPage.Quality
+    ConvertSetting.Size -> ConvertPage.Size
+    ConvertSetting.Output -> ConvertPage.Output
+}
+
+fun mineItemGroups(): List<List<MineItem>> = listOf(
+    listOf(
+        MineItem(MinePage.LanShare, R.string.mine_lan),
+        MineItem(MinePage.Language, R.string.mine_language),
+    ),
+    listOf(
+        MineItem(MinePage.Privacy, R.string.mine_privacy),
+        MineItem(MinePage.Terms, R.string.mine_terms),
+    ),
+    listOf(MineItem(MinePage.About, R.string.mine_about)),
 )
 
 fun rootTabLabelRes(tab: RootTab): Int = when (tab) {
-    RootTab.Transcode -> R.string.tab_transcode
-    RootTab.Audio -> R.string.tab_audio
-    RootTab.Document -> R.string.tab_document
+    RootTab.Convert -> R.string.tab_convert
     RootTab.History -> R.string.tab_history
     RootTab.Mine -> R.string.tab_mine
+}
+
+fun convertModeLabelRes(mode: ConvertMode): Int = when (mode) {
+    ConvertMode.Video -> R.string.lan_segment_video
+    ConvertMode.Audio -> R.string.lan_segment_audio
+    ConvertMode.Document -> R.string.lan_segment_document
 }
 
 fun mineItems(): List<MineItem> = listOf(
@@ -88,6 +148,40 @@ fun remainingJobsAfterClearFinished(jobs: List<Job>, segment: HistorySegment): L
         else job.status == JobStatus.Queued || job.status == JobStatus.Running
     }
 
+enum class JobRowAction { Cancel, Retry, Open, Share, Rename, Delete }
+
+fun jobRowActions(status: JobStatus): List<JobRowAction> = when (status) {
+    JobStatus.Queued, JobStatus.Running -> listOf(JobRowAction.Cancel)
+    JobStatus.Failed, JobStatus.Cancelled -> listOf(JobRowAction.Retry, JobRowAction.Delete)
+    JobStatus.Completed -> listOf(JobRowAction.Open, JobRowAction.Share, JobRowAction.Rename, JobRowAction.Delete)
+}
+
+fun jobRowPrimaryAction(status: JobStatus): JobRowAction? = when (status) {
+    JobStatus.Queued, JobStatus.Running -> JobRowAction.Cancel
+    JobStatus.Failed, JobStatus.Cancelled -> JobRowAction.Retry
+    JobStatus.Completed -> JobRowAction.Open
+}
+
+fun jobRowOverflowActions(status: JobStatus): List<JobRowAction> {
+    val primary = jobRowPrimaryAction(status)
+    return jobRowActions(status).filter { it != primary }
+}
+
+fun hasFinishedJobs(jobs: List<Job>): Boolean =
+    jobs.any { it.status != JobStatus.Queued && it.status != JobStatus.Running }
+
+fun hasActiveJobs(jobs: List<Job>): Boolean =
+    jobs.any { it.status == JobStatus.Queued || it.status == JobStatus.Running }
+
+fun historyActiveCount(jobs: List<Job>): Int =
+    jobs.count { it.status == JobStatus.Queued || it.status == JobStatus.Running }
+
+fun historyEmptyGlyph(segment: HistorySegment): AppGlyph = when (segment) {
+    HistorySegment.Video -> AppGlyph.Video
+    HistorySegment.Audio -> AppGlyph.Audio
+    HistorySegment.Document -> AppGlyph.Document
+}
+
 fun historySegmentAfterEnqueue(mode: ConvertMode, preset: String): HistorySegment = when {
     mode == ConvertMode.Document || isDocumentPreset(preset) -> HistorySegment.Document
     mode == ConvertMode.Audio || isAudioPreset(preset) -> HistorySegment.Audio
@@ -97,12 +191,12 @@ fun historySegmentAfterEnqueue(mode: ConvertMode, preset: String): HistorySegmen
 fun consumeRootBack(
     tab: RootTab,
     minePage: MinePage,
-    wizardStep: WizardStep,
+    convertPage: ConvertPage,
 ): RootBack? = when {
     tab == RootTab.Mine && minePage != MinePage.Root ->
-        RootBack(tab, MinePage.Root, wizardStep)
-    tab == RootTab.Transcode || tab == RootTab.Audio || tab == RootTab.Document ->
-        retreatStep(wizardStep)?.let { RootBack(tab, minePage, it) }
+        RootBack(tab, MinePage.Root, convertPage)
+    tab == RootTab.Convert && convertPage != ConvertPage.Home ->
+        RootBack(tab, minePage, ConvertPage.Home)
     else -> null
 }
 

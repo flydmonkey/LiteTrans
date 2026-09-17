@@ -17,14 +17,15 @@ class RootTabsTest {
         assertEquals(R.string.tab_history, rootTabLabelRes(RootTab.History))
         assertEquals(
             listOf(
-                R.string.tab_transcode,
-                R.string.tab_audio,
-                R.string.tab_document,
+                R.string.tab_convert,
                 R.string.tab_history,
                 R.string.tab_mine,
             ),
             RootTab.entries.map(::rootTabLabelRes),
         )
+        assertEquals(R.string.lan_segment_video, convertModeLabelRes(ConvertMode.Video))
+        assertEquals(R.string.lan_segment_audio, convertModeLabelRes(ConvertMode.Audio))
+        assertEquals(R.string.lan_segment_document, convertModeLabelRes(ConvertMode.Document))
     }
 
     @Test
@@ -58,13 +59,11 @@ class RootTabsTest {
         assertEquals(R.string.tab_mine, minePageTitleRes(MinePage.Root))
         assertEquals(
             listOf(
-                R.string.mine_lan,
-                R.string.mine_language,
-                R.string.mine_privacy,
-                R.string.mine_terms,
-                R.string.mine_about,
+                listOf(MinePage.LanShare, MinePage.Language),
+                listOf(MinePage.Privacy, MinePage.Terms),
+                listOf(MinePage.About),
             ),
-            mineItems().map { it.titleRes },
+            mineItemGroups().map { group -> group.map { it.page } },
         )
     }
 
@@ -119,39 +118,109 @@ class RootTabsTest {
     }
 
     @Test
-    fun backConsumesMineDetailAndWizardStepsOnly() {
+    fun jobRowActionsHideDeleteWhileRunningAndLeadWithOpen() {
+        assertEquals(listOf(JobRowAction.Cancel), jobRowActions(JobStatus.Queued))
+        assertEquals(listOf(JobRowAction.Cancel), jobRowActions(JobStatus.Running))
         assertEquals(
-            RootBack(RootTab.Mine, MinePage.Root, WizardStep.Sources),
-            consumeRootBack(RootTab.Mine, MinePage.Privacy, WizardStep.Sources),
+            listOf(JobRowAction.Retry, JobRowAction.Delete),
+            jobRowActions(JobStatus.Failed),
         )
         assertEquals(
-            RootBack(RootTab.Mine, MinePage.Root, WizardStep.Sources),
-            consumeRootBack(RootTab.Mine, MinePage.LanShare, WizardStep.Sources),
+            listOf(JobRowAction.Retry, JobRowAction.Delete),
+            jobRowActions(JobStatus.Cancelled),
         )
         assertEquals(
-            RootBack(RootTab.Mine, MinePage.Root, WizardStep.Sources),
-            consumeRootBack(RootTab.Mine, MinePage.Language, WizardStep.Sources),
+            listOf(JobRowAction.Open, JobRowAction.Share, JobRowAction.Rename, JobRowAction.Delete),
+            jobRowActions(JobStatus.Completed),
         )
+        assertEquals(JobRowAction.Cancel, jobRowPrimaryAction(JobStatus.Queued))
+        assertEquals(JobRowAction.Cancel, jobRowPrimaryAction(JobStatus.Running))
+        assertEquals(JobRowAction.Retry, jobRowPrimaryAction(JobStatus.Failed))
+        assertEquals(JobRowAction.Retry, jobRowPrimaryAction(JobStatus.Cancelled))
+        assertEquals(JobRowAction.Open, jobRowPrimaryAction(JobStatus.Completed))
+        assertEquals(emptyList<JobRowAction>(), jobRowOverflowActions(JobStatus.Running))
+        assertEquals(listOf(JobRowAction.Delete), jobRowOverflowActions(JobStatus.Failed))
         assertEquals(
-            RootBack(RootTab.Transcode, MinePage.Root, WizardStep.Sources),
-            consumeRootBack(RootTab.Transcode, MinePage.Root, WizardStep.Format),
+            listOf(JobRowAction.Share, JobRowAction.Rename, JobRowAction.Delete),
+            jobRowOverflowActions(JobStatus.Completed),
         )
-        assertEquals(
-            RootBack(RootTab.Transcode, MinePage.Root, WizardStep.Format),
-            consumeRootBack(RootTab.Transcode, MinePage.Root, WizardStep.Output),
-        )
-        assertNull(consumeRootBack(RootTab.History, MinePage.Root, WizardStep.Sources))
-        assertNull(consumeRootBack(RootTab.Mine, MinePage.Root, WizardStep.Sources))
-        assertNull(consumeRootBack(RootTab.Transcode, MinePage.Root, WizardStep.Sources))
+        val done = job("v", OutputConfig(preset = "mp4-h264"), JobStatus.Completed)
+        val running = job("r", OutputConfig(preset = "mp4-h264"), JobStatus.Running)
+        assertTrue(hasFinishedJobs(listOf(done, running)))
+        assertTrue(hasActiveJobs(listOf(done, running)))
+        assertFalse(hasFinishedJobs(listOf(running)))
+        assertFalse(hasActiveJobs(listOf(done)))
+        assertEquals(1, historyActiveCount(listOf(done, running)))
     }
 
     @Test
-    fun backConsumesAudioWizardSteps() {
+    fun backConsumesMineDetailAndConvertPages() {
         assertEquals(
-            RootBack(RootTab.Audio, MinePage.Root, WizardStep.Sources),
-            consumeRootBack(RootTab.Audio, MinePage.Root, WizardStep.Format),
+            RootBack(RootTab.Mine, MinePage.Root, ConvertPage.Home),
+            consumeRootBack(RootTab.Mine, MinePage.Privacy, ConvertPage.Home),
         )
-        assertNull(consumeRootBack(RootTab.Audio, MinePage.Root, WizardStep.Sources))
+        assertEquals(
+            RootBack(RootTab.Mine, MinePage.Root, ConvertPage.Home),
+            consumeRootBack(RootTab.Mine, MinePage.LanShare, ConvertPage.Home),
+        )
+        assertEquals(
+            RootBack(RootTab.Mine, MinePage.Root, ConvertPage.Home),
+            consumeRootBack(RootTab.Mine, MinePage.Language, ConvertPage.Home),
+        )
+        assertEquals(
+            RootBack(RootTab.Convert, MinePage.Root, ConvertPage.Home),
+            consumeRootBack(RootTab.Convert, MinePage.Root, ConvertPage.Format),
+        )
+        assertEquals(
+            RootBack(RootTab.Convert, MinePage.Root, ConvertPage.Home),
+            consumeRootBack(RootTab.Convert, MinePage.Root, ConvertPage.Output),
+        )
+        assertEquals(
+            RootBack(RootTab.Convert, MinePage.Root, ConvertPage.Home),
+            consumeRootBack(RootTab.Convert, MinePage.Root, ConvertPage.Quality),
+        )
+        assertNull(consumeRootBack(RootTab.History, MinePage.Root, ConvertPage.Home))
+        assertNull(consumeRootBack(RootTab.Mine, MinePage.Root, ConvertPage.Home))
+        assertNull(consumeRootBack(RootTab.Convert, MinePage.Root, ConvertPage.Home))
+    }
+
+    @Test
+    fun convertHomeShowsSettingsRows() {
+        assertEquals(
+            listOf(ConvertSetting.Format, ConvertSetting.Quality, ConvertSetting.Size, ConvertSetting.Output),
+            convertSettingsFor("mp4-h264"),
+        )
+        assertEquals(
+            listOf(ConvertSetting.Format, ConvertSetting.Output),
+            convertSettingsFor("mp4-copy"),
+        )
+        assertEquals(
+            listOf(ConvertSetting.Format, ConvertSetting.Quality, ConvertSetting.Output),
+            convertSettingsFor("audio-mp3"),
+        )
+        assertEquals(
+            listOf(ConvertSetting.Format, ConvertSetting.Output),
+            convertSettingsFor("audio-wav"),
+        )
+        assertEquals(R.string.tab_convert, convertPageTitleRes(ConvertPage.Home))
+        assertEquals(R.string.wizard_title_format, convertPageTitleRes(ConvertPage.Format))
+        assertEquals(R.string.quality_video_title, convertPageTitleRes(ConvertPage.Quality))
+        assertEquals(R.string.resolution_title, convertPageTitleRes(ConvertPage.Size))
+        assertEquals(R.string.wizard_title_output, convertPageTitleRes(ConvertPage.Output))
+        assertEquals(R.string.wizard_title_format, convertSettingTitleRes(ConvertSetting.Format))
+        assertEquals(R.string.quality_video_title, convertSettingTitleRes(ConvertSetting.Quality))
+        assertEquals(R.string.quality_audio_title, convertSettingTitleRes(ConvertSetting.Quality, "audio-mp3"))
+        assertEquals(R.string.format_compress_title, convertSettingTitleRes(ConvertSetting.Quality, "image-compress"))
+        assertEquals(R.string.resolution_title, convertSettingTitleRes(ConvertSetting.Size))
+        assertEquals(R.string.wizard_title_output, convertSettingTitleRes(ConvertSetting.Output))
+        assertEquals(ConvertPage.Format, convertPageFor(ConvertSetting.Format))
+        assertEquals(ConvertPage.Quality, convertPageFor(ConvertSetting.Quality))
+        assertEquals(ConvertPage.Size, convertPageFor(ConvertSetting.Size))
+        assertEquals(ConvertPage.Output, convertPageFor(ConvertSetting.Output))
+    }
+
+    @Test
+    fun historySegmentAfterEnqueueFollowsMode() {
         assertEquals(
             HistorySegment.Audio,
             historySegmentAfterEnqueue(ConvertMode.Audio, "audio-mp3"),
@@ -163,10 +232,6 @@ class RootTabsTest {
         assertEquals(
             HistorySegment.Audio,
             historySegmentAfterEnqueue(ConvertMode.Video, "audio-mp3"),
-        )
-        assertEquals(
-            RootBack(RootTab.Document, MinePage.Root, WizardStep.Sources),
-            consumeRootBack(RootTab.Document, MinePage.Root, WizardStep.Format),
         )
         assertEquals(
             HistorySegment.Document,
