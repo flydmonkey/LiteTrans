@@ -43,8 +43,7 @@
 | Windows x64 | NSIS 安装程序 `.exe` | `轻转码-windows-x64` |
 | Linux x64 | `.deb` | `轻转码-linux-x64`；包名 `qing-zhuama`，菜单显示「轻转码」 |
 | Android arm64 | Debug APK | `app-debug.apk`，需侧载 |
-
-当前没有 iOS 包。
+| iOS arm64 | Xcode 真机 / TestFlight | 无 App Store |
 
 ### macOS
 
@@ -92,6 +91,23 @@ cd android && ./gradlew connectedDebugAndroidTest
 - [ ] **裁切**：设置明确的起止时间，导出片段时长和内容正确。
 - [ ] 上述操作均在系统 PATH 无 `ffmpeg` 时成功。
 - [ ] 每次完成、失败或取消后，原片仍在且可正常播放。
+
+### iOS
+
+第 1 刀只支持四张视频主预设；音频 / 文档 / 局域网尚未提供。许可仍按根 README 的本机处理说明。
+
+```bash
+cd ios && xcodegen generate && xcodebuild -scheme LiteTrans -destination 'generic/platform=iOS Simulator' build
+```
+
+产物通过 Xcode 真机 / TestFlight 安装，无 App Store。
+
+#### iOS 真机冒烟清单
+
+1. 浅色 / 深色外观都像系统设置页
+2. 相册加一条视频，改格式为 MOV，开始转换
+3. 自动跳历史，完成后 Quick Look
+4. 我的 → 关于含「轻转码」和版本；隐私含「不上传」
 
 ## 从源码运行
 
