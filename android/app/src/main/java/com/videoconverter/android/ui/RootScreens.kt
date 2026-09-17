@@ -1,23 +1,31 @@
 package com.videoconverter.android.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,17 +33,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.sourceStem
-import com.videoconverter.android.ui.theme.LightTokens
-import com.videoconverter.android.ui.theme.ShapeTokens
 
 @Composable
 fun HistoryScreen(
@@ -55,61 +57,31 @@ fun HistoryScreen(
     var renaming by remember { mutableStateOf<Job?>(null) }
     var deleting by remember { mutableStateOf<Job?>(null) }
     Column(modifier = Modifier.fillMaxSize()) {
-        IosLargeTitle(
+        AppTopBar(
             title = stringResource(R.string.tab_history),
-            trailing = if (hasFinishedJobs(jobs)) {
-                {
-                    Text(
-                        stringResource(R.string.action_clear_finished),
-                        color = Color(LightTokens.Accent),
-                        fontSize = 17.sp,
-                        modifier = Modifier
-                            .heightIn(min = 44.dp)
-                            .clickable(onClick = onClearFinished)
-                            .padding(horizontal = 4.dp, vertical = 10.dp),
-                    )
+            actions = {
+                if (hasFinishedJobs(jobs)) {
+                    TextButton(onClick = onClearFinished) {
+                        Text(stringResource(R.string.action_clear_finished))
+                    }
                 }
-            } else {
-                null
-            },
-            below = {
-                IosSegmented(
-                    options = listOf(
-                        HistorySegment.Video,
-                        HistorySegment.Audio,
-                        HistorySegment.Document,
-                    ).map { target ->
-                        stringResource(
-                            when (target) {
-                                HistorySegment.Video -> R.string.lan_segment_video
-                                HistorySegment.Audio -> R.string.lan_segment_audio
-                                HistorySegment.Document -> R.string.lan_segment_document
-                            },
-                        ) to (segment == target)
-                    },
-                    onSelect = { index ->
-                        onSegment(
-                            listOf(
-                                HistorySegment.Video,
-                                HistorySegment.Audio,
-                                HistorySegment.Document,
-                            )[index],
-                        )
-                    },
-                )
             },
         )
+        HistorySegmentTabs(selected = segment, onSelect = onSegment)
         if (hasActiveJobs(jobs)) {
-            Text(
-                stringResource(R.string.history_running_banner, historyActiveCount(jobs)),
-                color = Color(LightTokens.Muted),
-                fontSize = 13.sp,
+            Surface(
+                tonalElevation = 1.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp)
-                    .padding(top = 4.dp, bottom = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
                     .clickable(onClick = onConvertAgain),
-            )
+            ) {
+                Text(
+                    stringResource(R.string.history_running_banner, historyActiveCount(jobs)),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
         if (jobs.isEmpty()) {
             Box(
@@ -120,8 +92,15 @@ fun HistoryScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(emptyLabel, color = Color(LightTokens.Ink), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text(stringResource(R.string.history_empty_hint), color = Color(LightTokens.Muted), fontSize = 15.sp)
+                    Icon(Icons.Filled.List, contentDescription = null)
+                    Text(emptyLabel, style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        stringResource(R.string.history_empty_hint),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FilledTonalButton(onClick = onConvertAgain) {
+                        Text(stringResource(R.string.action_convert_again))
+                    }
                 }
             }
         } else {
@@ -145,25 +124,41 @@ fun HistoryScreen(
         }
     }
     renaming?.let { job ->
-        RenameDialog(
-            initial = sourceStem(historyTitle(job, stringResource(R.string.untitled))),
-            onConfirm = { name ->
-                onRename(job, name)
-                renaming = null
+        val untitled = stringResource(R.string.untitled)
+        var value by remember(job.id) { mutableStateOf(sourceStem(historyTitle(job, untitled))) }
+        AlertDialog(
+            onDismissRequest = { renaming = null },
+            title = { Text(stringResource(R.string.history_rename_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.history_rename_hint))
+                    OutlinedTextField(value = value, onValueChange = { value = it }, singleLine = true)
+                }
             },
-            onDismiss = { renaming = null },
+            confirmButton = {
+                TextButton(onClick = { onRename(job, value); renaming = null }) {
+                    Text(stringResource(R.string.action_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renaming = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
         )
     }
     deleting?.let { job ->
-        ConfirmDialog(
-            title = stringResource(R.string.history_delete_title),
-            body = stringResource(R.string.history_delete_body),
-            confirm = stringResource(R.string.action_delete),
-            onConfirm = {
-                onDelete(job.id)
-                deleting = null
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text(stringResource(R.string.history_delete_title)) },
+            text = { Text(stringResource(R.string.history_delete_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = { onDelete(job.id); deleting = null },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.action_delete)) }
             },
-            onDismiss = { deleting = null },
+            dismissButton = {
+                TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
         )
     }
 }
@@ -177,46 +172,45 @@ fun MineScreen(
 ) {
     if (page == MinePage.Root) {
         Column(modifier = Modifier.fillMaxSize()) {
-            IosLargeTitle(title = stringResource(R.string.tab_mine))
+            AppTopBar(title = stringResource(R.string.tab_mine))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 mineItemGroups().forEach { group ->
-                    IosSection {
+                    AppCard {
                         group.forEachIndexed { index, item ->
-                            IosRow(
-                                title = stringResource(item.titleRes),
-                                showDivider = index < group.lastIndex,
-                                onClick = { onOpen(item.page) },
+                            ListItem(
+                                headlineContent = { Text(stringResource(item.titleRes)) },
+                                trailingContent = {
+                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                                },
+                                modifier = Modifier.clickable { onOpen(item.page) },
                             )
+                            if (index < group.lastIndex) HorizontalDivider()
                         }
                     }
                 }
                 Text(
                     stringResource(R.string.mine_version, versionName),
-                    color = Color(LightTokens.Muted),
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
                 Text(
                     stringResource(R.string.mine_local_promise),
-                    color = Color(LightTokens.Muted),
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
         }
     } else {
         Column(modifier = Modifier.fillMaxSize()) {
-            IosNavBar(
-                title = stringResource(minePageTitleRes(page)),
-                backLabel = stringResource(R.string.tab_mine),
-                onBack = onBack,
-            )
+            AppTopBar(title = stringResource(minePageTitleRes(page)), onBack = onBack)
             Text(
                 if (page == MinePage.About) {
                     stringResource(aboutBodyRes(), versionName)
@@ -224,125 +218,13 @@ fun MineScreen(
                     val bodyRes = minePageBodyRes(page)
                     if (bodyRes != 0) stringResource(bodyRes) else ""
                 },
-                color = Color(LightTokens.Ink),
-                fontSize = 17.sp,
-                lineHeight = 24.sp,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(top = 12.dp, bottom = 24.dp),
             )
-        }
-    }
-}
-
-@Composable
-private fun RenameDialog(
-    initial: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var value by remember { mutableStateOf(initial) }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0x66000000))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 28.dp)
-                .clip(RoundedCornerShape(ShapeTokens.Dialog))
-                .background(Color(LightTokens.Card))
-                .clickable(enabled = false, onClick = {})
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(stringResource(R.string.history_rename_title), color = Color(LightTokens.Ink), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Text(stringResource(R.string.history_rename_hint), color = Color(LightTokens.Muted), fontSize = 13.sp)
-            OutlinedTextField(
-                value = value,
-                onValueChange = { value = it },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                Text(
-                    stringResource(R.string.action_cancel),
-                    color = Color(LightTokens.Muted),
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clickable(onClick = onDismiss)
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                )
-                Text(
-                    stringResource(R.string.action_save),
-                    color = Color(LightTokens.Accent),
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clickable(onClick = { onConfirm(value) })
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConfirmDialog(
-    title: String,
-    body: String,
-    confirm: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0x66000000))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 28.dp)
-                .clip(RoundedCornerShape(ShapeTokens.Dialog))
-                .background(Color(LightTokens.Card))
-                .clickable(enabled = false, onClick = {})
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(title, color = Color(LightTokens.Ink), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Text(body, color = Color(LightTokens.Muted), fontSize = 13.sp)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                Text(
-                    stringResource(R.string.action_cancel),
-                    color = Color(LightTokens.Muted),
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clickable(onClick = onDismiss)
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                )
-                Text(
-                    confirm,
-                    color = Color(LightTokens.Accent),
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clickable(onClick = onConfirm)
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                )
-            }
         }
     }
 }

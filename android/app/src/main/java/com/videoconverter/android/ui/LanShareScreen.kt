@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -25,7 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -38,7 +38,6 @@ import com.videoconverter.android.data.LanShareStore
 import com.videoconverter.android.lan.lanPublicUrl
 import com.videoconverter.android.lan.normalizeLanToken
 import com.videoconverter.android.service.LanShareService
-import com.videoconverter.android.ui.theme.LightTokens
 import kotlinx.coroutines.delay
 
 @Composable
@@ -90,17 +89,11 @@ fun LanShareScreen(onBack: () -> Unit) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        PageHeader(
+        AppTopBar(
             title = stringResource(minePageTitleRes(MinePage.LanShare)),
-            leading = {
-                Text(
-                    stringResource(R.string.action_back),
-                    color = Color(LightTokens.Accent),
-                    modifier = Modifier.clickable {
-                        persistToken()
-                        onBack()
-                    },
-                )
+            onBack = {
+                persistToken()
+                onBack()
             },
         )
         Column(
@@ -118,7 +111,7 @@ fun LanShareScreen(onBack: () -> Unit) {
             ) {
                 Text(
                     stringResource(R.string.mine_lan),
-                    color = Color(LightTokens.Ink),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -153,7 +146,7 @@ fun LanShareScreen(onBack: () -> Unit) {
             if (settings.token.isEmpty()) {
                 Text(
                     stringResource(R.string.lan_token_empty_hint),
-                    color = Color(LightTokens.Muted),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     lineHeight = 20.sp,
                 )
@@ -165,12 +158,12 @@ fun LanShareScreen(onBack: () -> Unit) {
                     val url = lanPublicUrl(ipv4, port, settings.token)
                     Text(
                         url,
-                        color = Color(LightTokens.Ink),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 15.sp,
                     )
                     Text(
                         stringResource(if (copied) R.string.action_copied else R.string.action_copy),
-                        color = Color(LightTokens.Accent),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable {
                             context.getSystemService(ClipboardManager::class.java)
@@ -181,7 +174,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                 } else {
                     Text(
                         boundError ?: stringResource(R.string.lan_need_wifi),
-                        color = Color(LightTokens.Muted),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 15.sp,
                     )
                 }

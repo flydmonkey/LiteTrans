@@ -16,11 +16,31 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +63,7 @@ import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.ui.theme.LightTokens
+import com.videoconverter.android.ui.theme.ShapeTokens
 import java.util.Locale
 
 data class ChipOption(
@@ -61,7 +82,9 @@ fun outputFolderLabel(context: Context, output: OutputTarget): String = when (ou
     OutputTarget.Kind.SafTree -> output.treeUri
         ?.let(Uri::parse)
         ?.let { DocumentFile.fromTreeUri(context, it)?.name }
-        ?: context.getString(R.string.output_selected_folder)
+        ?: context.getString(
+            if (output.treeUri.isNullOrBlank()) R.string.output_custom_pick else R.string.output_selected_folder,
+        )
     OutputTarget.Kind.AppExternal -> context.getString(R.string.output_app_dir)
 }
 
@@ -97,12 +120,13 @@ fun PageHeader(
     title: String,
     subtitle: String? = null,
     leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
     below: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(LightTokens.Card)),
+            .background(Color(LightTokens.Canvas)),
     ) {
         Column(
             modifier = Modifier
@@ -112,18 +136,30 @@ fun PageHeader(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             leading?.invoke()
-            Text(
-                title,
-                color = Color(LightTokens.Ink),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    subtitle,
-                    color = Color(LightTokens.Muted),
-                    fontSize = 13.sp,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f).padding(end = if (trailing != null) 12.dp else 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        title,
+                        color = Color(LightTokens.Ink),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            subtitle,
+                            color = Color(LightTokens.Muted),
+                            fontSize = 13.sp,
+                        )
+                    }
+                }
+                trailing?.invoke()
             }
             below?.invoke()
         }
@@ -231,7 +267,7 @@ private fun StepDot(number: Int, status: StepStatus) {
     Box(
         modifier = Modifier
             .size(28.dp)
-            .clip(RoundedCornerShape(99.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Chip))
             .background(background),
         contentAlignment = Alignment.Center,
     ) {
@@ -249,7 +285,7 @@ fun NoticeBar(message: String, onDismiss: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
             .background(Color(LightTokens.Notice))
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -263,7 +299,10 @@ fun NoticeBar(message: String, onDismiss: () -> Unit) {
         Text(
             stringResource(R.string.action_got_it),
             color = Color(LightTokens.Accent),
-            modifier = Modifier.clickable(onClick = onDismiss),
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .clickable(onClick = onDismiss)
+                .padding(horizontal = 8.dp),
         )
     }
 }
@@ -287,7 +326,7 @@ fun Dropzone(
                 SourceChoiceCard(
                     title = stringResource(R.string.wizard_source_music),
                     hint = stringResource(R.string.wizard_source_music_hint),
-                    icon = "♪",
+                    glyph = AppGlyph.Audio,
                     onClick = onMusic,
                     emphasized = true,
                     compact = compact,
@@ -300,7 +339,7 @@ fun Dropzone(
                     if (documentMode) R.string.wizard_source_gallery_hint_image
                     else R.string.wizard_source_gallery_hint_video,
                 ),
-                icon = "▶",
+                glyph = if (documentMode) AppGlyph.Image else AppGlyph.Video,
                 onClick = onGallery,
                 emphasized = !audioMode,
                 compact = compact,
@@ -309,7 +348,7 @@ fun Dropzone(
             SourceChoiceCard(
                 title = stringResource(R.string.wizard_source_files),
                 hint = stringResource(R.string.wizard_source_files_hint),
-                icon = "▤",
+                glyph = AppGlyph.File,
                 onClick = onFiles,
                 emphasized = false,
                 compact = compact,
@@ -369,7 +408,7 @@ fun Dropzone(
 private fun SourceChoiceCard(
     title: String,
     hint: String,
-    icon: String,
+    glyph: AppGlyph,
     onClick: () -> Unit,
     emphasized: Boolean,
     modifier: Modifier = Modifier,
@@ -377,43 +416,35 @@ private fun SourceChoiceCard(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(ShapeTokens.Dialog))
             .background(if (emphasized) Color(LightTokens.Ink) else Color(LightTokens.Card))
             .border(
                 1.dp,
                 if (emphasized) Color(LightTokens.Ink) else Color(LightTokens.Border),
-                RoundedCornerShape(16.dp),
+                RoundedCornerShape(ShapeTokens.Dialog),
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = if (compact) 14.dp else 18.dp),
+            .padding(horizontal = if (compact) 10.dp else 16.dp, vertical = if (compact) 12.dp else 18.dp),
         verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
+        horizontalAlignment = Alignment.Start,
     ) {
-        Box(
-            modifier = Modifier
-                .size(if (compact) 28.dp else 36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(
-                    if (emphasized) Color(LightTokens.Accent) else Color(LightTokens.Chip),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                icon,
-                color = if (emphasized) Color.White else Color(LightTokens.Ink),
-                fontSize = if (compact) 12.sp else 14.sp,
-            )
-        }
+        GlyphBadge(kind = glyph, emphasized = emphasized, size = if (compact) 28.dp else 36.dp)
         Text(
             title,
             color = if (emphasized) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
-            fontSize = 16.sp,
+            fontSize = if (compact) 13.sp else 16.sp,
             fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
-        Text(
-            hint,
-            color = if (emphasized) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
-            fontSize = 12.sp,
-        )
+        if (!compact) {
+            Text(
+                hint,
+                color = if (emphasized) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
+                fontSize = 12.sp,
+            )
+        }
     }
 }
 
@@ -422,20 +453,12 @@ private fun MusicMark() {
     Box(
         modifier = Modifier
             .size(72.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Glyph))
             .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(20.dp)),
+            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(ShapeTokens.Glyph)),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(LightTokens.Accent)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("♪", color = Color.White, fontSize = 16.sp)
-        }
+        GlyphBadge(AppGlyph.Audio, emphasized = true)
     }
 }
 
@@ -444,20 +467,12 @@ private fun DocumentMark() {
     Box(
         modifier = Modifier
             .size(72.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Glyph))
             .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(20.dp)),
+            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(ShapeTokens.Glyph)),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(LightTokens.Accent)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("▤", color = Color.White, fontSize = 16.sp)
-        }
+        GlyphBadge(AppGlyph.Document, emphasized = true)
     }
 }
 
@@ -466,20 +481,12 @@ private fun VideoMark() {
     Box(
         modifier = Modifier
             .size(72.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Glyph))
             .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(20.dp)),
+            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(ShapeTokens.Glyph)),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(LightTokens.Accent)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("▶", color = Color.White, fontSize = 16.sp)
-        }
+        GlyphBadge(AppGlyph.Video, emphasized = true)
     }
 }
 
@@ -495,7 +502,7 @@ fun FileRow(
 ) {
     val background = when {
         !importable -> Color(LightTokens.Bad)
-        selected -> Color.White
+        selected -> Color(LightTokens.Card)
         else -> Color(LightTokens.Card)
     }
     val border = when {
@@ -506,9 +513,9 @@ fun FileRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
             .background(background)
-            .border(1.dp, border, RoundedCornerShape(12.dp))
+            .border(1.dp, border, RoundedCornerShape(ShapeTokens.Panel))
             .clickable(onClick = onOpen)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -522,7 +529,10 @@ fun FileRow(
             Text(
                 stringResource(R.string.action_remove),
                 color = Color(LightTokens.Accent),
-                modifier = Modifier.clickable(onClick = onRemove),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clickable(onClick = onRemove)
+                    .padding(horizontal = 8.dp),
             )
         }
     }
@@ -582,12 +592,12 @@ fun OptionChips(
                 val on = selected == option.id
                 Column(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (on) Color(LightTokens.Ink) else Color.White)
+                        .clip(RoundedCornerShape(ShapeTokens.Chip))
+                        .background(if (on) Color(LightTokens.Ink) else Color(LightTokens.Card))
                         .border(
                             1.dp,
                             if (on) Color(LightTokens.Ink) else Color(LightTokens.Border),
-                            RoundedCornerShape(10.dp),
+                            RoundedCornerShape(ShapeTokens.Chip),
                         )
                         .clickable { onSelect(option.id) }
                         .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -623,10 +633,13 @@ fun OutputChoiceGrid(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 row.forEach { card ->
-                    val hint = if (card.id == OUTPUT_CHOICE_CUSTOM && !customHint.isNullOrBlank()) {
-                        customHint
-                    } else {
-                        stringResource(card.hintRes)
+                    val selected = selectedId == card.id
+                    val hint = when {
+                        card.id == OUTPUT_CHOICE_CUSTOM && selected && !customHint.isNullOrBlank() ->
+                            customHint
+                        card.id == OUTPUT_CHOICE_CUSTOM ->
+                            stringResource(customOutputHintRes(selected, hasFolder = !customHint.isNullOrBlank()))
+                        else -> stringResource(card.hintRes)
                     }
                     OutputChoiceCardView(
                         title = stringResource(card.titleRes),
@@ -653,12 +666,12 @@ private fun OutputChoiceCardView(
     Column(
         modifier = modifier
             .height(92.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
             .background(if (selected) Color(LightTokens.Ink) else Color(LightTokens.Card))
             .border(
                 1.dp,
                 if (selected) Color(LightTokens.Ink) else Color(LightTokens.Border),
-                RoundedCornerShape(12.dp),
+                RoundedCornerShape(ShapeTokens.Panel),
             )
             .clickable(onClick = onSelect)
             .padding(12.dp),
@@ -680,7 +693,7 @@ private fun OutputChoiceCardView(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JobRow(
     job: Job,
@@ -697,105 +710,173 @@ fun JobRow(
         else -> (job.progress / 100.0).toFloat().coerceIn(0f, 1f)
     }
     val markColor = when (job.status) {
-        JobStatus.Completed -> Color(LightTokens.Accent)
-        JobStatus.Running -> Color(LightTokens.Ink)
-        JobStatus.Failed -> Color(LightTokens.Accent)
-        else -> Color(LightTokens.Chip)
+        JobStatus.Completed, JobStatus.Running -> MaterialTheme.colorScheme.primary
+        JobStatus.Failed -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
     val markForeground = when (job.status) {
-        JobStatus.Queued, JobStatus.Cancelled -> Color(LightTokens.Ink)
-        else -> Color.White
+        JobStatus.Completed, JobStatus.Running -> MaterialTheme.colorScheme.onPrimary
+        JobStatus.Failed -> MaterialTheme.colorScheme.onError
+        else -> MaterialTheme.colorScheme.onSurface
     }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(12.dp))
-            .padding(horizontal = 14.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    var sheet by remember { mutableStateOf(false) }
+    val primary = jobRowPrimaryAction(job.status)
+    val overflow = jobRowOverflowActions(job.status)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = MaterialTheme.shapes.medium,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(markColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    when (job.status) {
-                        JobStatus.Completed -> "▶"
-                        JobStatus.Running -> "${kotlin.math.round(job.progress).toInt()}"
-                        JobStatus.Failed -> "!"
-                        JobStatus.Cancelled -> "–"
-                        JobStatus.Queued -> "…"
-                    },
-                    color = markForeground,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = if (job.status == JobStatus.Running) 12.sp else 14.sp,
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    historyTitle(job, stringResource(R.string.untitled)),
-                    color = Color(LightTokens.Ink),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    historyDetail(
-                        LocalContext.current.resources,
-                        job,
-                        stringResource(statusLabelRes(job.status)),
-                    ),
-                    color = Color(LightTokens.Muted),
-                    fontSize = 13.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        if (active) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(99.dp))
-                    .background(Color(LightTokens.Chip)),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(progress)
-                        .fillMaxHeight()
-                        .background(Color(LightTokens.Accent)),
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(markColor),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when (job.status) {
+                        JobStatus.Completed -> Icon(
+                            Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = markForeground,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        JobStatus.Running -> Text(
+                            "${kotlin.math.round(job.progress).toInt()}",
+                            color = markForeground,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                        )
+                        JobStatus.Failed -> Text(
+                            "!",
+                            color = markForeground,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                        )
+                        JobStatus.Cancelled -> Text(
+                            "–",
+                            color = markForeground,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                        )
+                        JobStatus.Queued -> Text(
+                            "…",
+                            color = markForeground,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        historyTitle(job, stringResource(R.string.untitled)),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        historyDetail(
+                            LocalContext.current.resources,
+                            job,
+                            stringResource(statusLabelRes(job.status)),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (active) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                primary?.let { action ->
+                    Button(
+                        onClick = jobRowActionClick(action, onCancel, onRetry, onOpen, onShare, onRename, onDelete),
+                    ) {
+                        Text(stringResource(jobRowActionLabelRes(action)))
+                    }
+                }
+                if (overflow.isNotEmpty()) {
+                    IconButton(onClick = { sheet = true }) {
+                        Icon(
+                            Icons.Filled.MoreVert,
+                            contentDescription = stringResource(R.string.action_more),
+                        )
+                    }
+                }
+            }
+        }
+    }
+    if (sheet) {
+        ModalBottomSheet(onDismissRequest = { sheet = false }) {
+            overflow.forEach { action ->
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            stringResource(jobRowActionLabelRes(action)),
+                            color = if (action == JobRowAction.Delete) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        sheet = false
+                        jobRowActionClick(action, onCancel, onRetry, onOpen, onShare, onRename, onDelete)()
+                    },
                 )
             }
         }
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (active) AccentText(stringResource(R.string.action_cancel), onCancel)
-            if (job.status == JobStatus.Failed || job.status == JobStatus.Cancelled) {
-                AccentText(stringResource(R.string.action_retry), onRetry)
-            }
-            if (job.status == JobStatus.Completed) {
-                AccentText(stringResource(R.string.action_open), onOpen)
-                AccentText(stringResource(R.string.action_share), onShare)
-                AccentText(stringResource(R.string.action_rename), onRename)
-            }
-            AccentText(stringResource(R.string.action_delete), onDelete)
-        }
     }
+}
+
+private fun jobRowActionLabelRes(action: JobRowAction): Int = when (action) {
+    JobRowAction.Cancel -> R.string.action_cancel
+    JobRowAction.Retry -> R.string.action_retry
+    JobRowAction.Open -> R.string.action_open
+    JobRowAction.Share -> R.string.action_share
+    JobRowAction.Rename -> R.string.action_rename
+    JobRowAction.Delete -> R.string.action_delete
+}
+
+private fun jobRowActionClick(
+    action: JobRowAction,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+): () -> Unit = when (action) {
+    JobRowAction.Cancel -> onCancel
+    JobRowAction.Retry -> onRetry
+    JobRowAction.Open -> onOpen
+    JobRowAction.Share -> onShare
+    JobRowAction.Rename -> onRename
+    JobRowAction.Delete -> onDelete
 }
 
 @Composable
@@ -810,19 +891,13 @@ fun WizardDock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(LightTokens.Card)),
+            .background(Color(LightTokens.Ink)),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color(LightTokens.Border)),
-        )
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-        Text(summary, color = Color(LightTokens.Muted), fontSize = 13.sp)
+        Text(summary, color = Color(LightTokens.OnDarkMuted), fontSize = 13.sp)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -851,12 +926,12 @@ private fun PresetCard(
     Box(
         modifier = modifier
             .height(92.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
             .background(if (selected) Color(LightTokens.Ink) else Color(LightTokens.Card))
             .border(
                 1.dp,
                 if (selected) Color(LightTokens.Ink) else Color(LightTokens.Border),
-                RoundedCornerShape(12.dp),
+                RoundedCornerShape(ShapeTokens.Panel),
             )
             .clickable(onClick = onSelect)
             .padding(12.dp),
@@ -885,12 +960,12 @@ private fun PresetCard(
         card.badgeRes?.let { badgeRes ->
             Text(
                 stringResource(badgeRes),
-                color = if (selected) Color(LightTokens.Ink) else Color.White,
+                color = if (selected) Color(LightTokens.Ink) else Color(LightTokens.OnDark),
                 fontSize = 11.sp,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(if (selected) Color(0xFFE7B56A) else Color(LightTokens.Accent))
+                    .clip(RoundedCornerShape(ShapeTokens.Stamp))
+                    .background(if (selected) Color(LightTokens.OnDark) else Color(LightTokens.Accent))
                     .padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
@@ -902,7 +977,7 @@ private fun MorePresetCard(showAll: Boolean, onClick: () -> Unit, modifier: Modi
     Column(
         modifier = modifier
             .height(92.dp)
-            .dashedBorder(12.dp)
+            .dashedBorder(ShapeTokens.Panel)
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalArrangement = Arrangement.Center,
@@ -937,17 +1012,24 @@ private fun ActionButton(
     val background = when {
         !enabled -> Color(LightTokens.Accent).copy(alpha = 0.4f)
         filled -> Color(LightTokens.Accent)
-        else -> Color(LightTokens.Chip)
+        else -> Color.Transparent
     }
     val foreground = when {
-        filled -> Color.White
-        else -> Color(LightTokens.Ink)
+        filled -> Color(LightTokens.OnDark)
+        else -> Color(LightTokens.OnDark)
     }
     Box(
         modifier = modifier
             .height(48.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
             .background(background)
+            .then(
+                if (filled) Modifier else Modifier.border(
+                    1.dp,
+                    Color(LightTokens.OnDarkMuted),
+                    RoundedCornerShape(ShapeTokens.Panel),
+                ),
+            )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
@@ -964,12 +1046,39 @@ private fun ActionButton(
 }
 
 @Composable
-private fun AccentText(label: String, onClick: () -> Unit) {
-    Text(
-        label,
-        color = Color(LightTokens.Accent),
-        modifier = Modifier.clickable(onClick = onClick),
-    )
+private fun AccentText(
+    label: String,
+    onClick: () -> Unit,
+    filled: Boolean = false,
+    muted: Boolean = false,
+) {
+    if (filled) {
+        Box(
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(ShapeTokens.Chip))
+                .background(Color(LightTokens.Accent))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(label, color = Color(LightTokens.OnDark), fontWeight = FontWeight.SemiBold)
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                label,
+                color = if (muted) Color(LightTokens.Muted) else Color(LightTokens.Accent),
+                fontWeight = if (muted) FontWeight.Medium else FontWeight.SemiBold,
+            )
+        }
+    }
 }
 
 private fun Modifier.dashedBorder(corner: Dp): Modifier = drawWithContent {
