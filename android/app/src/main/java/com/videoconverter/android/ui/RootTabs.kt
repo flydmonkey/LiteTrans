@@ -2,11 +2,12 @@ package com.videoconverter.android.ui
 
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.isDocumentPreset
 import com.videoconverter.android.domain.resolveConfig
 
 enum class RootTab { Transcode, Audio, History, Mine }
 
-enum class HistorySegment { Video, Audio }
+enum class HistorySegment { Video, Audio, Document }
 
 enum class MinePage { Root, Privacy, Terms, About }
 
@@ -60,24 +61,34 @@ fun isAudioHistoryJob(job: Job): Boolean {
     return container in listOf("mp3", "m4a", "wav", "ogg", "flac", "amr")
 }
 
+fun isDocumentHistoryJob(job: Job): Boolean = isDocumentPreset(job.config.preset)
+
+fun historySegmentFor(job: Job): HistorySegment = when {
+    isDocumentHistoryJob(job) -> HistorySegment.Document
+    isAudioHistoryJob(job) -> HistorySegment.Audio
+    else -> HistorySegment.Video
+}
+
 fun historyJobs(jobs: List<Job>, segment: HistorySegment): List<Job> =
-    jobs.filter { isAudioHistoryJob(it) == (segment == HistorySegment.Audio) }
+    jobs.filter { historySegmentFor(it) == segment }
 
 fun historyEmptyLabel(segment: HistorySegment): String = when (segment) {
     HistorySegment.Video -> "还没有视频记录"
     HistorySegment.Audio -> "还没有音频记录"
+    HistorySegment.Document -> "还没有文档记录"
 }
 
 fun remainingJobsAfterClearFinished(jobs: List<Job>, segment: HistorySegment): List<Job> =
     jobs.filter { job ->
-        val inSegment = isAudioHistoryJob(job) == (segment == HistorySegment.Audio)
-        if (!inSegment) true
+        if (historySegmentFor(job) != segment) true
         else job.status == JobStatus.Queued || job.status == JobStatus.Running
     }
 
-fun historySegmentAfterEnqueue(mode: ConvertMode, preset: String): HistorySegment =
-    if (mode == ConvertMode.Audio || isAudioPreset(preset)) HistorySegment.Audio
-    else HistorySegment.Video
+fun historySegmentAfterEnqueue(mode: ConvertMode, preset: String): HistorySegment = when {
+    isDocumentPreset(preset) -> HistorySegment.Document
+    mode == ConvertMode.Audio || isAudioPreset(preset) -> HistorySegment.Audio
+    else -> HistorySegment.Video
+}
 
 fun consumeRootBack(
     tab: RootTab,

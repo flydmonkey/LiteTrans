@@ -46,15 +46,19 @@ class RootTabsTest {
         val fromVideoExtract = job("a1", OutputConfig(preset = "audio-mp3"))
         val wav = job("a2", OutputConfig(preset = "audio-wav"))
         val flac = job("a3", OutputConfig(preset = "audio-flac"))
-        val jobs = listOf(video, fromVideoExtract, wav, flac)
+        val pdf = job("d", OutputConfig(preset = "pdf-split"))
+        val jobs = listOf(video, fromVideoExtract, wav, flac, pdf)
         assertFalse(isAudioHistoryJob(video))
         assertTrue(isAudioHistoryJob(fromVideoExtract))
         assertTrue(isAudioHistoryJob(wav))
         assertTrue(isAudioHistoryJob(flac))
+        assertEquals(HistorySegment.Document, historySegmentFor(pdf))
+        assertEquals(listOf(pdf), historyJobs(jobs, HistorySegment.Document))
         assertEquals(listOf(video), historyJobs(jobs, HistorySegment.Video))
         assertEquals(listOf(fromVideoExtract, wav, flac), historyJobs(jobs, HistorySegment.Audio))
         assertEquals("还没有视频记录", historyEmptyLabel(HistorySegment.Video))
         assertEquals("还没有音频记录", historyEmptyLabel(HistorySegment.Audio))
+        assertEquals("还没有文档记录", historyEmptyLabel(HistorySegment.Document))
     }
 
     @Test
@@ -67,6 +71,13 @@ class RootTabsTest {
             HistorySegment.Audio,
         )
         assertEquals(setOf("v", "r"), kept.map { it.id }.toSet())
+
+        val doneDoc = job("d", OutputConfig(preset = "pdf-split"), JobStatus.Completed)
+        val keptDocs = remainingJobsAfterClearFinished(
+            listOf(doneVideo, doneDoc),
+            HistorySegment.Document,
+        )
+        assertEquals(setOf("v"), keptDocs.map { it.id }.toSet())
     }
 
     @Test
