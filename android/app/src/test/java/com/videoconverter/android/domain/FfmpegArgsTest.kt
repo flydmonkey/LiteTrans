@@ -260,6 +260,26 @@ class FfmpegArgsTest {
     }
 
     @Test
+    fun wavOmitsBitrateAndUsesPcmMuxer() {
+        val config = resolveConfig(OutputConfig(preset = "audio-wav")).getOrThrow()
+        val args = buildFfmpegArgs("/in", "/out.partial.wav", config, h264()).getOrThrow()
+        assertTrue(args.contains("-vn"))
+        assertEquals("pcm_s16le", valueAfter(args, "-c:a"))
+        assertEquals("wav", valueAfter(args, "-f"))
+        assertFalse(args.contains("-b:a"))
+    }
+
+    @Test
+    fun oggUsesLibopusAndBitrate() {
+        val config = resolveConfig(OutputConfig(preset = "audio-ogg", quality = "standard")).getOrThrow()
+        val args = buildFfmpegArgs("/in", "/out.partial.ogg", config, h264()).getOrThrow()
+        assertTrue(args.contains("-vn"))
+        assertEquals("libopus", valueAfter(args, "-c:a"))
+        assertEquals("ogg", valueAfter(args, "-f"))
+        assertEquals("192k", valueAfter(args, "-b:a"))
+    }
+
+    @Test
     fun mapsSupportedVideoCodecs() {
         assertEquals("h264_mediacodec", ffmpegVideoCodec("h264", true))
         assertEquals("libx264", ffmpegVideoCodec("h264", false))

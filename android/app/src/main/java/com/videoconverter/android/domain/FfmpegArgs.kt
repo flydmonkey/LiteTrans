@@ -18,15 +18,12 @@ fun buildFfmpegArgs(
     return runCatching {
         val args = startArgs(input, config, media).toMutableList()
 
-        if (isAudioOnly(config)) {
-            val encoder = config.audioEncoder ?: if (config.container == "m4a") "aac" else "mp3"
-            args += listOf(
-                "-vn",
-                "-c:a",
-                ffmpegAudioCodec(encoder),
-                "-b:a",
-                "${config.audioBitrateKbps ?: 192}k",
-            )
+        if (isAudioOnlyConfig(config)) {
+            val encoder = config.audioEncoder ?: "mp3"
+            args += listOf("-vn", "-c:a", ffmpegAudioCodec(encoder))
+            if (encoder != "pcm_s16le" && config.audioBitrateKbps != null) {
+                args += listOf("-b:a", "${config.audioBitrateKbps}k")
+            }
             pushOutput(args, config.container, outputPartial)
             return@runCatching args
         }
@@ -180,6 +177,8 @@ private fun ffmpegMuxer(container: String): String = when (container) {
     "gif" -> "gif"
     "mp3" -> "mp3"
     "m4a" -> "ipod"
+    "wav" -> "wav"
+    "ogg" -> "ogg"
     else -> "mp4"
 }
 
@@ -187,6 +186,7 @@ private fun ffmpegAudioCodec(encoder: String): String = when (encoder) {
     "aac" -> "aac"
     "opus" -> "libopus"
     "mp3" -> "libmp3lame"
+    "pcm_s16le" -> "pcm_s16le"
     "copy" -> "copy"
     else -> "aac"
 }
@@ -208,10 +208,6 @@ private fun fallbackAudioEncoder(container: String): String = when (container) {
     "mp3", "avi" -> "mp3"
     else -> "aac"
 }
-
-private fun isAudioOnly(config: ResolvedConfig): Boolean =
-    config.container in listOf("mp3", "m4a") ||
-        config.preset in listOf("audio-mp3", "audio-aac")
 
 private fun hardwareVideoQualityArgs(quality: String): List<String> {
     val bitrate = when (quality) {
