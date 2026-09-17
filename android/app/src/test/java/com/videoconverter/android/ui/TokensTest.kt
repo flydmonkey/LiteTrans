@@ -1,23 +1,53 @@
 package com.videoconverter.android.ui
 
-import com.videoconverter.android.ui.theme.LightTokens
+import com.videoconverter.android.ui.theme.ColorSchemeChoice
+import com.videoconverter.android.ui.theme.IOS_BLUE_ARGB
+import com.videoconverter.android.ui.theme.SEED_ARGB
+import com.videoconverter.android.ui.theme.SeedColors
+import com.videoconverter.android.ui.theme.ShapeTokens
+import com.videoconverter.android.ui.theme.colorSchemeChoice
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class TokensTest {
     @Test
-    fun desktopPaletteIsPinned() {
-        assertEquals(0xFFECECE8.toInt(), LightTokens.Canvas)
-        assertEquals(0xFF1F2428.toInt(), LightTokens.Ink)
-        assertEquals(0xFF5C6460.toInt(), LightTokens.Muted)
-        assertEquals(0xFFF7F7F4.toInt(), LightTokens.Card)
-        assertEquals(0xFFE4E4DE.toInt(), LightTokens.Border)
-        assertEquals(0xFFC45A2A.toInt(), LightTokens.Accent)
-        assertEquals(0xFFE2E2DC.toInt(), LightTokens.Chip)
-        assertEquals(0xFFFFF1D8.toInt(), LightTokens.Notice)
-        assertEquals(0xFFFDECE6.toInt(), LightTokens.Bad)
-        assertEquals(0xFFF0C9BC.toInt(), LightTokens.BadBorder)
-        assertEquals(0xFFF7F7F4.toInt(), LightTokens.OnDark)
-        assertEquals(0xFFC9CFCB.toInt(), LightTokens.OnDarkMuted)
+    fun seedIsCaramelNotIosBlue() {
+        assertEquals(0xFFC45A2A.toInt(), SEED_ARGB)
+        assertEquals(0xFF007AFF.toInt(), IOS_BLUE_ARGB)
+        assertNotEquals(IOS_BLUE_ARGB, SeedColors.LightPrimary)
+        assertNotEquals(IOS_BLUE_ARGB, SeedColors.DarkPrimary)
+        assertEquals(0xFF9B4418.toInt(), SeedColors.LightPrimary)
+        assertEquals(0xFFFFB595.toInt(), SeedColors.DarkPrimary)
+    }
+
+    @Test
+    fun dynamicColorOnlyOnApi31WhenEnabled() {
+        assertEquals(
+            ColorSchemeChoice.DynamicLight,
+            colorSchemeChoice(darkTheme = false, dynamicColor = true, sdkInt = 31),
+        )
+        assertEquals(
+            ColorSchemeChoice.DynamicDark,
+            colorSchemeChoice(darkTheme = true, dynamicColor = true, sdkInt = 31),
+        )
+        assertEquals(
+            ColorSchemeChoice.SeedLight,
+            colorSchemeChoice(darkTheme = false, dynamicColor = true, sdkInt = 30),
+        )
+        assertEquals(
+            ColorSchemeChoice.SeedDark,
+            colorSchemeChoice(darkTheme = true, dynamicColor = false, sdkInt = 34),
+        )
+    }
+
+    @Test
+    fun shapesMatchMaterialDefaults() {
+        assertEquals(4f, ShapeTokens.ExtraSmall.value)
+        assertEquals(8f, ShapeTokens.Small.value)
+        assertEquals(12f, ShapeTokens.Medium.value)
+        assertEquals(16f, ShapeTokens.Large.value)
+        assertEquals(28f, ShapeTokens.ExtraLarge.value)
+        assertEquals(12f, ShapeTokens.Panel.value)
     }
 }
