@@ -37,7 +37,7 @@ class OutputStoreTest {
             requireMediaStorePublished(0)
         }
 
-        assertEquals("无法发布输出文件", error.message)
+        assertEquals("Could not publish the output file", error.message)
     }
 
     @Test
@@ -46,7 +46,7 @@ class OutputStoreTest {
             mapSafExportErrors { throw SecurityException("permission denied") }
         }
 
-        assertEquals("无法写入输出目录，请重新选择", error.message)
+        assertEquals("Could not write the output folder. Please pick it again.", error.message)
     }
 
     @Test
@@ -55,7 +55,7 @@ class OutputStoreTest {
             mapSafExportErrors { throw IllegalArgumentException("invalid URI") }
         }
 
-        assertEquals("无法写入输出目录，请重新选择", error.message)
+        assertEquals("Could not write the output folder. Please pick it again.", error.message)
     }
 
     @Test

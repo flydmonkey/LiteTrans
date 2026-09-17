@@ -119,16 +119,16 @@ class TranscodeServiceStateTest {
     @Test
     fun interruptedPumpFailsRunningJob() {
         val updated = listOf(job(JobStatus.Running, progress = 42.0))
-            .recoverInterruptedPump("job-1", cancelled = false)
+            .recoverInterruptedPump("job-1", cancelled = false, "Conversion was interrupted")
 
         assertEquals(JobStatus.Failed, updated.single().status)
-        assertEquals("转码被中断", updated.single().error)
+        assertEquals("Conversion was interrupted", updated.single().error)
     }
 
     @Test
     fun cancelledPumpCancelsRunningJob() {
         val updated = listOf(job(JobStatus.Running, progress = 42.0))
-            .recoverInterruptedPump("job-1", cancelled = true)
+            .recoverInterruptedPump("job-1", cancelled = true, "Conversion was interrupted")
 
         assertEquals(JobStatus.Cancelled, updated.single().status)
         assertEquals(null, updated.single().error)

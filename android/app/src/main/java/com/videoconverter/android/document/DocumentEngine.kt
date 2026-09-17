@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputStore
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.data.SourceAccess
@@ -41,6 +42,7 @@ class DocumentEngine(
     private val sourceAccess: SourceAccess = SourceAccess(context),
     private val outputStore: OutputStore = OutputStore(context),
 ) {
+    private val app = context.applicationContext
     private val cancelledIds = mutableSetOf<String>()
     private val cancelLock = Any()
 
@@ -116,7 +118,7 @@ class DocumentEngine(
             } else {
                 job.copy(
                     status = JobStatus.Failed,
-                    error = error.message ?: "转换失败",
+                    error = error.message ?: app.getString(R.string.error_convert_failed),
                 )
             }
         } finally {
@@ -143,21 +145,45 @@ class DocumentEngine(
         return when (val preset = job.config.preset) {
             "pdf-split" -> {
                 val (start, end) = pageRange(job, source)
-                splitPdf(source, start, end, destDir, stem, shouldCancel = { wasCancelled(job.id) }).also { files ->
+                splitPdf(
+                    source,
+                    start,
+                    end,
+                    destDir,
+                    stem,
+                    shouldCancel = { wasCancelled(job.id) },
+                    cancelled = app.getString(R.string.error_cancelled),
+                    encryptedPdf = app.getString(R.string.error_encrypted_pdf),
+                ).also { files ->
                     files.indices.forEach { onItem(it + 1, total) }
                 }
             }
             "pdf-txt" -> {
                 val (start, end) = pageRange(job, source)
                 val dest = plannedFile(destDir, planned.first())
-                dest.writeText(extractPdfText(source, start, end))
+                dest.writeText(
+                    extractPdfText(
+                        source,
+                        start,
+                        end,
+                        noText = app.getString(R.string.error_no_extractable_text),
+                        encryptedPdf = app.getString(R.string.error_encrypted_pdf),
+                    ),
+                )
                 onItem(1, total)
                 listOf(dest)
             }
             "pdf-compress" -> {
                 val (start, end) = pageRange(job, source)
                 val dest = plannedFile(destDir, planned.first())
-                compressPdf(source, quality, dest, start, end)
+                compressPdf(
+                    source,
+                    quality,
+                    dest,
+                    start,
+                    end,
+                    encryptedPdf = app.getString(R.string.error_encrypted_pdf),
+                )
                 onItem(1, total)
                 listOf(dest)
             }
@@ -168,7 +194,12 @@ class DocumentEngine(
                 val jpegQuality = imageCompressFormat("image-$ext", ext, quality).second
                 (start..end).mapIndexed { index, page ->
                     val dest = plannedFile(destDir, planned[index])
-                    val bitmap = renderPdfPage(source, page - 1, maxEdge)
+                    val bitmap = renderPdfPage(
+                        source,
+                        page - 1,
+                        maxEdge,
+                        encryptedPdf = app.getString(R.string.error_encrypted_pdf),
+                    )
                     dest.outputStream().use { encodeBitmap(bitmap, ext, jpegQuality, it) }
                     onItem(index + 1, total)
                     dest
@@ -178,18 +209,24 @@ class DocumentEngine(
                 val dest = plannedFile(destDir, planned.first())
                 val bytes = source.readBytes()
                 val blocks = when (documentSourceKind(job.displayName) ?: documentSourceKind(source.name)) {
-                    DocumentSourceKind.Word -> officeBlocksFromDocx(bytes)
-                    DocumentSourceKind.Excel -> officeBlocksFromXlsx(bytes)
-                    else -> error("无法转换此文档")
+                    DocumentSourceKind.Word -> officeBlocksFromDocx(
+                        bytes,
+                        app.getString(R.string.error_cannot_convert_document),
+                    )
+                    DocumentSourceKind.Excel -> officeBlocksFromXlsx(
+                        bytes,
+                        app.getString(R.string.error_cannot_convert_document),
+                    )
+                    else -> error(app.getString(R.string.error_cannot_convert_document))
                 }
-                writeOfficePdf(blocks, dest)
+                writeOfficePdf(blocks, dest, app.getString(R.string.error_cannot_convert_document))
                 onItem(1, total)
                 listOf(dest)
             }
             else -> {
                 val (ext, jpegQuality) = imageCompressFormat(preset, sourceExt, quality)
                 val dest = File(destDir, "${sourceStem(job.displayName)}.$ext")
-                val bitmap = decodeSourceBitmap(source)
+                val bitmap = decodeSourceBitmap(source, app.getString(R.string.error_cannot_read_image))
                 val scale = if (ext == "png" || ext == "bmp") {
                     scaleForQuality(quality, preset)
                 } else {
@@ -248,12 +285,12 @@ private fun documentMimeType(ext: String): String = when (ext.lowercase()) {
     else -> "application/octet-stream"
 }
 
-private fun decodeSourceBitmap(file: File): Bitmap {
+private fun decodeSourceBitmap(file: File, cannotReadImage: String): Bitmap {
     BitmapFactory.decodeFile(file.absolutePath)?.let { return it }
     return try {
         ImageDecoder.decodeBitmap(ImageDecoder.createSource(file))
     } catch (error: Exception) {
-        throw IllegalStateException("无法读取图片", error)
+        throw IllegalStateException(cannotReadImage, error)
     }
 }
 

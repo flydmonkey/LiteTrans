@@ -46,12 +46,6 @@ class LanShareAddressTest {
     }
 
     @Test
-    fun portsBusyMessageIsNotWifiHint() {
-        assertTrue(LAN_SHARE_PORTS_BUSY_MESSAGE.isNotBlank())
-        assertTrue(LAN_SHARE_PORTS_BUSY_MESSAGE != "先连上 Wi‑Fi 或热点")
-    }
-
-    @Test
     fun publicUrlEncodesToken() {
         assertEquals("http://10.0.0.8:17890/", lanPublicUrl("10.0.0.8", 17890, ""))
         val url = lanPublicUrl("10.0.0.8", 17890, "a b")

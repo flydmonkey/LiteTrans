@@ -20,7 +20,10 @@ fun listPresets(): List<PresetInfo> = listOf(
     PresetInfo("audio-amr", "仅音频 / AMR", "通话录音常用"),
 )
 
-fun resolveConfig(config: OutputConfig): Result<ResolvedConfig> = runCatching {
+fun resolveConfig(
+    config: OutputConfig,
+    unknownPreset: (String) -> String = { "Unknown preset: $it" },
+): Result<ResolvedConfig> = runCatching {
     val preset = config.preset.ifBlank { DEFAULT_PRESET }
     val defaults = when (preset) {
         "mp4-h264" -> PresetDefaults("mp4", "h264", "aac", true)
@@ -39,7 +42,7 @@ fun resolveConfig(config: OutputConfig): Result<ResolvedConfig> = runCatching {
         "audio-ogg" -> PresetDefaults("ogg", null, "opus", true)
         "audio-amr" -> PresetDefaults("amr", null, "amr_nb", true)
         "custom" -> PresetDefaults("mp4", "h264", "aac", true)
-        else -> throw IllegalArgumentException("未知预设：$preset")
+        else -> throw IllegalArgumentException(unknownPreset(preset))
     }
 
     val quality = normalizeQuality(config.quality)
@@ -116,7 +119,7 @@ fun normalizeQuality(value: String?): String = when (value) {
 
 fun extensionFor(container: String): Result<String> = when (container) {
     "mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "ogg", "flac", "amr" -> Result.success(container)
-    else -> Result.failure(IllegalArgumentException("不支持的容器：$container"))
+    else -> Result.failure(IllegalArgumentException("Unsupported container: $container"))
 }
 
 fun isAudioOnlyConfig(config: ResolvedConfig): Boolean =

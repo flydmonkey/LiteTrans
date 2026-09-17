@@ -34,6 +34,7 @@ import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.domain.sameDocumentKind
 import com.videoconverter.android.domain.sanitizeRenameStem
 import com.videoconverter.android.domain.unsupportedDocumentReason
+import com.videoconverter.android.domain.validateCopy
 import com.videoconverter.android.engine.FfmpegProcess
 import com.videoconverter.android.service.TranscodeService
 import java.io.File
@@ -351,6 +352,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 outputDir = File(app.filesDir, "planned").absolutePath,
                 nextId = { UUID.randomUUID().toString() },
                 exists = { File(it).exists() },
+                cannotTranscode = app.getString(R.string.error_cannot_transcode),
+                selectOutput = app.getString(R.string.error_select_output),
+                cannotReadPages = app.getString(R.string.error_cannot_read_pages),
             )
         } else {
             enqueueJobs(
@@ -364,6 +368,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 outputDir = File(app.filesDir, "planned").absolutePath,
                 nextId = { UUID.randomUUID().toString() },
                 exists = { File(it).exists() },
+                cannotTranscode = app.getString(R.string.error_cannot_transcode),
+                selectOutput = app.getString(R.string.error_select_output),
+                validateCopy = validateCopy(app.resources),
+                unknownPreset = { app.getString(R.string.error_unknown_preset, it) },
             )
         }.getOrElse {
             mutableState.value = snapshot.copy(message = it.message ?: app.getString(R.string.error_cannot_create_job))
@@ -517,7 +525,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun probeDocument(uri: Uri, displayName: String): MediaInfo {
         val kind = documentSourceKind(displayName)
-        val unsupported = unsupportedDocumentReason(displayName)
+        val unsupported = unsupportedDocumentReason(
+            displayName,
+            app.getString(R.string.error_unsupported_format),
+        )
         if (kind == null || unsupported != null) {
             return MediaInfo(
                 sourceUri = uri.toString(),

@@ -1,53 +1,84 @@
 package com.videoconverter.android.domain
 
+import android.content.res.Resources
+import com.videoconverter.android.R
+
 private val CONTAINERS = listOf("mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "ogg", "flac", "amr")
 private val VIDEO_ENCODERS = listOf("h264", "h265", "vp9", "mpeg4", "gif", "copy")
 private val AUDIO_ENCODERS = listOf("aac", "opus", "mp3", "copy", "pcm_s16le", "flac", "amr_nb")
 
-fun validate(config: ResolvedConfig, media: MediaInfo): Result<Unit> = runCatching {
+data class ValidateCopy(
+    val unsupportedContainer: (String) -> String = { "Unsupported container: $it" },
+    val unsupportedVideoEncoder: (String) -> String = { "Unsupported video encoder: $it" },
+    val unsupportedAudioEncoder: (String) -> String = { "Unsupported audio encoder: $it" },
+    val noAudioForExport: String = "This file has no audio stream, so audio cannot be exported",
+    val noVideoForGif: String = "This file has no video stream, so a GIF cannot be exported",
+    val noVideoForCopy: String = "This file has no video stream to copy",
+    val containerVideoCodec: String = "The target container does not support this video codec. Please re-encode.",
+    val copyCannotChangeVideo: String = "You cannot change resolution or frame rate while copying the video stream. Please re-encode.",
+    val containerAudioCodec: String = "The target container does not support this audio codec. Please re-encode.",
+)
+
+fun validateCopy(resources: Resources) = ValidateCopy(
+    unsupportedContainer = { resources.getString(R.string.error_unsupported_container, it) },
+    unsupportedVideoEncoder = { resources.getString(R.string.error_unsupported_video_encoder, it) },
+    unsupportedAudioEncoder = { resources.getString(R.string.error_unsupported_audio_encoder, it) },
+    noAudioForExport = resources.getString(R.string.error_no_audio_for_export),
+    noVideoForGif = resources.getString(R.string.error_no_video_for_gif),
+    noVideoForCopy = resources.getString(R.string.error_no_video_for_copy),
+    containerVideoCodec = resources.getString(R.string.error_container_video_codec),
+    copyCannotChangeVideo = resources.getString(R.string.error_copy_cannot_change_video),
+    containerAudioCodec = resources.getString(R.string.error_container_audio_codec),
+)
+
+fun validate(
+    config: ResolvedConfig,
+    media: MediaInfo,
+    copy: ValidateCopy = ValidateCopy(),
+): Result<Unit> = runCatching {
     if (config.container !in CONTAINERS) {
-        throw IllegalArgumentException("不支持的容器：${config.container}")
+        throw IllegalArgumentException(copy.unsupportedContainer(config.container))
     }
     config.videoEncoder?.let { encoder ->
         if (encoder !in VIDEO_ENCODERS) {
-            throw IllegalArgumentException("不支持的视频编码器：$encoder")
+            throw IllegalArgumentException(copy.unsupportedVideoEncoder(encoder))
         }
     }
     config.audioEncoder?.let { encoder ->
         if (encoder !in AUDIO_ENCODERS) {
-            throw IllegalArgumentException("不支持的音频编码器：$encoder")
+            throw IllegalArgumentException(copy.unsupportedAudioEncoder(encoder))
         }
     }
 
     if (isAudioOnlyConfig(config)) {
         if (media.audioCodec == null) {
-            throw IllegalArgumentException("该文件没有音频流，无法导出音频")
+            throw IllegalArgumentException(copy.noAudioForExport)
         }
         return@runCatching
     }
 
     if (config.container == "gif" || config.preset == "gif") {
         if (media.videoCodec == null) {
-            throw IllegalArgumentException("该文件没有视频流，无法导出 GIF")
+            throw IllegalArgumentException(copy.noVideoForGif)
         }
         return@runCatching
     }
 
     if (config.videoEncoder == "copy") {
         val codec = media.videoCodec
-            ?: throw IllegalArgumentException("该文件没有视频流，无法复制视频")
+            ?: throw IllegalArgumentException(copy.noVideoForCopy)
         if (!containerAcceptsVideo(config.container, codec)) {
-            throw IllegalArgumentException("目标容器不支持当前视频编码，请改为重新编码")
+            throw IllegalArgumentException(copy.containerVideoCodec)
         }
         if (config.maxWidth != null || config.maxHeight != null || config.frameRate != null) {
-            throw IllegalArgumentException("复制视频流时不能同时修改分辨率或帧率，请改为重新编码")
+            throw IllegalArgumentException(copy.copyCannotChangeVideo)
         }
     }
 
     if (config.audioEncoder == "copy") {
         media.audioCodec?.let { codec ->
             if (!containerAcceptsAudio(config.container, codec) && config.videoEncoder != "copy") {
-                throw IllegalArgumentException("目标容器不支持当前音频编码，请改为重新编码")
+                throw IllegalArgumentException(copy.containerAudioCodec)
             }
         }
     }

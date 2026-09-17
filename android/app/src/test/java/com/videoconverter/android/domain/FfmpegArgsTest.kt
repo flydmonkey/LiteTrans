@@ -256,7 +256,7 @@ class FfmpegArgsTest {
         val result = buildFfmpegArgs("/in", "/out", config, h264())
 
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("不支持的视频编码器"))
+        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("Unsupported video encoder"))
     }
 
     @Test

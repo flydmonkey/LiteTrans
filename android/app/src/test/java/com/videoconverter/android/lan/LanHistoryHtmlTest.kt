@@ -16,18 +16,18 @@ class LanHistoryHtmlTest {
             job("a", JobStatus.Queued, null, emptyList(), "song.mp3", "audio-mp3"),
             job("d", JobStatus.Completed, "/tmp/a.pdf", listOf("/tmp/a.pdf", "/tmp/b.pdf"), "scan.pdf", "pdf-split"),
         )
-        val html = renderLanHistoryHtml(jobs, "pw") { it.startsWith("/tmp/") }
-        assertTrue(html.contains("视频"))
-        assertTrue(html.contains("音频"))
-        assertTrue(html.contains("文档"))
+        val html = renderLanHistoryHtml(jobs, "pw", englishLanHistoryCopy()) { it.startsWith("/tmp/") }
+        assertTrue(html.contains("Video"))
+        assertTrue(html.contains("Audio"))
+        assertTrue(html.contains("Documents"))
         assertTrue(html.contains("假期.mp4"))
         assertTrue(html.contains("/d/v?k="))
         assertTrue(html.contains("/d/d/1?k="))
-        assertTrue(html.contains(">下载</a>"))
-        assertTrue(html.contains("下载 a.pdf"))
-        assertTrue(html.contains("下载 b.pdf"))
+        assertTrue(html.contains(">Download</a>"))
+        assertTrue(html.contains("Download a.pdf"))
+        assertTrue(html.contains("Download b.pdf"))
         assertFalse(html.contains("content://secret"))
-        assertTrue(html.contains("排队中"))
+        assertTrue(html.contains("Queued"))
         assertFalse(html.contains("/d/a"))
     }
 
@@ -36,9 +36,10 @@ class LanHistoryHtmlTest {
         val html = renderLanHistoryHtml(
             listOf(job("x", JobStatus.Completed, "/t/a.mp4", listOf("/t/a.mp4"), "<img>", "mp4-h264")),
             "",
+            englishLanHistoryCopy(),
         ) { true }
-        assertTrue(html.contains("还没有音频记录"))
-        assertTrue(html.contains("还没有文档记录"))
+        assertTrue(html.contains("No audio history yet"))
+        assertTrue(html.contains("No document history yet"))
         assertFalse(html.contains("<img>"))
         assertTrue(html.contains("&lt;img&gt;"))
         assertTrue(html.contains("href=\"/d/x\""))
@@ -49,10 +50,11 @@ class LanHistoryHtmlTest {
         val html = renderLanHistoryHtml(
             listOf(job("d", JobStatus.Completed, "/tmp/a.pdf", listOf("/tmp/a.pdf", "/tmp/gone.pdf"), "scan.pdf", "pdf-split")),
             "",
+            englishLanHistoryCopy(),
         ) { it == "/tmp/a.pdf" }
         assertTrue(html.contains("href=\"/d/d\""))
-        assertTrue(html.contains(">下载</a>"))
-        assertFalse(html.contains("下载 a.pdf"))
+        assertTrue(html.contains(">Download</a>"))
+        assertFalse(html.contains("Download a.pdf"))
     }
 
     @Test
@@ -60,6 +62,7 @@ class LanHistoryHtmlTest {
         val html = renderLanHistoryHtml(
             listOf(job("v", JobStatus.Completed, "/tmp/gone.mp4", listOf("/tmp/gone.mp4"), "gone.mp4")),
             "",
+            englishLanHistoryCopy(),
         ) { false }
         assertFalse(html.contains("href=\"/d/v\""))
     }

@@ -1,6 +1,7 @@
 package com.videoconverter.android.data
 
 import android.content.Context
+import com.videoconverter.android.R
 import android.database.Cursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
@@ -21,7 +22,7 @@ data class ResolvedInput(
 class SourceAccess(private val context: Context) {
     suspend fun resolveInput(uri: Uri): ResolvedInput = withContext(Dispatchers.IO) {
         val pfd = context.contentResolver.openFileDescriptor(uri, "r")
-            ?: throw IOException("无法读取源文件")
+            ?: throw IOException(context.getString(R.string.error_cannot_read_source))
         ResolvedInput(
             ffmpegPath = "/proc/self/fd/${pfd.fd}",
             pfd = pfd,
@@ -47,22 +48,22 @@ class SourceAccess(private val context: Context) {
 
             try {
                 context.contentResolver.openInputStream(uri).use { input ->
-                    requireNotNull(input) { "无法读取源文件" }
+                    requireNotNull(input) { context.getString(R.string.error_cannot_read_source) }
                     temporary.outputStream().use { output -> input.copyTo(output) }
                 }
                 if (cacheFile.exists() && !cacheFile.delete()) {
-                    throw IOException("无法更新源文件缓存")
+                    throw IOException(context.getString(R.string.error_cannot_update_source_cache))
                 }
                 if (!temporary.renameTo(cacheFile)) {
-                    throw IOException("无法写入源文件缓存")
+                    throw IOException(context.getString(R.string.error_cannot_write_source_cache))
                 }
             } catch (error: IOException) {
                 temporary.delete()
-                if (error.isDiskFull()) throw IOException("缓存空间不足", error)
+                if (error.isDiskFull()) throw IOException(context.getString(R.string.error_cache_full), error)
                 throw error
             } catch (error: IllegalArgumentException) {
                 temporary.delete()
-                throw IOException(error.message ?: "无法读取源文件", error)
+                throw IOException(error.message ?: context.getString(R.string.error_cannot_read_source), error)
             }
 
             ResolvedInput(ffmpegPath = cacheFile.absolutePath, pfd = null)

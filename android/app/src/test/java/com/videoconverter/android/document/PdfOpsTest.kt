@@ -35,7 +35,7 @@ class PdfOpsTest {
             extractPdfText(blank, 1, 1)
             org.junit.Assert.fail("expected")
         } catch (e: IllegalStateException) {
-            assertTrue(e.message!!.contains("没有可提取的文字"))
+            assertTrue(e.message!!.contains("No extractable text"))
         }
     }
 
@@ -66,7 +66,7 @@ class PdfOpsTest {
             splitPdf(src, 1, 2, out, "clip", shouldCancel = { (out.listFiles()?.size ?: 0) >= 1 })
             org.junit.Assert.fail("expected cancellation")
         } catch (e: IllegalStateException) {
-            assertTrue(e.message!!.contains("取消"))
+            assertTrue(e.message!!.contains("Cancelled"))
         }
         assertEquals(1, out.listFiles()?.size)
         assertTrue(extractPdfText(out.listFiles()!!.single(), 1, 1).contains("Hello"))
@@ -91,7 +91,7 @@ class PdfOpsTest {
             assertPdfReadable(encrypted)
             org.junit.Assert.fail("expected")
         } catch (e: IllegalStateException) {
-            assertTrue(e.message!!.contains("不支持加密 PDF"))
+            assertTrue(e.message!!.contains("Encrypted PDFs"))
         }
     }
 

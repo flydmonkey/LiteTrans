@@ -1,14 +1,21 @@
 package com.videoconverter.android.data
 
 import android.content.Context
+import com.videoconverter.android.R
 import com.videoconverter.android.lan.LanShareSettings
 import com.videoconverter.android.lan.normalizeLanToken
 import java.io.File
 import java.io.IOException
 import org.json.JSONObject
 
-class LanShareStore(private val file: File) {
-    constructor(context: Context) : this(File(context.filesDir, "lan-share.json"))
+class LanShareStore(
+    private val file: File,
+    private val saveError: String = "Could not save LAN access settings",
+) {
+    constructor(context: Context) : this(
+        File(context.filesDir, "lan-share.json"),
+        context.getString(R.string.error_cannot_save_lan),
+    )
 
     private val temporary = File(file.parentFile, "${file.name}.tmp")
 
@@ -17,7 +24,7 @@ class LanShareStore(private val file: File) {
     }
 
     fun save(settings: LanShareSettings) = synchronized(STORE_LOCK) {
-        saveLanShare(file, temporary, settings)
+        saveLanShare(file, temporary, settings, saveError)
     }
 
     private companion object {
@@ -48,13 +55,18 @@ internal fun loadLanShareOrDefault(file: File): LanShareSettings {
     }
 }
 
-internal fun saveLanShare(file: File, temporary: File, settings: LanShareSettings) {
+internal fun saveLanShare(
+    file: File,
+    temporary: File,
+    settings: LanShareSettings,
+    saveError: String = "Could not save LAN access settings",
+) {
     try {
         temporary.writeText(lanShareToJson(settings))
         replaceFile(temporary, file)
     } catch (error: Exception) {
         temporary.delete()
         if (error is IOException) throw error
-        throw IOException("无法保存局域网访问设置", error)
+        throw IOException(saveError, error)
     }
 }

@@ -2,11 +2,17 @@ package com.videoconverter.android.domain
 
 import org.json.JSONObject
 
-fun parseFfprobeJson(sourceUri: String, displayName: String, json: String): MediaInfo =
+fun parseFfprobeJson(
+    sourceUri: String,
+    displayName: String,
+    json: String,
+    cannotParse: String = "Could not parse media information",
+    noAvStream: String = "No convertible video or audio stream",
+): MediaInfo =
     try {
-        mapProbe(sourceUri, displayName, JSONObject(json))
+        mapProbe(sourceUri, displayName, JSONObject(json), noAvStream)
     } catch (_: Exception) {
-        unreadable(sourceUri, displayName, "无法解析媒体信息")
+        unreadable(sourceUri, displayName, cannotParse)
     }
 
 fun unreadable(sourceUri: String, displayName: String, reason: String): MediaInfo =
@@ -17,7 +23,12 @@ fun unreadable(sourceUri: String, displayName: String, reason: String): MediaInf
         error = reason,
     )
 
-private fun mapProbe(sourceUri: String, displayName: String, probe: JSONObject): MediaInfo {
+private fun mapProbe(
+    sourceUri: String,
+    displayName: String,
+    probe: JSONObject,
+    noAvStream: String,
+): MediaInfo {
     val format = probe.optJSONObject("format")
     val streams = probe.optJSONArray("streams")
     var video: JSONObject? = null
@@ -46,7 +57,7 @@ private fun mapProbe(sourceUri: String, displayName: String, probe: JSONObject):
         audioCodec = audio?.optionalString("codec_name"),
         channels = audio?.optionalInt("channels"),
         importable = hasAv,
-        error = if (hasAv) null else "没有可转码的视频或音频流",
+        error = if (hasAv) null else noAvStream,
     )
 }
 

@@ -23,7 +23,7 @@ class MainActivityStateTest {
         val updated = recoverInterruptedOnAppStart(listOf(job()), serviceAlive = false)
 
         assertEquals(JobStatus.Failed, updated.single().status)
-        assertEquals("转码被中断", updated.single().error)
+        assertEquals("Conversion was interrupted", updated.single().error)
     }
 
     private fun job() = Job(

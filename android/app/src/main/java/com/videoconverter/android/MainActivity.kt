@@ -30,7 +30,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             runCatching {
                 JobStore(this@MainActivity).update { jobs ->
-                    recoverInterruptedOnAppStart(jobs, TranscodeService.isAlive)
+                    recoverInterruptedOnAppStart(
+                        jobs,
+                        TranscodeService.isAlive,
+                        getString(R.string.error_interrupted),
+                    )
                 }
             }
         }
@@ -66,4 +70,5 @@ class MainActivity : ComponentActivity() {
 internal fun recoverInterruptedOnAppStart(
     jobs: List<Job>,
     serviceAlive: Boolean,
-): List<Job> = if (serviceAlive) jobs else markInterrupted(jobs)
+    interruptedError: String = "Conversion was interrupted",
+): List<Job> = if (serviceAlive) jobs else markInterrupted(jobs, interruptedError)

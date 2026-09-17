@@ -100,7 +100,7 @@ class OfficePdfTest {
             writeOfficePdf(emptyList(), dest)
             org.junit.Assert.fail("expected")
         } catch (e: IllegalStateException) {
-            assertTrue(e.message!!.contains("无法转换此文档"))
+            assertTrue(e.message!!.contains("Could not convert this document"))
         }
     }
 

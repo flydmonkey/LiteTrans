@@ -83,7 +83,7 @@ class QueueTest {
             exists = { false },
         ).exceptionOrNull()
 
-        assertEquals("请先选择输出目录", error?.message)
+        assertEquals("Choose an output folder first", error?.message)
     }
 
     @Test
@@ -99,7 +99,7 @@ class QueueTest {
 
         assertTrue(report.jobs.isEmpty())
         assertEquals(1, report.skipped.size)
-        assertEquals("该文件没有视频流，无法复制视频", report.skipped.single().reason)
+        assertEquals("This file has no video stream to copy", report.skipped.single().reason)
     }
 
     @Test
@@ -149,7 +149,7 @@ class QueueTest {
             { false },
         ).getOrThrow()
         assertTrue(report.jobs.isEmpty())
-        assertEquals("无法读取页数", report.skipped.single().reason)
+        assertEquals("Could not read the page count", report.skipped.single().reason)
     }
 
     @Test
@@ -170,7 +170,7 @@ class QueueTest {
         val next = markInterrupted(listOf(running, queued))
 
         assertEquals(JobStatus.Failed, next[0].status)
-        assertEquals("转码被中断", next[0].error)
+        assertEquals("Conversion was interrupted", next[0].error)
         assertEquals(JobStatus.Queued, next[1].status)
         assertEquals(null, next[1].error)
     }

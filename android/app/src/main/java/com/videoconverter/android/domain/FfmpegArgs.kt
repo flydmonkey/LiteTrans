@@ -6,12 +6,14 @@ fun buildFfmpegArgs(
     config: ResolvedConfig,
     media: MediaInfo,
     preferHardware: Boolean = true,
+    validateCopy: ValidateCopy = ValidateCopy(),
+    ffmpegValidate: String = "FFmpeg argument check failed",
 ): Result<List<String>> {
-    val validation = validate(config, media)
+    val validation = validate(config, media, validateCopy)
     if (validation.isFailure) {
         return Result.failure(
             validation.exceptionOrNull()
-                ?: IllegalArgumentException("FFmpeg 参数校验失败"),
+                ?: IllegalArgumentException(ffmpegValidate),
         )
     }
 

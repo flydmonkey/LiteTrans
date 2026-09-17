@@ -20,7 +20,7 @@ class ValidateTest {
     fun audioPresetWithoutAudioFails() {
         val config = resolveConfig(OutputConfig(preset = "audio-mp3")).getOrThrow()
         val err = validate(config, h264().copy(audioCodec = null)).exceptionOrNull()!!.message!!
-        assertTrue(err.contains("没有音频流"))
+        assertTrue(err.contains("no audio stream"))
     }
 
     @Test
@@ -29,7 +29,7 @@ class ValidateTest {
             OutputConfig(preset = "custom", container = "mp4", videoEncoder = "copy"),
         ).getOrThrow()
         val err = validate(config, h264().copy(videoCodec = "vp9")).exceptionOrNull()!!.message!!
-        assertTrue(err.contains("请改为重新编码"))
+        assertTrue(err.contains("Please re-encode"))
     }
 
     @Test
@@ -45,7 +45,7 @@ class ValidateTest {
         listOf("audio-wav", "audio-ogg", "audio-flac", "audio-amr").forEach { preset ->
             val config = resolveConfig(OutputConfig(preset = preset)).getOrThrow()
             val err = validate(config, h264().copy(audioCodec = null)).exceptionOrNull()!!.message!!
-            assertTrue(err.contains("没有音频流"))
+            assertTrue(err.contains("no audio stream"))
         }
     }
 }

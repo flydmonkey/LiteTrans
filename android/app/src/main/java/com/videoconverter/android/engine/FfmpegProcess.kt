@@ -9,6 +9,7 @@ import com.videoconverter.android.data.OutputStore
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.data.ResolvedInput
 import com.videoconverter.android.data.SourceAccess
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
@@ -19,6 +20,7 @@ import com.videoconverter.android.domain.parseFfprobeJson
 import com.videoconverter.android.domain.parseProgressLine
 import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.domain.sourceStem
+import com.videoconverter.android.domain.validateCopy
 import java.io.File
 import kotlin.concurrent.thread
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +49,7 @@ class FfmpegProcess(
         if (!activeProcess.claimOrConfirm(job.id)) {
             return@withContext job.copy(
                 status = JobStatus.Failed,
-                error = "已有转码任务正在运行",
+                error = context.getString(R.string.error_job_already_running),
             )
         }
         var output: JobOutput? = null
@@ -96,7 +98,7 @@ class FfmpegProcess(
                 Log.e(TAG, "FFmpeg failed (${result.exitCode}): ${result.stderr.takeLast(4_000)}")
                 return@withContext job.copy(
                     status = JobStatus.Failed,
-                    error = "FFmpeg 转码失败（退出码 ${result.exitCode}）",
+                    error = context.getString(R.string.error_ffmpeg_failed, result.exitCode),
                 )
             }
 
@@ -119,7 +121,7 @@ class FfmpegProcess(
             } else {
                 job.copy(
                     status = JobStatus.Failed,
-                    error = error.message ?: "转码失败",
+                    error = error.message ?: context.getString(R.string.error_transcode_failed),
                 )
             }
         } finally {
@@ -131,26 +133,35 @@ class FfmpegProcess(
     suspend fun probe(uri: Uri, displayName: String): MediaInfo = withContext(Dispatchers.IO) {
         sourceAccess.cachedInput(uri)?.use {
             val cached = runProbe(it.ffmpegPath)
-            return@withContext parseFfprobeJson(uri.toString(), displayName, cached.stdout)
+            return@withContext parseProbe(uri.toString(), displayName, cached.stdout)
         }
         val opened = sourceAccess.resolveInput(uri)
         val first = runProbe(opened.ffmpegPath)
         if (first.exitCode == 0) {
             opened.close()
-            return@withContext parseFfprobeJson(uri.toString(), displayName, first.stdout)
+            return@withContext parseProbe(uri.toString(), displayName, first.stdout)
         }
 
         val cached = if (opened.pfd != null) {
             sourceAccess.copyToCache(uri, opened)
         } else {
             opened.close()
-            return@withContext parseFfprobeJson(uri.toString(), displayName, first.stdout)
+            return@withContext parseProbe(uri.toString(), displayName, first.stdout)
         }
         cached.use {
             val second = runProbe(it.ffmpegPath)
-            parseFfprobeJson(uri.toString(), displayName, second.stdout)
+            parseProbe(uri.toString(), displayName, second.stdout)
         }
     }
+
+    private fun parseProbe(sourceUri: String, displayName: String, json: String): MediaInfo =
+        parseFfprobeJson(
+            sourceUri = sourceUri,
+            displayName = displayName,
+            json = json,
+            cannotParse = context.getString(R.string.error_cannot_parse_media),
+            noAvStream = context.getString(R.string.error_no_av_stream),
+        )
 
     fun cancel(jobId: String) {
         activeProcess.cancel(jobId)
@@ -207,13 +218,17 @@ class FfmpegProcess(
         durationSecs: Double,
         onProgress: (Double) -> Unit,
     ): ProcessResult {
-        val config = resolveConfig(job.config).getOrThrow()
+        val config = resolveConfig(
+            job.config,
+        ) { context.getString(R.string.error_unknown_preset, it) }.getOrThrow()
         val args = buildFfmpegArgs(
             input = inputPath,
             outputPartial = partial.absolutePath,
             config = config,
             media = job.media,
             preferHardware = preferHardware,
+            validateCopy = validateCopy(context.resources),
+            ffmpegValidate = context.getString(R.string.error_ffmpeg_validate),
         ).getOrThrow()
         partial.delete()
         val process = activeProcess.start(

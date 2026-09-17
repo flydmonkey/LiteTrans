@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import com.videoconverter.android.MainActivity
+import com.videoconverter.android.R
 import com.videoconverter.android.data.JobStore
 import com.videoconverter.android.data.SessionStore
 import com.videoconverter.android.data.outputTargetForJob
@@ -154,7 +155,11 @@ class TranscodeService : Service() {
                             ffmpeg.release(jobId)
                             try {
                                 jobStore.update { jobs ->
-                                    jobs.recoverInterruptedPump(jobId, cancelled)
+                                    jobs.recoverInterruptedPump(
+                                        jobId,
+                                        cancelled,
+                                        getString(R.string.error_interrupted),
+                                    )
                                 }
                             } finally {
                                 runningJobId = null
@@ -216,8 +221,8 @@ class TranscodeService : Service() {
     private fun showForegroundPlaceholder() {
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle("轻转码")
-            .setContentText("正在检查转码队列")
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.notify_checking_queue))
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .build()
@@ -242,7 +247,7 @@ class TranscodeService : Service() {
         )
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle("轻转码")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText("${job.displayName} · ${job.progress.toInt()}%")
             .setContentIntent(openApp)
             .setOnlyAlertOnce(true)
@@ -254,7 +259,7 @@ class TranscodeService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "转码进度",
+            getString(R.string.notify_transcode_channel),
             NotificationManager.IMPORTANCE_LOW,
         )
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -418,6 +423,7 @@ internal fun List<Job>.completeRunningJob(result: Job): List<Job> =
 internal fun List<Job>.recoverInterruptedPump(
     jobId: String,
     cancelled: Boolean,
+    interruptedError: String,
 ): List<Job> = map { job ->
     if (job.id != jobId || job.status != JobStatus.Running) return@map job
     if (cancelled) {
@@ -429,7 +435,7 @@ internal fun List<Job>.recoverInterruptedPump(
     } else {
         job.copy(
             status = JobStatus.Failed,
-            error = "转码被中断",
+            error = interruptedError,
         )
     }
 }

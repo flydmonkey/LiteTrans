@@ -14,7 +14,10 @@ sealed class OfficeBlock {
     data class Table(val rows: List<List<String>>) : OfficeBlock()
 }
 
-fun officeBlocksFromDocx(bytes: ByteArray): List<OfficeBlock> = officeOrFail {
+fun officeBlocksFromDocx(
+    bytes: ByteArray,
+    cannotConvert: String = "Could not convert this document",
+): List<OfficeBlock> = officeOrFail(cannotConvert) {
     XWPFDocument(ByteArrayInputStream(bytes)).use { document ->
         val blocks = mutableListOf<OfficeBlock>()
         document.paragraphs.map { it.text }.forEach { blocks.add(OfficeBlock.Paragraph(it)) }
@@ -25,11 +28,14 @@ fun officeBlocksFromDocx(bytes: ByteArray): List<OfficeBlock> = officeOrFail {
                 ),
             )
         }
-        blocks.also { if (it.isEmpty()) error("无法转换此文档") }
+        blocks.also { if (it.isEmpty()) error(cannotConvert) }
     }
 }
 
-fun officeBlocksFromXlsx(bytes: ByteArray): List<OfficeBlock> = officeOrFail {
+fun officeBlocksFromXlsx(
+    bytes: ByteArray,
+    cannotConvert: String = "Could not convert this document",
+): List<OfficeBlock> = officeOrFail(cannotConvert) {
     XSSFWorkbook(ByteArrayInputStream(bytes)).use { workbook ->
         val sheet = workbook.getSheetAt(0)
         val formatter = DataFormatter()
@@ -44,12 +50,16 @@ fun officeBlocksFromXlsx(bytes: ByteArray): List<OfficeBlock> = officeOrFail {
                 row?.getCell(c)?.let { formatter.formatCellValue(it) }.orEmpty()
             }
         }
-        listOf(OfficeBlock.Table(rows)).also { if (sheet.physicalNumberOfRows == 0) error("无法转换此文档") }
+        listOf(OfficeBlock.Table(rows)).also { if (sheet.physicalNumberOfRows == 0) error(cannotConvert) }
     }
 }
 
-fun writeOfficePdf(blocks: List<OfficeBlock>, out: File) {
-    if (blocks.isEmpty()) error("无法转换此文档")
+fun writeOfficePdf(
+    blocks: List<OfficeBlock>,
+    out: File,
+    cannotConvert: String = "Could not convert this document",
+) {
+    if (blocks.isEmpty()) error(cannotConvert)
     val pdf = PdfDocument()
     try {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = FONT_SIZE }
@@ -93,10 +103,10 @@ private const val FONT_SIZE = 11f
 private fun pageInfo(number: Int): PdfDocument.PageInfo =
     PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, number).create()
 
-private inline fun <T> officeOrFail(block: () -> T): T = try {
+private inline fun <T> officeOrFail(cannotConvert: String, block: () -> T): T = try {
     block()
 } catch (e: IllegalStateException) {
     throw e
 } catch (e: Exception) {
-    throw IllegalStateException("无法转换此文档", e)
+    throw IllegalStateException(cannotConvert, e)
 }

@@ -34,8 +34,11 @@ fun documentSourceKind(fileName: String): DocumentSourceKind? = when (fileName.s
     else -> null
 }
 
-fun unsupportedDocumentReason(fileName: String): String? =
-    if (documentSourceKind(fileName) == null) "不支持此格式" else null
+fun unsupportedDocumentReason(
+    fileName: String,
+    unsupported: String = "This format is not supported",
+): String? =
+    if (documentSourceKind(fileName) == null) unsupported else null
 
 fun sameDocumentKind(existing: List<String>, incoming: String): Boolean {
     if (existing.isEmpty()) return true

@@ -16,7 +16,7 @@ class DocumentTest {
         assertEquals(DocumentSourceKind.Excel, documentSourceKind("a.xlsx"))
         assertNull(documentSourceKind("a.doc"))
         assertNull(documentSourceKind("a.wps"))
-        assertTrue(unsupportedDocumentReason("old.doc")!!.contains("不支持此格式"))
+        assertTrue(unsupportedDocumentReason("old.doc")!!.contains("not supported"))
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.videoconverter.android.data
 
 import android.content.Context
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
@@ -16,6 +17,7 @@ class JobStore(context: Context) {
     private val file = File(context.filesDir, "jobs.json")
     private val temporary = File(context.filesDir, "jobs.json.tmp")
     private val corrupt = File(context.filesDir, "jobs.json.bad")
+    private val saveError = context.getString(R.string.error_cannot_save_jobs)
 
     fun load(): List<Job> = synchronized(STORE_LOCK) {
         loadJobsOrEmpty(file, corrupt)
@@ -38,7 +40,7 @@ class JobStore(context: Context) {
         } catch (error: Exception) {
             temporary.delete()
             if (error is IOException) throw error
-            throw IOException("无法保存任务记录", error)
+            throw IOException(saveError, error)
         }
     }
 

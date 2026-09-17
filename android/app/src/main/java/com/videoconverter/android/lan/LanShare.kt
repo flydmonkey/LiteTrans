@@ -1,5 +1,7 @@
 package com.videoconverter.android.lan
 
+import android.content.res.Resources
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.resolveConfig
@@ -10,6 +12,40 @@ import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.nio.file.Files
 import java.nio.file.LinkOption
+
+data class LanHistoryCopy(
+    val warning: String,
+    val video: String,
+    val audio: String,
+    val document: String,
+    val emptyVideo: String,
+    val emptyAudio: String,
+    val emptyDocument: String,
+    val download: String,
+    val statusQueued: String,
+    val statusRunning: String,
+    val statusCompleted: String,
+    val statusFailed: String,
+    val statusCancelled: String,
+    val needToken: String,
+)
+
+fun lanHistoryCopy(resources: Resources) = LanHistoryCopy(
+    warning = resources.getString(R.string.lan_open_warning),
+    video = resources.getString(R.string.lan_segment_video),
+    audio = resources.getString(R.string.lan_segment_audio),
+    document = resources.getString(R.string.lan_segment_document),
+    emptyVideo = resources.getString(R.string.history_empty_video),
+    emptyAudio = resources.getString(R.string.history_empty_audio),
+    emptyDocument = resources.getString(R.string.history_empty_document),
+    download = resources.getString(R.string.lan_download),
+    statusQueued = resources.getString(R.string.status_queued),
+    statusRunning = resources.getString(R.string.status_running),
+    statusCompleted = resources.getString(R.string.status_completed),
+    statusFailed = resources.getString(R.string.status_failed),
+    statusCancelled = resources.getString(R.string.status_cancelled),
+    needToken = resources.getString(R.string.lan_need_token),
+)
 
 data class LanShareSettings(
     val enabled: Boolean = false,
@@ -102,7 +138,6 @@ fun lanContentDisposition(fileName: String): String {
 
 const val LAN_SHARE_PREFERRED_PORT = 17890
 const val LAN_SHARE_PORT_ATTEMPTS = 10
-const val LAN_SHARE_PORTS_BUSY_MESSAGE = "端口都被占用，稍后再试"
 
 data class LanIface(val name: String, val hostAddress: String, val loopback: Boolean)
 
@@ -156,11 +191,16 @@ fun lanPublicUrl(ip: String, port: Int, token: String): String {
     return "${base}?k=$encoded"
 }
 
-fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) -> Boolean): String {
+fun renderLanHistoryHtml(
+    jobs: List<Job>,
+    token: String,
+    copy: LanHistoryCopy,
+    fileExists: (String) -> Boolean,
+): String {
     val sections = listOf(
-        HistorySegment.Video to "视频",
-        HistorySegment.Audio to "音频",
-        HistorySegment.Document to "文档",
+        HistorySegment.Video to copy.video,
+        HistorySegment.Audio to copy.audio,
+        HistorySegment.Document to copy.document,
     )
     return buildString {
         append("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>")
@@ -168,13 +208,13 @@ fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) ->
         append("a{color:#c45a2a}")
         append("</style></head><body>")
         if (token.isEmpty()) {
-            append("<p>同一网络中知道此地址的设备可以查看记录并下载已完成文件。</p>")
+            append("<p>").append(escapeHtml(copy.warning)).append("</p>")
         }
         for ((segment, title) in sections) {
-            append("<h2>").append(title).append("</h2>")
+            append("<h2>").append(escapeHtml(title)).append("</h2>")
             val items = historyJobs(jobs, segment)
             if (items.isEmpty()) {
-                append("<p>").append(lanHistoryEmptyLabel(segment)).append("</p>")
+                append("<p>").append(escapeHtml(lanHistoryEmptyLabel(segment, copy))).append("</p>")
             } else {
                 append("<ul>")
                 for (job in items) {
@@ -184,7 +224,7 @@ fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) ->
                     append(" ")
                     append(escapeHtml(format))
                     append(" ")
-                    append(escapeHtml(lanStatusLabel(job.status)))
+                    append(escapeHtml(lanStatusLabel(job.status, copy)))
                     if (job.status == JobStatus.Completed) {
                         val paths = jobOutputPaths(job)
                         val existing = paths.mapIndexedNotNull { index, path ->
@@ -195,7 +235,7 @@ fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) ->
                             append(" <a href=\"")
                             append(lanHistoryDownloadHref(job.id, index, multi, token))
                             append("\">")
-                            append(escapeHtml(lanHistoryDownloadLabel(path, index, multi)))
+                            append(escapeHtml(lanHistoryDownloadLabel(path, index, multi, copy.download)))
                             append("</a>")
                         }
                     }
@@ -208,18 +248,18 @@ fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) ->
     }
 }
 
-private fun lanHistoryEmptyLabel(segment: HistorySegment): String = when (segment) {
-    HistorySegment.Video -> "还没有视频记录"
-    HistorySegment.Audio -> "还没有音频记录"
-    HistorySegment.Document -> "还没有文档记录"
+private fun lanHistoryEmptyLabel(segment: HistorySegment, copy: LanHistoryCopy): String = when (segment) {
+    HistorySegment.Video -> copy.emptyVideo
+    HistorySegment.Audio -> copy.emptyAudio
+    HistorySegment.Document -> copy.emptyDocument
 }
 
-private fun lanStatusLabel(status: JobStatus): String = when (status) {
-    JobStatus.Queued -> "排队中"
-    JobStatus.Running -> "正在转码"
-    JobStatus.Completed -> "已完成"
-    JobStatus.Failed -> "出错了"
-    JobStatus.Cancelled -> "已取消"
+private fun lanStatusLabel(status: JobStatus, copy: LanHistoryCopy): String = when (status) {
+    JobStatus.Queued -> copy.statusQueued
+    JobStatus.Running -> copy.statusRunning
+    JobStatus.Completed -> copy.statusCompleted
+    JobStatus.Failed -> copy.statusFailed
+    JobStatus.Cancelled -> copy.statusCancelled
 }
 
 fun escapeHtml(raw: String): String = raw
@@ -228,10 +268,10 @@ fun escapeHtml(raw: String): String = raw
     .replace(">", "&gt;")
     .replace("\"", "&quot;")
 
-internal fun lanHistoryDownloadLabel(path: String, index: Int, multi: Boolean): String {
-    if (!multi) return "下载"
+internal fun lanHistoryDownloadLabel(path: String, index: Int, multi: Boolean, download: String): String {
+    if (!multi) return download
     val base = java.io.File(path).name
-    return if (base.isNotBlank()) "下载 $base" else "下载 #$index"
+    return if (base.isNotBlank()) "$download $base" else "$download #$index"
 }
 
 private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, token: String): String {
@@ -285,16 +325,17 @@ fun handleLanRequest(
     jobs: List<Job>,
     token: String,
     exists: (String) -> Boolean,
+    copy: LanHistoryCopy,
 ): LanHttpResponse {
     if (request.method != "GET") {
         return lanPlainText(405, "Method Not Allowed")
     }
     if (!lanTokenAllows(token, request.query["k"])) {
-        return lanPlainText(401, "需要正确口令")
+        return lanPlainText(401, copy.needToken)
     }
     return when (val route = parseLanRoute(request.path)) {
         is LanRoute.Home -> {
-            val html = renderLanHistoryHtml(jobs, token, exists)
+            val html = renderLanHistoryHtml(jobs, token, copy, exists)
             LanHttpResponse(
                 status = 200,
                 contentType = "text/html; charset=utf-8",

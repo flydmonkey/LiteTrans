@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Process
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.allocateOutputPath
 import com.videoconverter.android.domain.partialOutputPath
@@ -75,7 +76,7 @@ class OutputStore(
 ) {
     fun createJobOutput(jobId: String, stem: String, ext: String): JobOutput {
         val jobDir = File(context.filesDir, "jobs/${safeSegment(jobId, "job")}").apply {
-            if (!exists() && !mkdirs()) throw IOException("无法创建转码临时目录")
+            if (!exists() && !mkdirs()) throw IOException(context.getString(R.string.error_cannot_create_temp))
         }
         val final = File(jobDir, "${safeSegment(stem, "output")}.${safeExtension(ext)}")
         val partial = File(partialOutputPath(final.absolutePath))
@@ -83,7 +84,7 @@ class OutputStore(
     }
 
     fun finalizeJobOutput(output: JobOutput): File {
-        if (!output.partial.isFile) throw IOException("转码临时文件不存在")
+        if (!output.partial.isFile) throw IOException(context.getString(R.string.error_temp_missing))
         try {
             Files.move(
                 output.partial.toPath(),
@@ -91,7 +92,7 @@ class OutputStore(
                 StandardCopyOption.REPLACE_EXISTING,
             )
         } catch (error: IOException) {
-            throw IOException("无法完成转码输出", error)
+            throw IOException(context.getString(R.string.error_cannot_finish_output), error)
         }
         return output.final
     }
@@ -103,7 +104,7 @@ class OutputStore(
         mimeType: String,
         target: OutputTarget,
     ): ExportedOutput = withContext(Dispatchers.IO) {
-        require(source.isFile) { "转码输出不存在" }
+        require(source.isFile) { context.getString(R.string.error_output_missing) }
         when (target.kind) {
             OutputTarget.Kind.Downloads,
             OutputTarget.Kind.Gallery,
@@ -145,7 +146,7 @@ class OutputStore(
 
         try {
             resolver.openOutputStream(destination, "w").use { output ->
-                requireNotNull(output) { "无法写入输出文件" }
+                requireNotNull(output) { context.getString(R.string.error_cannot_write_output) }
                 source.inputStream().use { input -> input.copyTo(output) }
             }
             requireMediaStorePublished(
@@ -155,10 +156,11 @@ class OutputStore(
                     null,
                     null,
                 ),
+                context.getString(R.string.error_cannot_publish),
             )
         } catch (error: Exception) {
             resolver.delete(destination, null, null)
-            throw IOException("无法写入输出文件", error)
+            throw IOException(context.getString(R.string.error_cannot_write_output), error)
         }
         return ExportedOutput(
             location = destination.toString(),
@@ -187,22 +189,22 @@ class OutputStore(
         ext: String,
         mimeType: String,
         target: OutputTarget,
-    ): ExportedOutput = mapSafExportErrors {
-        val uri = target.treeUri?.let(Uri::parse) ?: throw outputDirectoryError()
-        if (!hasWritePermission(uri)) throw outputDirectoryError()
+    ): ExportedOutput = mapSafExportErrors(context.getString(R.string.error_cannot_write_output_reselect)) {
+        val uri = target.treeUri?.let(Uri::parse) ?: throw outputDirectoryError(context)
+        if (!hasWritePermission(uri)) throw outputDirectoryError(context)
         val tree = DocumentFile.fromTreeUri(context, uri)
             ?.takeIf { it.isDirectory && it.canWrite() }
-            ?: throw outputDirectoryError()
+            ?: throw outputDirectoryError(context)
         val displayName = uniqueDisplayName(stem, ext, tree.listFiles().mapNotNull { it.name }.toSet())
-        val destination = tree.createFile(mimeType, displayName) ?: throw outputDirectoryError()
+        val destination = tree.createFile(mimeType, displayName) ?: throw outputDirectoryError(context)
         try {
             context.contentResolver.openOutputStream(destination.uri, "w").use { output ->
-                requireNotNull(output) { "无法写入输出目录，请重新选择" }
+                requireNotNull(output) { context.getString(R.string.error_cannot_write_output_reselect) }
                 source.inputStream().use { input -> input.copyTo(output) }
             }
         } catch (error: Exception) {
             destination.delete()
-            throw IOException("无法写入输出目录，请重新选择", error)
+            throw IOException(context.getString(R.string.error_cannot_write_output_reselect), error)
         }
         ExportedOutput(destination.uri.toString(), target)
     }
@@ -212,9 +214,9 @@ class OutputStore(
         stem: String,
         ext: String,
     ): ExportedOutput {
-        val root = context.getExternalFilesDir(null) ?: throw IOException("无法写入应用输出目录")
+        val root = context.getExternalFilesDir(null) ?: throw IOException(context.getString(R.string.error_cannot_write_app_output))
         val outputDir = File(root, "轻转码").apply {
-            if (!exists() && !mkdirs()) throw IOException("无法创建应用输出目录")
+            if (!exists() && !mkdirs()) throw IOException(context.getString(R.string.error_cannot_create_app_output))
         }
         val outputPath = allocateOutputPath(outputDir.absolutePath, stem, ext) { File(it).exists() }
         val destination = File(outputPath)
@@ -266,15 +268,15 @@ class OutputStore(
                 null,
                 null,
             )
-            if (updated <= 0) throw IOException("无法重命名输出文件")
+            if (updated <= 0) throw IOException(context.getString(R.string.error_cannot_rename_output))
             return location
         }
         val source = File(location)
         val destination = File(source.parentFile, newDisplayName)
         if (destination.exists() && destination.absolutePath != source.absolutePath) {
-            throw IOException("已有同名文件")
+            throw IOException(context.getString(R.string.error_duplicate_name))
         }
-        if (!source.renameTo(destination)) throw IOException("无法重命名输出文件")
+        if (!source.renameTo(destination)) throw IOException(context.getString(R.string.error_cannot_rename_output))
         return destination.absolutePath
     }
 }
@@ -285,11 +287,14 @@ private fun safeSegment(value: String, fallback: String): String =
 private fun safeExtension(value: String): String =
     value.trimStart('.').replace(Regex("""[^A-Za-z0-9]"""), "").ifBlank { "bin" }
 
-private fun outputDirectoryError(): IOException =
-    IOException("无法写入输出目录，请重新选择")
+private fun outputDirectoryError(context: Context): IOException =
+    IOException(context.getString(R.string.error_cannot_write_output_reselect))
 
-internal fun requireMediaStorePublished(updatedRows: Int) {
-    if (updatedRows == 0) throw IOException("无法发布输出文件")
+internal fun requireMediaStorePublished(
+    updatedRows: Int,
+    message: String = "Could not publish the output file",
+) {
+    if (updatedRows == 0) throw IOException(message)
 }
 
 internal fun mediaStoreCollection(kind: OutputTarget.Kind, mimeType: String): Uri {
@@ -308,9 +313,12 @@ internal fun mediaStoreCollection(kind: OutputTarget.Kind, mimeType: String): Ur
     }
 }
 
-internal fun <T> mapSafExportErrors(block: () -> T): T =
+internal fun <T> mapSafExportErrors(
+    message: String = "Could not write the output folder. Please pick it again.",
+    block: () -> T,
+): T =
     try {
         block()
     } catch (error: Exception) {
-        throw IOException("无法写入输出目录，请重新选择", error)
+        throw IOException(message, error)
     }

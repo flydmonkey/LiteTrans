@@ -61,7 +61,7 @@ class ProbeParserTest {
         )
 
         assertFalse(info.importable)
-        assertTrue(info.error!!.contains("没有可转码"))
+        assertTrue(info.error!!.contains("No convertible"))
     }
 
     @Test
@@ -71,7 +71,7 @@ class ProbeParserTest {
         assertEquals("content://broken", info.sourceUri)
         assertEquals("broken.mp4", info.displayName)
         assertFalse(info.importable)
-        assertEquals("无法解析媒体信息", info.error)
+        assertEquals("Could not parse media information", info.error)
     }
 
     @Test

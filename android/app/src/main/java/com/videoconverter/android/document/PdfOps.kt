@@ -21,19 +21,31 @@ fun pdfImageMaxEdge(quality: String): Int = when (quality) {
     else -> 1200
 }
 
-fun pdfPageCount(file: File): Int = openReadablePdf(file).use { it.numberOfPages }
+fun pdfPageCount(
+    file: File,
+    encryptedPdf: String = "Encrypted PDFs are not supported",
+): Int = openReadablePdf(file, encryptedPdf).use { it.numberOfPages }
 
-fun assertPdfReadable(file: File) {
-    openReadablePdf(file).close()
+fun assertPdfReadable(
+    file: File,
+    encryptedPdf: String = "Encrypted PDFs are not supported",
+) {
+    openReadablePdf(file, encryptedPdf).close()
 }
 
-fun extractPdfText(file: File, start: Int, end: Int): String = openReadablePdf(file).use { document ->
+fun extractPdfText(
+    file: File,
+    start: Int,
+    end: Int,
+    noText: String = "No extractable text",
+    encryptedPdf: String = "Encrypted PDFs are not supported",
+): String = openReadablePdf(file, encryptedPdf).use { document ->
     val (lo, hi) = clampPageRange(start, end, document.numberOfPages)
     val stripper = PDFTextStripper()
     stripper.startPage = lo
     stripper.endPage = hi
     val text = stripper.getText(document)
-    if (text.trim().isEmpty()) error("没有可提取的文字")
+    if (text.trim().isEmpty()) error(noText)
     text
 }
 
@@ -44,14 +56,16 @@ fun splitPdf(
     destDir: File,
     stem: String,
     shouldCancel: () -> Boolean = { false },
+    cancelled: String = "Cancelled",
+    encryptedPdf: String = "Encrypted PDFs are not supported",
 ): List<File> {
     destDir.mkdirs()
-    return openReadablePdf(file).use { document ->
+    return openReadablePdf(file, encryptedPdf).use { document ->
         val (lo, hi) = clampPageRange(start, end, document.numberOfPages)
         val total = hi - lo + 1
         val files = mutableListOf<File>()
         for (pageNumber in lo..hi) {
-            if (shouldCancel()) error("已取消")
+            if (shouldCancel()) error(cancelled)
             val dest = File(destDir, documentOutputFileName(stem, pageNumber - lo + 1, total, "pdf"))
             PDDocument().use { out ->
                 out.importPage(document.getPage(pageNumber - 1))
@@ -69,8 +83,9 @@ fun compressPdf(
     dest: File,
     start: Int = 1,
     end: Int = Int.MAX_VALUE,
+    encryptedPdf: String = "Encrypted PDFs are not supported",
 ) {
-    openReadablePdf(file).use { document ->
+    openReadablePdf(file, encryptedPdf).use { document ->
         val (lo, hi) = clampPageRange(start, end, document.numberOfPages)
         for (index in document.numberOfPages - 1 downTo 0) {
             val pageNumber = index + 1
@@ -91,8 +106,13 @@ fun compressPdf(
     }
 }
 
-fun renderPdfPage(file: File, pageIndex0: Int, maxEdge: Int): Bitmap {
-    assertPdfReadable(file)
+fun renderPdfPage(
+    file: File,
+    pageIndex0: Int,
+    maxEdge: Int,
+    encryptedPdf: String = "Encrypted PDFs are not supported",
+): Bitmap {
+    assertPdfReadable(file, encryptedPdf)
     ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
         PdfRenderer(pfd).use { renderer ->
             renderer.openPage(pageIndex0).use { page ->
@@ -109,15 +129,15 @@ fun renderPdfPage(file: File, pageIndex0: Int, maxEdge: Int): Bitmap {
     }
 }
 
-private fun openReadablePdf(file: File): PDDocument {
+private fun openReadablePdf(file: File, encryptedPdf: String): PDDocument {
     val document = try {
         PDDocument.load(file)
     } catch (e: InvalidPasswordException) {
-        throw IllegalStateException("不支持加密 PDF", e)
+        throw IllegalStateException(encryptedPdf, e)
     }
     if (document.isEncrypted) {
         document.close()
-        error("不支持加密 PDF")
+        error(encryptedPdf)
     }
     return document
 }

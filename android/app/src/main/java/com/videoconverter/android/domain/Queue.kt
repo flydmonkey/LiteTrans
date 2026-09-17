@@ -2,6 +2,7 @@ package com.videoconverter.android.domain
 
 fun splitImportable(
     sources: List<MediaInfo>,
+    cannotTranscode: String = "Could not convert this file",
 ): Pair<List<MediaInfo>, List<SkippedSource>> {
     val accepted = mutableListOf<MediaInfo>()
     val skipped = mutableListOf<SkippedSource>()
@@ -12,7 +13,7 @@ fun splitImportable(
             skipped += SkippedSource(
                 sourceUri = source.sourceUri,
                 displayName = source.displayName,
-                reason = source.error ?: "无法转码该文件",
+                reason = source.error ?: cannotTranscode,
             )
         }
     }
@@ -35,24 +36,28 @@ fun enqueueJobs(
     outputDir: String,
     nextId: () -> String,
     exists: (String) -> Boolean,
+    cannotTranscode: String = "Could not convert this file",
+    selectOutput: String = "Choose an output folder first",
+    validateCopy: ValidateCopy = ValidateCopy(),
+    unknownPreset: (String) -> String = { "Unknown preset: $it" },
 ): Result<EnqueueReport> = runCatching {
     if (outputDir.isBlank()) {
-        throw IllegalArgumentException("请先选择输出目录")
+        throw IllegalArgumentException(selectOutput)
     }
 
-    val resolved = resolveConfig(config).getOrThrow()
-    val (accepted, initialSkipped) = splitImportable(sources)
+    val resolved = resolveConfig(config, unknownPreset).getOrThrow()
+    val (accepted, initialSkipped) = splitImportable(sources, cannotTranscode)
     val skipped = initialSkipped.toMutableList()
     val jobs = mutableListOf<Job>()
     val allocated = mutableSetOf<String>()
 
     for (media in accepted) {
-        val validation = validate(resolved, media)
+        val validation = validate(resolved, media, validateCopy)
         if (validation.isFailure) {
             skipped += SkippedSource(
                 sourceUri = media.sourceUri,
                 displayName = media.displayName,
-                reason = validation.exceptionOrNull()?.message ?: "无法转码该文件",
+                reason = validation.exceptionOrNull()?.message ?: cannotTranscode,
             )
             continue
         }
@@ -93,12 +98,15 @@ fun enqueueDocumentJobs(
     outputDir: String,
     nextId: () -> String,
     exists: (String) -> Boolean,
+    cannotTranscode: String = "Could not convert this file",
+    selectOutput: String = "Choose an output folder first",
+    cannotReadPages: String = "Could not read the page count",
 ): Result<EnqueueReport> = runCatching {
     if (outputDir.isBlank()) {
-        throw IllegalArgumentException("请先选择输出目录")
+        throw IllegalArgumentException(selectOutput)
     }
 
-    val (accepted, initialSkipped) = splitImportable(sources)
+    val (accepted, initialSkipped) = splitImportable(sources, cannotTranscode)
     val skipped = initialSkipped.toMutableList()
     val jobs = mutableListOf<Job>()
     val allocated = mutableSetOf<String>()
@@ -109,7 +117,7 @@ fun enqueueDocumentJobs(
             skipped += SkippedSource(
                 sourceUri = media.sourceUri,
                 displayName = media.displayName,
-                reason = "无法读取页数",
+                reason = cannotReadPages,
             )
             continue
         }
@@ -150,9 +158,12 @@ private fun needsPdfPageCount(preset: String): Boolean =
         preset == "pdf-compress" ||
         preset == "pdf-split"
 
-fun markInterrupted(jobs: List<Job>): List<Job> = jobs.map { job ->
+fun markInterrupted(
+    jobs: List<Job>,
+    interrupted: String = "Conversion was interrupted",
+): List<Job> = jobs.map { job ->
     if (job.status == JobStatus.Running) {
-        job.copy(status = JobStatus.Failed, error = "转码被中断")
+        job.copy(status = JobStatus.Failed, error = interrupted)
     } else {
         job
     }
