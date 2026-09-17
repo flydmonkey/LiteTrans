@@ -111,7 +111,6 @@ struct OutputSettingsView: View {
             outputRow(kind: .photos, title: String(localized: "output_photos"), hint: String(localized: "output_gallery_hint"))
             outputRow(kind: .downloads, title: String(localized: "output_downloads"), hint: String(localized: "output_downloads_hint"))
             Button {
-                model.output = OutputTarget(kind: .custom, bookmark: model.output.bookmark)
                 pickingFolder = true
             } label: {
                 settingChoice(

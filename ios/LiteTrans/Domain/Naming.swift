@@ -56,3 +56,40 @@ public func sanitizeRenameStem(_ raw: String) -> String? {
 }
 
 public func canRenameJob(_ status: JobStatus) -> Bool { status == .completed }
+
+public func photosImportDisplayName(
+    fileName: String,
+    pathExtension: String = "",
+    itemIdentifier: String? = nil
+) -> String {
+    if isUsefulImportDisplayName(fileName) {
+        return fileName
+    }
+    if let itemIdentifier, isUsefulImportDisplayName(itemIdentifier) {
+        return itemIdentifier
+    }
+    let ext = normalizedImportExtension(pathExtension.isEmpty ? fileExtension(of: fileName) : pathExtension)
+    switch ext {
+    case "mp4": return "video.mp4"
+    case "mov": return "video.mov"
+    case "": return "video.mov"
+    default: return "video.\(ext)"
+    }
+}
+
+func isUsefulImportDisplayName(_ name: String) -> Bool {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return false }
+    let firstComponent = trimmed.split(separator: "/").first.map(String.init) ?? trimmed
+    let stem = sourceStem(firstComponent)
+    return UUID(uuidString: stem) == nil && UUID(uuidString: firstComponent) == nil
+}
+
+private func fileExtension(of name: String) -> String {
+    guard let dot = name.lastIndex(of: "."), dot != name.startIndex else { return "" }
+    return String(name[name.index(after: dot)...])
+}
+
+private func normalizedImportExtension(_ ext: String) -> String {
+    ext.trimmingCharacters(in: CharacterSet(charactersIn: ".")).lowercased()
+}

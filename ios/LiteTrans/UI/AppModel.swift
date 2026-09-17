@@ -18,7 +18,7 @@ final class AppModel {
     var language: AppLanguage = .system
 
     var importableCount: Int { sources.filter(\.importable).count }
-    var probing: Bool { sources.contains { $0.error == nil && !$0.importable && $0.videoCodec == nil && $0.durationSecs == nil } }
+    var probing: Bool { sources.contains(where: \.probing) }
     var startEnabled: Bool { canStart(importable: importableCount, probing: probing, transcoding: transcoding, output: output) }
 
     func startConversion() {
@@ -81,7 +81,7 @@ final class AppModel {
         defer {
             if scoped { url.stopAccessingSecurityScopedResource() }
         }
-        let bookmark = try? url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
+        let bookmark = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
         output = OutputTarget(kind: .custom, bookmark: bookmark)
     }
 

@@ -121,7 +121,14 @@ struct ConvertHomeView: View {
             do {
                 guard let movie = try await item.loadTransferable(type: ImportedMovie.self) else { continue }
                 await MainActor.run {
-                    model.addImportedURL(movie.url, displayName: movie.url.lastPathComponent)
+                    model.addImportedURL(
+                        movie.url,
+                        displayName: photosImportDisplayName(
+                            fileName: movie.sourceFileName,
+                            pathExtension: movie.url.pathExtension,
+                            itemIdentifier: item.itemIdentifier
+                        )
+                    )
                 }
             } catch {
                 await MainActor.run {
@@ -334,6 +341,7 @@ private struct ConvertTrimCard: View {
 
 struct ImportedMovie: Transferable {
     let url: URL
+    let sourceFileName: String
 
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(contentType: .movie) { movie in
@@ -346,7 +354,7 @@ struct ImportedMovie: Transferable {
                 try FileManager.default.removeItem(at: dest)
             }
             try FileManager.default.copyItem(at: received.file, to: dest)
-            return Self(url: dest)
+            return Self(url: dest, sourceFileName: received.file.lastPathComponent)
         }
     }
 }
