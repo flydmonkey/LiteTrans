@@ -4,15 +4,12 @@ import android.content.res.Resources
 import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
-import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.ui.HistorySegment
-import com.videoconverter.android.ui.historyJobs
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.nio.file.Files
 import java.nio.file.LinkOption
-import java.util.Locale
 
 data class LanHistoryCopy(
     val warning: String,
@@ -31,6 +28,8 @@ data class LanHistoryCopy(
     val statusFailed: String,
     val statusCancelled: String,
     val needToken: String,
+    val previewFailed: String,
+    val downloadToOpen: String,
 )
 
 fun lanHistoryCopy(resources: Resources) = LanHistoryCopy(
@@ -50,6 +49,8 @@ fun lanHistoryCopy(resources: Resources) = LanHistoryCopy(
     statusFailed = resources.getString(R.string.status_failed),
     statusCancelled = resources.getString(R.string.status_cancelled),
     needToken = resources.getString(R.string.lan_need_token),
+    previewFailed = "Can't preview. Download the file instead.",
+    downloadToOpen = "Download and open it on your computer.",
 )
 
 data class LanShareSettings(
@@ -175,70 +176,13 @@ fun lanPublicUrl(ip: String, port: Int, token: String): String {
     return "${base}?k=$encoded"
 }
 
-fun renderLanHistoryHtml(
-    jobs: List<Job>,
-    token: String,
-    copy: LanHistoryCopy,
-    fileExists: (String) -> Boolean,
-): String {
-    val sections = listOf(
-        HistorySegment.Video to copy.video,
-        HistorySegment.Audio to copy.audio,
-        HistorySegment.Document to copy.document,
-    )
-    return buildString {
-        append("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>")
-        append("body{background:#ecece8;color:#1f2428;font-family:sans-serif}")
-        append("a{color:#c45a2a}")
-        append("</style></head><body>")
-        if (token.isEmpty()) {
-            append("<p>").append(escapeHtml(copy.warning)).append("</p>")
-        }
-        for ((segment, title) in sections) {
-            append("<h2>").append(escapeHtml(title)).append("</h2>")
-            val items = historyJobs(jobs, segment)
-            if (items.isEmpty()) {
-                append("<p>").append(escapeHtml(lanHistoryEmptyLabel(segment, copy))).append("</p>")
-            } else {
-                append("<ul>")
-                for (job in items) {
-                    val format = resolveConfig(job.config).getOrNull()?.container ?: job.config.preset
-                    append("<li>")
-                    append(escapeHtml(job.displayName))
-                    append(" ")
-                    append(escapeHtml(format))
-                    append(" ")
-                    append(escapeHtml(lanStatusLabel(job.status, copy)))
-                    if (job.status == JobStatus.Completed) {
-                        val paths = jobOutputPaths(job)
-                        val existing = paths.mapIndexedNotNull { index, path ->
-                            if (fileExists(path)) index to path else null
-                        }
-                        val multi = existing.size > 1
-                        for ((index, path) in existing) {
-                            append(" <a href=\"")
-                            append(lanHistoryDownloadHref(job.id, index, multi, token))
-                            append("\">")
-                            append(escapeHtml(lanHistoryDownloadLabel(path, index, multi, copy)))
-                            append("</a>")
-                        }
-                    }
-                    append("</li>")
-                }
-                append("</ul>")
-            }
-        }
-        append("</body></html>")
-    }
-}
-
-private fun lanHistoryEmptyLabel(segment: HistorySegment, copy: LanHistoryCopy): String = when (segment) {
+internal fun lanHistoryEmptyLabel(segment: HistorySegment, copy: LanHistoryCopy): String = when (segment) {
     HistorySegment.Video -> copy.emptyVideo
     HistorySegment.Audio -> copy.emptyAudio
     HistorySegment.Document -> copy.emptyDocument
 }
 
-private fun lanStatusLabel(status: JobStatus, copy: LanHistoryCopy): String = when (status) {
+internal fun lanStatusLabel(status: JobStatus, copy: LanHistoryCopy): String = when (status) {
     JobStatus.Queued -> copy.statusQueued
     JobStatus.Running -> copy.statusRunning
     JobStatus.Completed -> copy.statusCompleted
@@ -252,18 +196,14 @@ fun escapeHtml(raw: String): String = raw
     .replace(">", "&gt;")
     .replace("\"", "&quot;")
 
-internal fun lanHistoryDownloadLabel(path: String, index: Int, multi: Boolean, copy: LanHistoryCopy): String {
-    if (!multi) return copy.download
-    val base = java.io.File(path).name
-    return if (base.isNotBlank()) {
-        String.format(Locale.ROOT, copy.downloadNamed, base)
-    } else {
-        String.format(Locale.ROOT, copy.downloadIndex, index)
-    }
-}
-
-private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, token: String): String {
-    val path = if (index > 0 || multi) "/d/$jobId/$index" else "/d/$jobId"
+internal fun lanHistoryDownloadHref(
+    jobId: String,
+    index: Int,
+    multi: Boolean,
+    token: String,
+    kind: String = "d",
+): String {
+    val path = if (index > 0 || multi) "/$kind/$jobId/$index" else "/$kind/$jobId"
     if (token.isEmpty()) return path
     val encoded = java.net.URLEncoder.encode(token, "UTF-8")
     return "$path?k=$encoded"

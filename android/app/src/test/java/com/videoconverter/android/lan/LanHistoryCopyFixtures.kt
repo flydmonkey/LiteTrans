@@ -17,4 +17,6 @@ internal fun englishLanHistoryCopy() = LanHistoryCopy(
     statusFailed = "Failed",
     statusCancelled = "Cancelled",
     needToken = "Password required",
+    previewFailed = "Can't preview. Download the file instead.",
+    downloadToOpen = "Download and open it on your computer.",
 )

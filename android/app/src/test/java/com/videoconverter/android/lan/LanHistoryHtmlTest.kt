@@ -4,7 +4,6 @@ import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -18,18 +17,26 @@ class LanHistoryHtmlTest {
             job("d", JobStatus.Completed, "/tmp/a.pdf", listOf("/tmp/a.pdf", "/tmp/b.pdf"), "scan.pdf", "pdf-split"),
         )
         val html = renderLanHistoryHtml(jobs, "pw", englishLanHistoryCopy()) { it.startsWith("/tmp/") }
+        assertTrue(html.contains("LiteTrans"))
+        assertTrue(html.contains("class=\"player\""))
+        assertTrue(html.contains("<video"))
+        assertTrue(html.contains("<audio"))
+        assertTrue(html.contains("data-media=\"/m/v\""))
+        assertTrue(html.contains("data-download=\"/d/v?k="))
+        assertTrue(html.contains("data-media=\"/m/d/0\""))
+        assertTrue(html.contains("data-media=\"/m/d/1\""))
+        assertFalse(html.contains("content://secret"))
+        assertTrue(html.contains("#ecece8"))
+        assertTrue(html.contains("#111"))
         assertTrue(html.contains("Video"))
         assertTrue(html.contains("Audio"))
         assertTrue(html.contains("Documents"))
         assertTrue(html.contains("假期.mp4"))
-        assertTrue(html.contains("/d/v?k="))
-        assertTrue(html.contains("/d/d/1?k="))
-        assertTrue(html.contains(">Download</a>"))
-        assertTrue(html.contains("Download a.pdf"))
-        assertTrue(html.contains("Download b.pdf"))
-        assertFalse(html.contains("content://secret"))
+        assertTrue(html.contains("a.pdf"))
+        assertTrue(html.contains("b.pdf"))
         assertTrue(html.contains("Queued"))
         assertFalse(html.contains("/d/a"))
+        assertFalse(html.contains("/m/a"))
     }
 
     @Test
@@ -41,9 +48,10 @@ class LanHistoryHtmlTest {
         ) { true }
         assertTrue(html.contains("No audio history yet"))
         assertTrue(html.contains("No document history yet"))
-        assertFalse(html.contains("<img>"))
         assertTrue(html.contains("&lt;img&gt;"))
-        assertTrue(html.contains("href=\"/d/x\""))
+        assertFalse(html.contains("displayName=\"<img>\""))
+        assertTrue(html.contains("data-download=\"/d/x\""))
+        assertFalse(html.contains("content://secret"))
     }
 
     @Test
@@ -53,40 +61,10 @@ class LanHistoryHtmlTest {
             "",
             englishLanHistoryCopy(),
         ) { it == "/tmp/a.pdf" }
-        assertTrue(html.contains("href=\"/d/d\""))
+        assertTrue(html.contains("data-media=\"/m/d\"") || html.contains("data-index=\"0\""))
+        assertFalse(html.contains("/m/d/1"))
         assertTrue(html.contains(">Download</a>"))
         assertFalse(html.contains("Download a.pdf"))
-    }
-
-    @Test
-    fun koreanNamedDownloadPutsFilenameFirst() {
-        val copy = englishLanHistoryCopy().copy(
-            download = "다운로드",
-            downloadNamed = "%1\$s 다운로드",
-            downloadIndex = "#%1\$d 다운로드",
-        )
-        val html = renderLanHistoryHtml(
-            listOf(job("d", JobStatus.Completed, "/tmp/a.pdf", listOf("/tmp/a.pdf", "/tmp/b.pdf"), "scan.pdf", "pdf-split")),
-            "",
-            copy,
-        ) { true }
-        assertTrue(html.contains("a.pdf 다운로드"))
-        assertTrue(html.contains("b.pdf 다운로드"))
-        assertFalse(html.contains("다운로드 a.pdf"))
-        assertFalse(html.contains("다운로드 b.pdf"))
-    }
-
-    @Test
-    fun koreanIndexFormatWhenFileNameBlank() {
-        assertEquals(
-            "#3 다운로드",
-            lanHistoryDownloadLabel(
-                "",
-                3,
-                true,
-                englishLanHistoryCopy().copy(downloadIndex = "#%1\$d 다운로드"),
-            ),
-        )
     }
 
     @Test
@@ -97,6 +75,8 @@ class LanHistoryHtmlTest {
             englishLanHistoryCopy(),
         ) { false }
         assertFalse(html.contains("href=\"/d/v\""))
+        assertFalse(html.contains("data-download=\"/d/v\""))
+        assertFalse(html.contains("data-media=\"/m/v\""))
     }
 
     private fun job(
