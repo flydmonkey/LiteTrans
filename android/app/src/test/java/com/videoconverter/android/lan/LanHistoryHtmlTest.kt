@@ -94,6 +94,19 @@ class LanHistoryHtmlTest {
     }
 
     @Test
+    fun videoSegmentListsNewestFirstAndSelectsNewer() {
+        val jobs = listOf(
+            job("old", JobStatus.Completed, "/tmp/old.mp4", listOf("/tmp/old.mp4"), "old-clip.mp4"),
+            job("new", JobStatus.Completed, "/tmp/new.mp4", listOf("/tmp/new.mp4"), "new-clip.mp4"),
+        )
+        val html = renderLanHistoryHtml(jobs, "", englishLanHistoryCopy()) { true }
+        val videoSection = html.substringAfter("data-segment=\"video\"").substringBefore("data-segment=\"audio\"")
+        assertTrue(videoSection.indexOf("new-clip.mp4") < videoSection.indexOf("old-clip.mp4"))
+        val selectedAttrs = videoSection.substringAfter("item selected").substringBefore('>')
+        assertTrue(selectedAttrs.contains("data-id=\"new\""))
+    }
+
+    @Test
     fun contentUriAudioOutputUsesPresetContainerNotSourceDisplayName() {
         val location = "content://media/external/audio/media/99"
         val html = renderLanHistoryHtml(

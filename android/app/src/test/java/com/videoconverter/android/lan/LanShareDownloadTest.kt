@@ -59,6 +59,21 @@ class LanShareDownloadTest {
     }
 
     @Test
+    fun contentUriDownloadUsesOutputExtensionNotSourceName() {
+        val location = "content://media/external/audio/media/99"
+        val extracted = done.copy(
+            outputPath = location,
+            outputPaths = listOf(location),
+            displayName = "假期.mp4",
+            config = OutputConfig(preset = "audio-mp3"),
+        )
+        val target = resolveLanDownload(listOf(extracted), "a1", 0) { true }!!
+        assertEquals("audio/mpeg", target.contentType)
+        assertTrue(target.downloadName.endsWith(".mp3"))
+        assertFalse(target.downloadName.endsWith(".mp4"))
+    }
+
+    @Test
     fun lanFileIsRegularRejectsSymlinkAndMissing() {
         val directory = Files.createTempDirectory("lan-file-regular")
         val regular = directory.resolve("out.mp4")

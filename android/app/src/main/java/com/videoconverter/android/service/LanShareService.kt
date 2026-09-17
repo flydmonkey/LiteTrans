@@ -24,6 +24,7 @@ import com.videoconverter.android.lan.handleLanRequest
 import com.videoconverter.android.lan.isLanContentLocation
 import com.videoconverter.android.lan.lanFileIsRegular
 import com.videoconverter.android.lan.lanHistoryCopy
+import com.videoconverter.android.lan.lanReadyFileResponse
 import com.videoconverter.android.lan.openLanServerSocket
 import com.videoconverter.android.lan.parseHttpRequestLine
 import com.videoconverter.android.lan.parseLanHeaderLines
@@ -171,47 +172,50 @@ class LanShareService : Service() {
             location != null -> applyLanResponseRange(response, total)
             else -> response
         }
-        val out = socket.getOutputStream()
-        val reason = when (sized.status) {
-            200 -> "OK"
-            206 -> "Partial Content"
-            401 -> "Unauthorized"
-            404 -> "Not Found"
-            405 -> "Method Not Allowed"
-            416 -> "Range Not Satisfiable"
-            else -> "OK"
-        }
-        val headers = LinkedHashMap<String, String>()
-        headers["Content-Type"] = sized.contentType
-        headers.putAll(sized.headers)
-        if (!headers.containsKey("Content-Length")) {
-            headers["Content-Length"] = sized.body.size.toString()
-        }
-        headers["Connection"] = "close"
-        val headerBytes = buildString {
-            append("HTTP/1.1 ${sized.status} $reason\r\n")
-            for ((name, value) in headers) {
-                append("$name: $value\r\n")
+        val stream = sized.filePath?.let { openLanStream(it) }
+        val ready = lanReadyFileResponse(sized, opened = stream != null || sized.filePath == null)
+        try {
+            val out = socket.getOutputStream()
+            val reason = when (ready.status) {
+                200 -> "OK"
+                206 -> "Partial Content"
+                401 -> "Unauthorized"
+                404 -> "Not Found"
+                405 -> "Method Not Allowed"
+                416 -> "Range Not Satisfiable"
+                else -> "OK"
             }
-            append("\r\n")
-        }.toByteArray(Charsets.US_ASCII)
-        out.write(headerBytes)
-        if (sized.sendBody) {
-            val path = sized.filePath
-            if (path != null) {
-                openLanStream(path)?.use { input ->
-                    val length = sized.byteLength
-                    if (length != null) {
-                        copyLanRange(input, out, sized.byteStart, length)
-                    } else {
-                        input.copyTo(out)
-                    }
+            val headers = LinkedHashMap<String, String>()
+            headers["Content-Type"] = ready.contentType
+            headers.putAll(ready.headers)
+            if (!headers.containsKey("Content-Length")) {
+                headers["Content-Length"] = ready.body.size.toString()
+            }
+            headers["Connection"] = "close"
+            val headerBytes = buildString {
+                append("HTTP/1.1 ${ready.status} $reason\r\n")
+                for ((name, value) in headers) {
+                    append("$name: $value\r\n")
                 }
-            } else {
-                out.write(sized.body)
+                append("\r\n")
+            }.toByteArray(Charsets.US_ASCII)
+            out.write(headerBytes)
+            if (ready.sendBody) {
+                if (stream != null && ready.filePath != null) {
+                    val length = ready.byteLength
+                    if (length != null) {
+                        copyLanRange(stream, out, ready.byteStart, length)
+                    } else {
+                        stream.copyTo(out)
+                    }
+                } else {
+                    out.write(ready.body)
+                }
             }
+            out.flush()
+        } finally {
+            stream?.close()
         }
-        out.flush()
     }
 
     private fun lanLocationExists(path: String): Boolean = lanLocationLength(path) >= 0
@@ -237,7 +241,11 @@ class LanShareService : Service() {
             }
         }
         if (!lanFileIsRegular(location)) return null
-        return Files.newInputStream(java.io.File(location).toPath(), LinkOption.NOFOLLOW_LINKS)
+        return try {
+            Files.newInputStream(java.io.File(location).toPath(), LinkOption.NOFOLLOW_LINKS)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun bindLanServer(ip: String): ServerSocket? {

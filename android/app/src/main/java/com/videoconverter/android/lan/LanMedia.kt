@@ -1,5 +1,10 @@
 package com.videoconverter.android.lan
 
+import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.documentExtension
+import com.videoconverter.android.domain.isDocumentPreset
+import com.videoconverter.android.domain.resolveConfig
+
 enum class LanPreviewKind { Video, Audio, Pdf, Image, File }
 
 fun lanPreviewKind(fileName: String): LanPreviewKind = when (fileName.substringAfterLast('.', "").lowercase()) {
@@ -42,6 +47,24 @@ fun lanContentDisposition(fileName: String, inline: Boolean = false): String {
 fun isLanContentLocation(location: String): Boolean =
     location.startsWith("content:", ignoreCase = true)
 
+internal fun lanPreviewFileName(path: String, job: Job): String {
+    val base = java.io.File(path).name
+    val extension = base.substringAfterLast('.', "")
+    val needsOutputExtension = isLanContentLocation(path) || extension.isBlank()
+    if (!needsOutputExtension) return base
+    val outputExtension = previewExtensionFromOutput(job)
+    if (!outputExtension.isNullOrBlank()) return "file.$outputExtension"
+    if ('.' in job.displayName) return job.displayName
+    return base
+}
+
+private fun previewExtensionFromOutput(job: Job): String? =
+    if (isDocumentPreset(job.config.preset)) {
+        documentExtension(job.config.preset, job.config.container)
+    } else {
+        resolveConfig(job.config).getOrNull()?.container
+    }
+
 sealed class LanByteRange {
     data object Whole : LanByteRange()
     data class Partial(val start: Long, val endInclusive: Long) : LanByteRange()
@@ -71,6 +94,16 @@ fun lanContentRangeValue(start: Long, endInclusive: Long, total: Long): String =
     "bytes $start-$endInclusive/$total"
 
 fun lanUnsatisfiableContentRange(total: Long): String = "bytes */$total"
+
+fun lanReadyFileResponse(sized: LanHttpResponse, opened: Boolean): LanHttpResponse {
+    if (sized.filePath == null || opened) return sized
+    return LanHttpResponse(
+        status = 404,
+        contentType = "text/plain; charset=utf-8",
+        body = "Not Found".toByteArray(Charsets.UTF_8),
+        sendBody = sized.sendBody,
+    )
+}
 
 fun applyLanResponseRange(response: LanHttpResponse, total: Long): LanHttpResponse {
     if (response.filePath == null) return response

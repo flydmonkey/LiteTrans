@@ -44,6 +44,28 @@ class LanHttpWriteTest {
     }
 
     @Test
+    fun openFailureBecomes404BeforeHeaders() {
+        val failed = lanReadyFileResponse(base, opened = false)
+        assertEquals(404, failed.status)
+        assertEquals("text/plain; charset=utf-8", failed.contentType)
+        assertEquals("Not Found", String(failed.body, Charsets.UTF_8))
+        assertNull(failed.filePath)
+        assertEquals(true, failed.sendBody)
+
+        val headFailed = lanReadyFileResponse(base.copy(sendBody = false), opened = false)
+        assertEquals(404, headFailed.status)
+        assertEquals(false, headFailed.sendBody)
+
+        val kept = lanReadyFileResponse(base.copy(status = 206), opened = true)
+        assertEquals(206, kept.status)
+        assertEquals("/tmp/a.mp4", kept.filePath)
+
+        val memory = lanReadyFileResponse(base.copy(filePath = null, body = "ok".toByteArray()), opened = false)
+        assertEquals(200, memory.status)
+        assertEquals("ok", String(memory.body, Charsets.UTF_8))
+    }
+
+    @Test
     fun parsesRangeHeaderLine() {
         val headers = parseLanHeaderLines(listOf("Range: bytes=0-1"))
         assertEquals("bytes=0-1", headers["range"])

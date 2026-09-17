@@ -2,8 +2,6 @@ package com.videoconverter.android.lan
 
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
-import com.videoconverter.android.domain.documentExtension
-import com.videoconverter.android.domain.isDocumentPreset
 import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.ui.HistorySegment
 import com.videoconverter.android.ui.historyJobs
@@ -48,7 +46,7 @@ fun renderLanHistoryHtml(
         for ((segment, key, title) in sections) {
             append("<section data-segment=\"").append(key).append("\">")
             append("<h2>").append(escapeHtml(title)).append("</h2>")
-            val items = historyJobs(jobs, segment)
+            val items = historyJobs(jobs, segment).asReversed()
             if (items.isEmpty()) {
                 append("<p>").append(escapeHtml(lanHistoryEmptyLabel(segment, copy))).append("</p>")
             } else {
@@ -169,24 +167,6 @@ private fun StringBuilder.appendOpenableItem(
     append("</div>")
     return true
 }
-
-private fun lanPreviewFileName(path: String, job: Job): String {
-    val base = java.io.File(path).name
-    val extension = base.substringAfterLast('.', "")
-    val needsOutputExtension = isLanContentLocation(path) || extension.isBlank()
-    if (!needsOutputExtension) return base
-    val outputExtension = previewExtensionFromOutput(job)
-    if (!outputExtension.isNullOrBlank()) return "file.$outputExtension"
-    if ('.' in job.displayName) return job.displayName
-    return base
-}
-
-private fun previewExtensionFromOutput(job: Job): String? =
-    if (isDocumentPreset(job.config.preset)) {
-        documentExtension(job.config.preset, job.config.container)
-    } else {
-        resolveConfig(job.config).getOrNull()?.container
-    }
 
 private fun LanPreviewKind.wireName(): String = when (this) {
     LanPreviewKind.Video -> "video"

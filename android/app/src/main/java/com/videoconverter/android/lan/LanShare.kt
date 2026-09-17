@@ -107,8 +107,7 @@ fun resolveLanDownload(
     val paths = jobOutputPaths(job)
     val path = paths.getOrNull(index) ?: return null
     if (!exists(path)) return null
-    val base = java.io.File(path).name.ifBlank { job.displayName }
-    val downloadName = if (base.contains('.')) base else job.displayName
+    val downloadName = lanPreviewFileName(path, job)
     return LanDownloadTarget(path, downloadName, lanContentType(downloadName))
 }
 
