@@ -15,6 +15,14 @@ class OutputStoreTest {
     }
 
     @Test
+    fun mediaStoreRelativePathsMatchDestinationChoices() {
+        assertEquals("DCIM/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Gallery))
+        assertEquals("Movies/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Movies))
+        assertEquals("Download/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Downloads))
+        assertEquals("Download/轻转码", defaultRelativePath())
+    }
+
+    @Test
     fun zeroUpdatedRowsFailsMediaStorePublish() {
         val error = assertThrows(IOException::class.java) {
             requireMediaStorePublished(0)

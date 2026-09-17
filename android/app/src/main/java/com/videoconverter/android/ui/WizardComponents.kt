@@ -13,10 +13,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,7 +45,9 @@ import java.util.Locale
 data class ChipOption(val id: String, val title: String, val hint: String)
 
 fun outputFolderLabel(context: Context, output: OutputTarget): String = when (output.kind) {
-    OutputTarget.Kind.Downloads -> "下载/轻转码"
+    OutputTarget.Kind.Gallery -> "相册"
+    OutputTarget.Kind.Movies -> "影库"
+    OutputTarget.Kind.Downloads -> "下载"
     OutputTarget.Kind.SafTree -> output.treeUri
         ?.let(Uri::parse)
         ?.let { DocumentFile.fromTreeUri(context, it)?.name }
@@ -63,37 +68,52 @@ internal fun formatClock(seconds: Double): String {
 }
 
 @Composable
-fun WizardHeader() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
+fun PageHeader(
+    title: String,
+    subtitle: String? = null,
+    leading: (@Composable () -> Unit)? = null,
+    below: (@Composable () -> Unit)? = null,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(LightTokens.Card)),
     ) {
-        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(
-                "轻转码",
-                color = Color(LightTokens.Ink),
-                fontSize = 26.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-0.8).sp,
-            )
-            Text(
-                "从一种格式转到另一种。文件只留在这台手机上。",
-                color = Color(LightTokens.Muted),
-                fontSize = 14.sp,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-        Text(
-            "不上传 · 不联网",
-            color = Color(LightTokens.Muted),
-            fontSize = 12.sp,
+        Column(
             modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(LightTokens.Chip))
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(top = 12.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            leading?.invoke()
+            Text(
+                title,
+                color = Color(LightTokens.Ink),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    color = Color(LightTokens.Muted),
+                    fontSize = 13.sp,
+                )
+            }
+            below?.invoke()
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color(LightTokens.Border)),
         )
     }
+}
+
+@Composable
+fun AppTopBar(step: WizardStep, subtitle: String) {
+    PageHeader(title = wizardScreenTitle(step), subtitle = subtitle)
 }
 
 @Composable
@@ -103,35 +123,99 @@ fun StepTabs(
     onSelect: (WizardStep) -> Unit,
 ) {
     val tabs = listOf(
-        WizardStep.Sources to "1 添加",
-        WizardStep.Format to "2 格式",
-        WizardStep.Output to "3 存放",
+        WizardStep.Sources to "添加",
+        WizardStep.Format to "格式",
+        WizardStep.Output to "存放",
     )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        tabs.forEach { (target, label) ->
-            val active = step == target
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Spacer(Modifier.weight(1f))
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(28.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (active) Color(LightTokens.Ink) else Color(LightTokens.Chip))
-                    .clickable {
-                        if (canEnterStep(target, importableCount)) onSelect(target)
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    label,
-                    color = if (active) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                    .weight(2f)
+                    .height(2.dp)
+                    .background(
+                        if (step.ordinal >= 1) Color(LightTokens.Accent) else Color(LightTokens.Chip),
+                    ),
+            )
+            Box(
+                modifier = Modifier
+                    .weight(2f)
+                    .height(2.dp)
+                    .background(
+                        if (step.ordinal >= 2) Color(LightTokens.Accent) else Color(LightTokens.Chip),
+                    ),
+            )
+            Spacer(Modifier.weight(1f))
+        }
+        Row(modifier = Modifier.fillMaxWidth()) {
+            tabs.forEachIndexed { index, (target, label) ->
+                val status = when {
+                    step == target -> StepStatus.Current
+                    step.ordinal > target.ordinal -> StepStatus.Done
+                    else -> StepStatus.Upcoming
+                }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(enabled = canEnterStep(target, importableCount)) {
+                            onSelect(target)
+                        },
+                ) {
+                    StepDot(index + 1, status)
+                    Text(
+                        label,
+                        color = if (status == StepStatus.Upcoming) {
+                            Color(LightTokens.Muted)
+                        } else {
+                            Color(LightTokens.Ink)
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = if (status == StepStatus.Current) {
+                            FontWeight.SemiBold
+                        } else {
+                            FontWeight.Medium
+                        },
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
+    }
+}
+
+private enum class StepStatus { Done, Current, Upcoming }
+
+@Composable
+private fun StepDot(number: Int, status: StepStatus) {
+    val background = when (status) {
+        StepStatus.Done -> Color(LightTokens.Accent)
+        StepStatus.Current -> Color(LightTokens.Ink)
+        StepStatus.Upcoming -> Color(LightTokens.Chip)
+    }
+    val foreground = when (status) {
+        StepStatus.Upcoming -> Color(LightTokens.Ink)
+        else -> Color(LightTokens.OnDark)
+    }
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(99.dp))
+            .background(background),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            if (status == StepStatus.Done) "✓" else number.toString(),
+            color = foreground,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -160,29 +244,146 @@ fun NoticeBar(message: String, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun Dropzone(onGallery: () -> Unit, onFiles: () -> Unit) {
+fun Dropzone(onGallery: () -> Unit, onFiles: () -> Unit, centered: Boolean = false) {
+    if (centered) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            VideoMark()
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    "添加要转码的视频",
+                    color = Color(LightTokens.Ink),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "从相册选最近拍的，或从文件夹选原片。\n一次能选好几个，文件只留在这台手机上。",
+                    color = Color(LightTokens.Muted),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                SourceChoiceCard(
+                    title = "相册",
+                    hint = "最近的视频",
+                    onClick = onGallery,
+                    emphasized = true,
+                    modifier = Modifier.weight(1f),
+                )
+                SourceChoiceCard(
+                    title = "文件",
+                    hint = "本机文件夹",
+                    onClick = onFiles,
+                    emphasized = false,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SourceChoiceCard(
+                title = "相册",
+                hint = "最近的视频",
+                onClick = onGallery,
+                emphasized = true,
+                compact = true,
+                modifier = Modifier.weight(1f),
+            )
+            SourceChoiceCard(
+                title = "文件",
+                hint = "本机文件夹",
+                onClick = onFiles,
+                emphasized = false,
+                compact = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SourceChoiceCard(
+    title: String,
+    hint: String,
+    onClick: () -> Unit,
+    emphasized: Boolean,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .dashedBorder(14.dp)
-            .background(Color(LightTokens.Card), RoundedCornerShape(14.dp))
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (emphasized) Color(LightTokens.Ink) else Color(LightTokens.Card))
+            .border(
+                1.dp,
+                if (emphasized) Color(LightTokens.Ink) else Color(LightTokens.Border),
+                RoundedCornerShape(16.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = if (compact) 14.dp else 18.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
     ) {
+        Box(
+            modifier = Modifier
+                .size(if (compact) 28.dp else 36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(
+                    if (emphasized) Color(LightTokens.Accent) else Color(LightTokens.Chip),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                if (title == "相册") "▶" else "▤",
+                color = if (emphasized) Color.White else Color(LightTokens.Ink),
+                fontSize = if (compact) 12.sp else 14.sp,
+            )
+        }
         Text(
-            "添加要转码的视频",
-            color = Color(LightTokens.Ink),
-            fontSize = 18.sp,
+            title,
+            color = if (emphasized) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
+            fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            "点这里选择，一次能选好几个",
-            color = Color(LightTokens.Muted),
-            fontSize = 14.sp,
+            hint,
+            color = if (emphasized) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
+            fontSize = 12.sp,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            InkButton("相册", onGallery)
-            InkButton("文件", onFiles)
+    }
+}
+
+@Composable
+private fun VideoMark() {
+    Box(
+        modifier = Modifier
+            .size(72.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(LightTokens.Card))
+            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(20.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(LightTokens.Accent)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("▶", color = Color.White, fontSize = 16.sp)
         }
     }
 }
@@ -313,135 +514,40 @@ fun OptionChips(
 }
 
 @Composable
-fun OutputBar(label: String, onChange: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(12.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text("输出到", color = Color(LightTokens.Ink), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text(label, color = Color(LightTokens.Muted), modifier = Modifier.padding(top = 4.dp))
-        }
-        InkButton("换个位置", onChange)
-    }
-}
-
-@Composable
-fun JobRow(
-    job: Job,
-    onCancel: () -> Unit,
-    onRetry: () -> Unit,
-    onOpen: () -> Unit,
-    onShare: () -> Unit,
+fun OutputChoiceGrid(
+    selectedId: String,
+    customHint: String?,
+    onSelect: (String) -> Unit,
 ) {
-    val active = job.status == JobStatus.Queued || job.status == JobStatus.Running
-    val progress = when (job.status) {
-        JobStatus.Completed -> 1f
-        else -> (job.progress / 100.0).toFloat().coerceIn(0f, 1f)
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(12.dp))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            "${job.displayName}  →  ${outputFileName(job.outputPath)}",
-            color = Color(LightTokens.Ink),
-            fontWeight = FontWeight.SemiBold,
-        )
-        val detail = buildString {
-            append(statusLabel(job.status))
-            if (job.status == JobStatus.Running) append(" ${kotlin.math.round(job.progress).toInt()}%")
-            if (job.status == JobStatus.Failed && !job.error.isNullOrBlank()) append(" · ${job.error}")
-        }
-        Text(detail, color = Color(LightTokens.Muted), fontSize = 13.sp)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(99.dp))
-                .background(Color(LightTokens.Chip)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .fillMaxHeight()
-                    .background(Color(LightTokens.Accent)),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (active) {
-                AccentText("取消", onCancel)
-            }
-            if (job.status == JobStatus.Failed || job.status == JobStatus.Cancelled) {
-                AccentText("再试一次", onRetry)
-            }
-            if (job.status == JobStatus.Completed) {
-                AccentText("打开", onOpen)
-                AccentText("分享", onShare)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        OUTPUT_CHOICE_CARDS.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                row.forEach { card ->
+                    val hint = if (card.id == OUTPUT_CHOICE_CUSTOM && !customHint.isNullOrBlank()) {
+                        customHint
+                    } else {
+                        card.hint
+                    }
+                    OutputChoiceCardView(
+                        title = card.title,
+                        hint = hint,
+                        selected = selectedId == card.id,
+                        onSelect = { onSelect(card.id) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun WizardDock(
-    step: WizardStep,
-    summary: String,
-    action: String,
-    actionEnabled: Boolean,
-    onBack: () -> Unit,
-    onAction: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(LightTokens.Ink))
-            .padding(start = 20.dp, top = 14.dp, end = 16.dp, bottom = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (step != WizardStep.Sources) {
-            Text(
-                "上一步",
-                color = Color(LightTokens.OnDark),
-                modifier = Modifier.clickable(onClick = onBack),
-            )
-        }
-        Text(
-            summary,
-            color = Color(LightTokens.OnDarkMuted),
-            fontSize = 13.sp,
-            modifier = Modifier.weight(1f),
-        )
-        Box(
-            modifier = Modifier
-                .widthIn(min = 96.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(LightTokens.Accent).copy(alpha = if (actionEnabled) 1f else 0.45f))
-                .clickable(enabled = actionEnabled, onClick = onAction)
-                .padding(horizontal = 22.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(action, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun PresetCard(
-    card: WizardPresetCard,
+private fun OutputChoiceCardView(
+    title: String,
+    hint: String,
     selected: Boolean,
     onSelect: () -> Unit,
     modifier: Modifier = Modifier,
@@ -458,35 +564,234 @@ private fun PresetCard(
             )
             .clickable(onClick = onSelect)
             .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            title,
+            color = if (selected) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+        )
+        Text(
+            hint,
+            color = if (selected) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
+            fontSize = 13.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun JobRow(
+    job: Job,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val active = job.status == JobStatus.Queued || job.status == JobStatus.Running
+    val progress = when (job.status) {
+        JobStatus.Completed -> 1f
+        else -> (job.progress / 100.0).toFloat().coerceIn(0f, 1f)
+    }
+    val markColor = when (job.status) {
+        JobStatus.Completed -> Color(LightTokens.Accent)
+        JobStatus.Running -> Color(LightTokens.Ink)
+        JobStatus.Failed -> Color(LightTokens.Accent)
+        else -> Color(LightTokens.Chip)
+    }
+    val markForeground = when (job.status) {
+        JobStatus.Queued, JobStatus.Cancelled -> Color(LightTokens.Ink)
+        else -> Color.White
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(LightTokens.Card))
+            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(
-                card.title,
-                color = if (selected) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-            )
-            card.badge?.let { badge ->
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(markColor),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
-                    badge,
-                    color = if (selected) Color(LightTokens.Ink) else Color.White,
-                    fontSize = 11.sp,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(if (selected) Color(0xFFE7B56A) else Color(LightTokens.Accent))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    when (job.status) {
+                        JobStatus.Completed -> "▶"
+                        JobStatus.Running -> "${kotlin.math.round(job.progress).toInt()}"
+                        JobStatus.Failed -> "!"
+                        JobStatus.Cancelled -> "–"
+                        JobStatus.Queued -> "…"
+                    },
+                    color = markForeground,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = if (job.status == JobStatus.Running) 12.sp else 14.sp,
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    historyTitle(job),
+                    color = Color(LightTokens.Ink),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    historyDetail(job, statusLabel(job.status)),
+                    color = Color(LightTokens.Muted),
+                    fontSize = 13.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        Text(
-            card.hint,
-            color = if (selected) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
-            fontSize = 13.sp,
+        if (active) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(99.dp))
+                    .background(Color(LightTokens.Chip)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .fillMaxHeight()
+                        .background(Color(LightTokens.Accent)),
+                )
+            }
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (active) AccentText("取消", onCancel)
+            if (job.status == JobStatus.Failed || job.status == JobStatus.Cancelled) {
+                AccentText("再试一次", onRetry)
+            }
+            if (job.status == JobStatus.Completed) {
+                AccentText("打开", onOpen)
+                AccentText("分享", onShare)
+                AccentText("重命名", onRename)
+            }
+            AccentText("删除", onDelete)
+        }
+    }
+}
+
+@Composable
+fun WizardDock(
+    step: WizardStep,
+    summary: String,
+    action: String,
+    actionEnabled: Boolean,
+    onBack: () -> Unit,
+    onAction: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(LightTokens.Card)),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color(LightTokens.Border)),
         )
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+        Text(summary, color = Color(LightTokens.Muted), fontSize = 13.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (step != WizardStep.Sources) {
+                ActionButton("上一步", onBack, Modifier.weight(1f), filled = false)
+                ActionButton(action, onAction, Modifier.weight(2f), filled = true, enabled = actionEnabled)
+            } else {
+                ActionButton(action, onAction, Modifier.fillMaxWidth(), filled = true, enabled = actionEnabled)
+            }
+        }
+        }
+    }
+}
+
+@Composable
+private fun PresetCard(
+    card: WizardPresetCard,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val titleColor = if (selected) Color(LightTokens.OnDark) else Color(LightTokens.Ink)
+    val hintColor = if (selected) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted)
+    Box(
+        modifier = modifier
+            .height(92.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) Color(LightTokens.Ink) else Color(LightTokens.Card))
+            .border(
+                1.dp,
+                if (selected) Color(LightTokens.Ink) else Color(LightTokens.Border),
+                RoundedCornerShape(12.dp),
+            )
+            .clickable(onClick = onSelect)
+            .padding(12.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                card.title,
+                color = titleColor,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(end = if (card.badge != null) 36.dp else 0.dp),
+            )
+            Text(
+                card.hint,
+                color = hintColor,
+                fontSize = 13.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        card.badge?.let { badge ->
+            Text(
+                badge,
+                color = if (selected) Color(LightTokens.Ink) else Color.White,
+                fontSize = 11.sp,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(if (selected) Color(0xFFE7B56A) else Color(LightTokens.Accent))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
     }
 }
 
@@ -516,15 +821,44 @@ private fun MorePresetCard(showAll: Boolean, onClick: () -> Unit, modifier: Modi
 
 @Composable
 private fun InkButton(label: String, onClick: () -> Unit) {
-    Text(
-        label,
-        color = Color(LightTokens.OnDark),
-        modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(LightTokens.Ink))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-    )
+    ActionButton(label, onClick, filled = true)
+}
+
+@Composable
+private fun ActionButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    filled: Boolean,
+    enabled: Boolean = true,
+) {
+    val background = when {
+        !enabled -> Color(LightTokens.Accent).copy(alpha = 0.4f)
+        filled -> Color(LightTokens.Accent)
+        else -> Color(LightTokens.Chip)
+    }
+    val foreground = when {
+        filled -> Color.White
+        else -> Color(LightTokens.Ink)
+    }
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(background)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = foreground,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 @Composable

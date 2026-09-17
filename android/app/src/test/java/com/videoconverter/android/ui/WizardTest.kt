@@ -1,5 +1,6 @@
 package com.videoconverter.android.ui
 
+import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.MediaInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,6 +21,38 @@ class WizardTest {
         assertEquals(WizardStep.Sources, retreatStep(WizardStep.Format))
         assertEquals(WizardStep.Format, retreatStep(WizardStep.Output))
         assertNull(retreatStep(WizardStep.Sources))
+        assertEquals("添加文件", wizardScreenTitle(WizardStep.Sources))
+        assertEquals("选择格式", wizardScreenTitle(WizardStep.Format))
+        assertEquals("存放位置", wizardScreenTitle(WizardStep.Output))
+    }
+
+    @Test
+    fun startTranscodeResetsWizardToFirstStep() {
+        val reset = resetWizardAfterStart()
+        assertEquals(WizardStep.Sources, reset.step)
+        assertFalse(reset.showAll)
+        assertNull(reset.selectedUri)
+    }
+
+    @Test
+    fun outputChoicesAreGalleryMoviesDownloadsAndCustom() {
+        assertEquals(
+            listOf("gallery", "movies", "downloads", "custom"),
+            OUTPUT_CHOICE_CARDS.map { it.id },
+        )
+        assertEquals("相册", OUTPUT_CHOICE_CARDS[0].title)
+        assertEquals("影库", OUTPUT_CHOICE_CARDS[1].title)
+        assertEquals("下载", OUTPUT_CHOICE_CARDS[2].title)
+        assertEquals("自定义", OUTPUT_CHOICE_CARDS[3].title)
+        assertEquals(OUTPUT_CHOICE_GALLERY, outputChoiceId(OutputTarget(OutputTarget.Kind.Gallery)))
+        assertEquals(OUTPUT_CHOICE_MOVIES, outputChoiceId(OutputTarget(OutputTarget.Kind.Movies)))
+        assertEquals(OUTPUT_CHOICE_DOWNLOADS, outputChoiceId(OutputTarget(OutputTarget.Kind.Downloads)))
+        assertEquals(
+            OUTPUT_CHOICE_CUSTOM,
+            outputChoiceId(OutputTarget(OutputTarget.Kind.SafTree, "content://tree")),
+        )
+        assertEquals(OutputTarget.Kind.Gallery, outputKindForChoice("gallery"))
+        assertNull(outputKindForChoice("custom"))
     }
 
     @Test

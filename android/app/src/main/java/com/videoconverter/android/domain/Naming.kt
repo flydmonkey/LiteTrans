@@ -43,3 +43,31 @@ fun allocateOutputPath(
         index++
     }
 }
+
+fun sanitizeRenameStem(raw: String): String? {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty() || trimmed.contains('/') || trimmed.contains('\\')) return null
+    val cleaned = trimmed
+        .replace(Regex("""[:*?"<>|]"""), "")
+        .replace(Regex("""\s+"""), " ")
+        .trim()
+        .trim('.')
+    val stem = cleaned.substringBeforeLast('.', cleaned).trim()
+    if (stem.isEmpty() || stem == "." || stem == "..") return null
+    return stem.take(80)
+}
+
+fun renamedFileName(displayName: String, outputPath: String?, stem: String): String {
+    val current = outputPath
+        ?.substringAfterLast('/')
+        ?.substringAfterLast('\\')
+        ?.substringBefore('?')
+        ?.takeIf { it.isNotBlank() }
+        ?: displayName
+    val ext = current.substringAfterLast('.', "").takeIf { it.isNotBlank() && !it.contains('/') }
+        ?: displayName.substringAfterLast('.', "").takeIf { it.isNotBlank() }
+        ?: ""
+    return if (ext.isBlank()) stem else "$stem.$ext"
+}
+
+fun canRenameJob(status: JobStatus): Boolean = status == JobStatus.Completed

@@ -1,5 +1,8 @@
 package com.videoconverter.android.ui
 
+import com.videoconverter.android.data.OutputTarget
+import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 
 enum class WizardStep { Sources, Format, Output }
@@ -40,6 +43,12 @@ private val CODEC_LABELS = mapOf(
     "mp3" to "MP3",
 )
 
+fun wizardScreenTitle(step: WizardStep): String = when (step) {
+    WizardStep.Sources -> "添加文件"
+    WizardStep.Format -> "选择格式"
+    WizardStep.Output -> "存放位置"
+}
+
 fun canEnterStep(step: WizardStep, importableCount: Int): Boolean =
     step == WizardStep.Sources || importableCount > 0
 
@@ -53,6 +62,46 @@ fun retreatStep(current: WizardStep): WizardStep? = when (current) {
     WizardStep.Sources -> null
     WizardStep.Format -> WizardStep.Sources
     WizardStep.Output -> WizardStep.Format
+}
+
+data class WizardReset(
+    val step: WizardStep = WizardStep.Sources,
+    val showAll: Boolean = false,
+    val selectedUri: String? = null,
+)
+
+fun resetWizardAfterStart(): WizardReset = WizardReset()
+
+const val OUTPUT_CHOICE_GALLERY = "gallery"
+const val OUTPUT_CHOICE_MOVIES = "movies"
+const val OUTPUT_CHOICE_DOWNLOADS = "downloads"
+const val OUTPUT_CHOICE_CUSTOM = "custom"
+
+data class OutputChoiceCard(
+    val id: String,
+    val title: String,
+    val hint: String,
+)
+
+val OUTPUT_CHOICE_CARDS = listOf(
+    OutputChoiceCard(OUTPUT_CHOICE_GALLERY, "相册", "在系统相册里看到"),
+    OutputChoiceCard(OUTPUT_CHOICE_MOVIES, "影库", "进手机视频库"),
+    OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, "下载", "系统下载文件夹"),
+    OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
+)
+
+fun outputChoiceId(output: OutputTarget): String = when (output.kind) {
+    OutputTarget.Kind.Gallery -> OUTPUT_CHOICE_GALLERY
+    OutputTarget.Kind.Movies -> OUTPUT_CHOICE_MOVIES
+    OutputTarget.Kind.Downloads -> OUTPUT_CHOICE_DOWNLOADS
+    OutputTarget.Kind.SafTree, OutputTarget.Kind.AppExternal -> OUTPUT_CHOICE_CUSTOM
+}
+
+fun outputKindForChoice(id: String): OutputTarget.Kind? = when (id) {
+    OUTPUT_CHOICE_GALLERY -> OutputTarget.Kind.Gallery
+    OUTPUT_CHOICE_MOVIES -> OutputTarget.Kind.Movies
+    OUTPUT_CHOICE_DOWNLOADS -> OutputTarget.Kind.Downloads
+    else -> null
 }
 
 fun collapsedPresetCards(selectedId: String, showAll: Boolean): List<WizardPresetCard> {
@@ -153,6 +202,22 @@ fun clampTrim(start: Double, end: Double, duration: Double): Pair<Double, Double
 fun outputFileName(outputPath: String?): String {
     val raw = outputPath?.substringAfterLast('/')?.substringAfterLast('\\')?.substringBefore('?')
     return raw?.takeIf { it.isNotBlank() } ?: "未命名"
+}
+
+fun historyTitle(job: Job): String {
+    val output = outputFileName(job.outputPath)
+    return if (output != "未命名") output else job.displayName
+}
+
+fun historyDetail(job: Job, status: String): String {
+    val preset = presetTitle(job.config.preset)
+    return buildString {
+        append(status)
+        if (preset.isNotBlank()) append(" · ").append(preset)
+        if (job.status == JobStatus.Failed && !job.error.isNullOrBlank()) {
+            append(" · ").append(job.error)
+        }
+    }
 }
 
 fun sourceFromLabel(media: MediaInfo): String {

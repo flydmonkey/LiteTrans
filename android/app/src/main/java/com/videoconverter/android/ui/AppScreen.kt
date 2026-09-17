@@ -8,13 +8,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,7 +30,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +60,8 @@ private val SIZE_CHIPS = listOf(
 fun AppScreen(appViewModel: AppViewModel = viewModel()) {
     val state by appViewModel.state.collectAsState()
     val context = LocalContext.current
+    var tab by remember { mutableStateOf(RootTab.Transcode) }
+    var minePage by remember { mutableStateOf(MinePage.Root) }
     var step by remember { mutableStateOf(WizardStep.Sources) }
     var showAll by remember { mutableStateOf(false) }
     var selectedUri by remember { mutableStateOf<String?>(null) }
@@ -63,6 +70,7 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
     val probing = state.sources.any { it.probing }
     val preview = state.sources.firstOrNull { it.media.sourceUri == selectedUri }?.media
         ?: state.sources.firstOrNull { itemHasDuration(it.media) }?.media
+    val versionName = remember(context) { installedVersionName(context) }
 
     val galleryPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(),
@@ -75,9 +83,21 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
     val outputPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { it?.let(appViewModel::pickOutputTree) }
+
+    fun goToHistoryAndResetWizard() {
+        val reset = resetWizardAfterStart()
+        step = reset.step
+        showAll = reset.showAll
+        selectedUri = reset.selectedUri
+        appViewModel.clearSources()
+        tab = RootTab.History
+    }
+
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { appViewModel.start() }
+    ) {
+        if (appViewModel.start()) goToHistoryAndResetWizard()
+    }
 
     fun startWithNotificationPermission() {
         val preferences = context.getSharedPreferences("ui", 0)
@@ -85,13 +105,18 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
         if (Build.VERSION.SDK_INT >= 33 && firstRequest) {
             preferences.edit().putBoolean("notificationAsked", true).apply()
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            appViewModel.start()
+        } else if (appViewModel.start()) {
+            goToHistoryAndResetWizard()
         }
     }
 
-    BackHandler(enabled = step != WizardStep.Sources) {
-        retreatStep(step)?.let { step = it }
+    val backTarget = consumeRootBack(tab, minePage, step)
+    BackHandler(enabled = backTarget != null) {
+        consumeRootBack(tab, minePage, step)?.let { next ->
+            tab = next.tab
+            minePage = next.minePage
+            step = next.wizardStep
+        }
     }
 
     Column(
@@ -100,167 +125,62 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
             .background(Color(LightTokens.Canvas))
             .statusBarsPadding(),
     ) {
-        Column(
-            modifier = Modifier.padding(start = 20.dp, top = 12.dp, end = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            WizardHeader()
-            StepTabs(step, importable) { target ->
-                if (canEnterStep(target, importable)) step = target
-            }
-            state.message?.let { NoticeBar(it, appViewModel::clearMessage) }
-        }
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
-        ) {
-            when (step) {
-                WizardStep.Sources -> {
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "添加文件",
-                                color = Color(LightTokens.Ink),
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                "预览并裁切要保留的片段",
-                                color = Color(LightTokens.Muted),
-                            )
-                        }
-                    }
-                    item {
-                        Dropzone(
-                            onGallery = {
-                                galleryPicker.launch(
-                                    PickVisualMediaRequest(
-                                        ActivityResultContracts.PickVisualMedia.VideoOnly,
-                                    ),
-                                )
-                            },
-                            onFiles = { filePicker.launch(arrayOf("video/*")) },
-                        )
-                    }
-                    items(state.sources, key = { it.media.sourceUri }) { source ->
-                        FileRow(
-                            name = source.media.displayName,
-                            line = sourceFormatLine(source.media, source.probing),
-                            selected = source.media.sourceUri == (selectedUri ?: preview?.sourceUri),
-                            importable = source.media.importable || source.probing,
-                            canRemove = state.jobs.none {
-                                it.sourceUri == source.media.sourceUri && it.status == JobStatus.Running
-                            },
-                            onOpen = {
-                                if (itemHasDuration(source.media)) selectedUri = source.media.sourceUri
-                            },
-                            onRemove = { appViewModel.remove(source.media.sourceUri) },
-                        )
-                    }
-                    if (preview != null) {
-                        item(key = "trim-${preview.sourceUri}") {
-                            TrimPanel(preview, appViewModel::updateTrim)
-                        }
-                    }
-                }
-                WizardStep.Format -> {
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "转成",
-                                color = Color(LightTokens.Ink),
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                conversionPreview(state.sources.map { it.media }, presetTitle(state.preset)),
-                                color = Color(LightTokens.Muted),
-                            )
-                        }
-                    }
-                    item {
-                        PresetGrid(
-                            cards = collapsedPresetCards(state.preset, showAll),
-                            selected = state.preset,
-                            showAll = showAll,
-                            onSelect = appViewModel::setPreset,
-                            onToggleMore = { showAll = !showAll },
-                        )
-                    }
-                    if (isCopyPreset(state.preset)) {
-                        item {
-                            Text(
-                                "不重编码只换文件外壳，画质和分辨率都保持原样。源视频编码必须能放进 MP4，不行的文件会提示改用普通转码。",
-                                color = Color(LightTokens.Muted),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(LightTokens.Card), RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                            )
-                        }
-                    } else {
-                        item {
-                            OptionChips(
-                                title = if (isAudioPreset(state.preset)) "音质" else "画质",
-                                description = if (isAudioPreset(state.preset)) {
-                                    "声音保留多少，和画面大小无关"
-                                } else {
-                                    "画质管「压得紧不紧」，分辨率管「画面有多大」。可以原画 + 1080p：画面缩小，细节尽量留着。"
-                                },
-                                options = QUALITY_CHIPS,
-                                selected = state.quality,
-                                onSelect = appViewModel::setQuality,
-                            )
-                        }
-                        if (shouldShowResolution(state.preset)) {
-                            item {
-                                OptionChips(
-                                    title = "分辨率",
-                                    description = "画面有多少像素。原尺寸就是不缩小。",
-                                    options = SIZE_CHIPS,
-                                    selected = state.size,
-                                    onSelect = appViewModel::setSize,
-                                )
-                            }
-                        }
-                    }
-                }
-                WizardStep.Output -> {
-                    item {
-                        OutputBar(
-                            label = outputFolderLabel(context, state.output),
-                            onChange = { outputPicker.launch(null) },
-                        )
-                    }
-                    if (state.jobs.any { it.status !in setOf(JobStatus.Queued, JobStatus.Running) }) {
-                        item {
-                            Text(
-                                "清空已完成",
-                                color = Color(LightTokens.Accent),
-                                modifier = Modifier.clickable(onClick = appViewModel::clearFinished),
-                            )
-                        }
-                    }
-                    items(state.jobs, key = { it.id }) { job ->
-                        JobRow(
-                            job = job,
-                            onCancel = { appViewModel.cancel(job.id) },
-                            onRetry = { appViewModel.retry(job.id) },
-                            onOpen = { launchOutput(context, appViewModel.outputIntent(job, false)) },
-                            onShare = { launchOutput(context, appViewModel.outputIntent(job, true)) },
-                        )
-                    }
+        if (tab != RootTab.Transcode) {
+            state.message?.let {
+                Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    NoticeBar(it, appViewModel::clearMessage)
                 }
             }
         }
-        Column(
-            modifier = Modifier
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-        ) {
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when (tab) {
+                RootTab.Transcode -> TranscodePane(
+                    state = state,
+                    step = step,
+                    showAll = showAll,
+                    selectedUri = selectedUri,
+                    preview = preview,
+                    importable = importable,
+                    onShowAll = { showAll = !showAll },
+                    onSelectUri = { selectedUri = it },
+                    onStep = { target -> if (canEnterStep(target, importable)) step = target },
+                    onGallery = {
+                        galleryPicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
+                        )
+                    },
+                    onFiles = { filePicker.launch(arrayOf("video/*")) },
+                    onOutput = { outputPicker.launch(null) },
+                    appViewModel = appViewModel,
+                )
+                RootTab.History -> HistoryScreen(
+                    jobs = state.jobs,
+                    onCancel = appViewModel::cancel,
+                    onRetry = appViewModel::retry,
+                    onOpen = { launchOutput(context, appViewModel.outputIntent(it, false)) },
+                    onShare = { launchOutput(context, appViewModel.outputIntent(it, true)) },
+                    onRename = { job, name -> appViewModel.rename(job.id, name) },
+                    onDelete = appViewModel::delete,
+                    onClearFinished = appViewModel::clearFinished,
+                )
+                RootTab.Mine -> MineScreen(
+                    page = minePage,
+                    versionName = versionName,
+                    onOpen = { minePage = it },
+                    onBack = { minePage = MinePage.Root },
+                )
+            }
+        }
+        if (tab == RootTab.Transcode && step == WizardStep.Format) {
+            FormatDetailPanel(
+                preset = state.preset,
+                quality = state.quality,
+                size = state.size,
+                onQuality = appViewModel::setQuality,
+                onSize = appViewModel::setSize,
+            )
+        }
+        if (tab == RootTab.Transcode) {
             WizardDock(
                 step = step,
                 summary = dockSummary(
@@ -293,6 +213,118 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                 },
             )
         }
+        RootTabBar(selected = tab) { next ->
+            minePage = minePageAfterLeavingTab(next, minePage)
+            tab = next
+        }
+    }
+}
+
+@Composable
+private fun TranscodePane(
+    state: AppUiState,
+    step: WizardStep,
+    showAll: Boolean,
+    selectedUri: String?,
+    preview: MediaInfo?,
+    importable: Int,
+    onShowAll: () -> Unit,
+    onSelectUri: (String) -> Unit,
+    onStep: (WizardStep) -> Unit,
+    onGallery: () -> Unit,
+    onFiles: () -> Unit,
+    onOutput: () -> Unit,
+    appViewModel: AppViewModel,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        PageHeader(
+            title = wizardScreenTitle(step),
+            subtitle = when (step) {
+                WizardStep.Sources -> "预览并裁切要保留的片段"
+                WizardStep.Format -> conversionPreview(
+                    state.sources.map { it.media },
+                    presetTitle(state.preset),
+                )
+                WizardStep.Output -> outputFolderLabel(LocalContext.current, state.output)
+            },
+            below = { StepTabs(step, importable, onStep) },
+        )
+        state.message?.let {
+            Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                NoticeBar(it, appViewModel::clearMessage)
+            }
+        }
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            if (step == WizardStep.Sources && state.sources.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Dropzone(onGallery = onGallery, onFiles = onFiles, centered = true)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 20.dp, bottom = 16.dp),
+                ) {
+                    when (step) {
+                        WizardStep.Sources -> {
+                            item { Dropzone(onGallery = onGallery, onFiles = onFiles) }
+                            items(state.sources, key = { it.media.sourceUri }) { source ->
+                                FileRow(
+                                    name = source.media.displayName,
+                                    line = sourceFormatLine(source.media, source.probing),
+                                    selected = source.media.sourceUri == (selectedUri ?: preview?.sourceUri),
+                                    importable = source.media.importable || source.probing,
+                                    canRemove = state.jobs.none {
+                                        it.sourceUri == source.media.sourceUri && it.status == JobStatus.Running
+                                    },
+                                    onOpen = {
+                                        if (itemHasDuration(source.media)) onSelectUri(source.media.sourceUri)
+                                    },
+                                    onRemove = { appViewModel.remove(source.media.sourceUri) },
+                                )
+                            }
+                            if (preview != null) {
+                                item(key = "trim-${preview.sourceUri}") {
+                                    TrimPanel(preview, appViewModel::updateTrim)
+                                }
+                            }
+                        }
+                        WizardStep.Format -> {
+                            item {
+                                PresetGrid(
+                                    cards = collapsedPresetCards(state.preset, showAll),
+                                    selected = state.preset,
+                                    showAll = showAll,
+                                    onSelect = appViewModel::setPreset,
+                                    onToggleMore = onShowAll,
+                                )
+                            }
+                        }
+                        WizardStep.Output -> {
+                            item {
+                                OutputChoiceGrid(
+                                    selectedId = outputChoiceId(state.output),
+                                    customHint = if (outputChoiceId(state.output) == OUTPUT_CHOICE_CUSTOM) {
+                                        outputFolderLabel(LocalContext.current, state.output)
+                                    } else {
+                                        null
+                                    },
+                                    onSelect = { id ->
+                                        if (id == OUTPUT_CHOICE_CUSTOM) onOutput()
+                                        else appViewModel.setOutputChoice(id)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -310,4 +342,90 @@ private fun trimLabel(sources: List<MediaInfo>, preview: MediaInfo?): String {
 private fun launchOutput(context: android.content.Context, intent: Intent?) {
     intent ?: return
     runCatching { context.startActivity(Intent.createChooser(intent, null)) }
+}
+
+private fun installedVersionName(context: android.content.Context): String =
+    runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+    }.getOrNull().orEmpty().ifBlank { "0.1.0" }
+
+@Composable
+private fun FormatDetailPanel(
+    preset: String,
+    quality: String,
+    size: String,
+    onQuality: (String) -> Unit,
+    onSize: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(LightTokens.Canvas))
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (isCopyPreset(preset)) {
+            Text(
+                "不重编码只换文件外壳，画质和分辨率都保持原样。源视频编码必须能放进 MP4，不行的文件会提示改用普通转码。",
+                color = Color(LightTokens.Muted),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(LightTokens.Card))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            )
+        } else {
+            CompactChips(
+                title = if (isAudioPreset(preset)) "音质" else "画质",
+                options = QUALITY_CHIPS,
+                selected = quality,
+                onSelect = onQuality,
+            )
+            if (shouldShowResolution(preset)) {
+                CompactChips(
+                    title = "分辨率",
+                    options = SIZE_CHIPS,
+                    selected = size,
+                    onSelect = onSize,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CompactChips(
+    title: String,
+    options: List<ChipOption>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, color = Color(LightTokens.Ink), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { option ->
+                val on = selected == option.id
+                Text(
+                    option.title,
+                    color = if (on) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (on) Color(LightTokens.Ink) else Color.White)
+                        .border(
+                            1.dp,
+                            if (on) Color(LightTokens.Ink) else Color(LightTokens.Border),
+                            RoundedCornerShape(10.dp),
+                        )
+                        .clickable { onSelect(option.id) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
+        }
+    }
 }
