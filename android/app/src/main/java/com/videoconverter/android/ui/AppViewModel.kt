@@ -2,6 +2,7 @@ package com.videoconverter.android.ui
 
 import android.app.Application
 import android.content.Intent
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
@@ -14,15 +15,24 @@ import com.videoconverter.android.data.SessionSettings
 import com.videoconverter.android.data.SessionStore
 import com.videoconverter.android.data.exportedLocations
 import com.videoconverter.android.data.stampJobOutputTarget
+import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
 import com.videoconverter.android.domain.canRenameJob
+import com.videoconverter.android.domain.clampPageRange
+import com.videoconverter.android.domain.defaultDocumentPreset
+import com.videoconverter.android.domain.documentExtension
+import com.videoconverter.android.domain.documentSourceKind
+import com.videoconverter.android.domain.enqueueDocumentJobs
 import com.videoconverter.android.domain.enqueueJobs
+import com.videoconverter.android.domain.isDocumentPreset
 import com.videoconverter.android.domain.renamedFileName
 import com.videoconverter.android.domain.resolveConfig
+import com.videoconverter.android.domain.sameDocumentKind
 import com.videoconverter.android.domain.sanitizeRenameStem
+import com.videoconverter.android.domain.unsupportedDocumentReason
 import com.videoconverter.android.engine.FfmpegProcess
 import com.videoconverter.android.service.TranscodeService
 import java.io.File
@@ -40,23 +50,35 @@ import kotlinx.coroutines.withContext
 data class AppUiState(
     val video: WizardSession = defaultVideoSession(),
     val audio: WizardSession = defaultAudioSession(),
+    val document: WizardSession = defaultDocumentSession(),
     val jobs: List<Job> = emptyList(),
     val message: String? = null,
 )
+
+fun AppUiState.sessions(): WizardSessions = WizardSessions(video, audio, document)
 
 enum class StartAction { StartPump, Enqueue }
 
 fun chooseStartAction(hasQueuedJobs: Boolean, sourcesChanged: Boolean): StartAction =
     if (hasQueuedJobs && !sourcesChanged) StartAction.StartPump else StartAction.Enqueue
 
-fun sourcesChangedFor(videoChanged: Boolean, audioChanged: Boolean, mode: ConvertMode): Boolean =
+fun sourcesChangedFor(
+    videoChanged: Boolean,
+    audioChanged: Boolean,
+    mode: ConvertMode,
+    documentChanged: Boolean = false,
+): Boolean =
     when (mode) {
         ConvertMode.Video -> videoChanged
         ConvertMode.Audio -> audioChanged
+        ConvertMode.Document -> documentChanged
     }
 
-fun emptyStartReason(mode: ConvertMode): String =
-    if (mode == ConvertMode.Audio) "请先添加可转码的音频" else "请先添加可转码的视频"
+fun emptyStartReason(mode: ConvertMode): String = when (mode) {
+    ConvertMode.Audio -> "请先添加可转码的音频"
+    ConvertMode.Document -> "请先添加可转换的文件"
+    ConvertMode.Video -> "请先添加可转码的视频"
+}
 
 fun applyProbedSource(media: MediaInfo, mode: ConvertMode): MediaInfo =
     if (mode == ConvertMode.Audio) restrictAudioSource(media) else media
@@ -84,8 +106,20 @@ fun sourceDisplayNameOrUntitled(queryName: String?, lastPathSegment: String?): S
     return segment ?: "未命名"
 }
 
-fun outputMimeType(config: OutputConfig): String =
-    resolveConfig(config).fold(
+fun outputMimeType(config: OutputConfig): String {
+    if (isDocumentPreset(config.preset)) {
+        return when (documentExtension(config.preset, config.container)) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "webp" -> "image/webp"
+            "bmp" -> "image/bmp"
+            "gif" -> "image/gif"
+            "pdf" -> "application/pdf"
+            "txt" -> "text/plain"
+            else -> "*/*"
+        }
+    }
+    return resolveConfig(config).fold(
         onSuccess = {
             when (it.container) {
                 "mp3" -> "audio/mpeg"
@@ -100,11 +134,18 @@ fun outputMimeType(config: OutputConfig): String =
                 "mkv" -> "video/x-matroska"
                 "webm" -> "video/webm"
                 "avi" -> "video/x-msvideo"
+                "jpg", "jpeg" -> "image/jpeg"
+                "png" -> "image/png"
+                "webp" -> "image/webp"
+                "bmp" -> "image/bmp"
+                "pdf" -> "application/pdf"
+                "txt" -> "text/plain"
                 else -> "video/*"
             }
         },
         onFailure = { "video/*" },
     )
+}
 
 internal fun configureViewIntent(intent: Intent, uri: Uri, mimeType: String): Intent =
     intent.apply {
@@ -120,7 +161,7 @@ fun resolutionBounds(size: String): Pair<Int?, Int?> = when (size) {
 }
 
 fun shouldShowResolution(preset: String): Boolean =
-    !preset.startsWith("audio-") && preset != "mp4-copy"
+    !preset.startsWith("audio-") && preset != "mp4-copy" && !isDocumentPreset(preset)
 
 fun effectiveResolution(preset: String, size: String): Pair<Int?, Int?> =
     if (shouldShowResolution(preset)) resolutionBounds(size) else null to null
@@ -158,6 +199,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
     private var videoSourcesChanged = false
     private var audioSourcesChanged = false
+    private var documentSourcesChanged = false
 
     init {
         viewModelScope.launch {
@@ -177,6 +219,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addUris(uris: List<Uri>, mode: ConvertMode) {
+        if (mode == ConvertMode.Document) {
+            addDocumentUris(uris)
+            return
+        }
         val existing = currentSession(mode).sources.map { it.media.sourceUri }.toSet()
         uris.distinctBy(Uri::toString).filterNot { it.toString() in existing }.forEach { uri ->
             takeReadPermission(uri)
@@ -235,6 +281,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         markSourcesChanged(mode, true)
     }
 
+    fun setContainer(container: String, mode: ConvertMode) {
+        updateSession(mode) { it.copy(container = container) }
+        markSourcesChanged(mode, true)
+    }
+
     fun setPreset(preset: String, mode: ConvertMode) = updateSettings(mode, preset = preset)
 
     fun setQuality(quality: String, mode: ConvertMode) = updateSettings(mode, quality = quality)
@@ -266,7 +317,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun start(mode: ConvertMode): Boolean {
         val snapshot = mutableState.value
-        val session = sessionFor(snapshot.video, snapshot.audio, mode)
+        val session = sessionFor(snapshot.sessions(), mode)
         val queued = snapshot.jobs.any { it.status == JobStatus.Queued }
         if (chooseStartAction(queued, sourcesChangedFor(mode)) == StartAction.StartPump) {
             viewModelScope.launch {
@@ -283,19 +334,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return false
         }
         val bounds = effectiveResolution(session.preset, session.size)
-        val config = OutputConfig(
-            preset = session.preset,
-            quality = session.quality,
-            maxWidth = bounds.first,
-            maxHeight = bounds.second,
-        )
-        val report = enqueueJobs(
-            sources = session.sources.map { it.media },
-            config = config,
-            outputDir = File(app.filesDir, "planned").absolutePath,
-            nextId = { UUID.randomUUID().toString() },
-            exists = { File(it).exists() },
-        ).getOrElse {
+        val report = if (mode == ConvertMode.Document) {
+            enqueueDocumentJobs(
+                sources = session.sources.map { item -> documentMediaForEnqueue(item.media) },
+                config = OutputConfig(
+                    preset = session.preset,
+                    quality = session.quality,
+                    container = session.container,
+                ),
+                outputDir = File(app.filesDir, "planned").absolutePath,
+                nextId = { UUID.randomUUID().toString() },
+                exists = { File(it).exists() },
+            )
+        } else {
+            enqueueJobs(
+                sources = session.sources.map { it.media },
+                config = OutputConfig(
+                    preset = session.preset,
+                    quality = session.quality,
+                    maxWidth = bounds.first,
+                    maxHeight = bounds.second,
+                ),
+                outputDir = File(app.filesDir, "planned").absolutePath,
+                nextId = { UUID.randomUUID().toString() },
+                exists = { File(it).exists() },
+            )
+        }.getOrElse {
             mutableState.value = snapshot.copy(message = it.message ?: "无法创建转码任务")
             return false
         }
@@ -396,34 +460,145 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         mutableState.value = mutableState.value.copy(message = null)
     }
 
+    private fun addDocumentUris(uris: List<Uri>) {
+        val session = currentSession(ConvertMode.Document)
+        val existingUris = session.sources.map { it.media.sourceUri }.toSet()
+        val acceptedNames = session.sources.map { it.media.displayName }.toMutableList()
+        val accepted = mutableListOf<Uri>()
+        var mixed = false
+        uris.distinctBy(Uri::toString).filterNot { it.toString() in existingUris }.forEach { uri ->
+            val name = displayName(uri)
+            if (!sameDocumentKind(acceptedNames, name)) {
+                mixed = true
+            } else {
+                accepted += uri
+                acceptedNames += name
+            }
+        }
+        if (mixed) {
+            mutableState.value = mutableState.value.copy(message = "请一次只加同一种文件")
+        }
+        if (accepted.isEmpty()) return
+        val previousKind = documentKindOf(session.sources)
+        accepted.forEach { uri ->
+            takeReadPermission(uri)
+            val placeholder = MediaInfo(
+                sourceUri = uri.toString(),
+                displayName = displayName(uri),
+            )
+            updateSession(ConvertMode.Document) { current ->
+                alignDocumentSession(
+                    current.copy(sources = current.sources + SourceItem(placeholder, probing = true)),
+                    previousKind,
+                )
+            }
+            if (!mixed) {
+                mutableState.value = mutableState.value.copy(message = null)
+            }
+            markSourcesChanged(ConvertMode.Document, true)
+            viewModelScope.launch {
+                val probed = probeSlots.withPermit { probeDocument(uri, placeholder.displayName) }
+                updateSession(ConvertMode.Document) { current ->
+                    current.copy(
+                        sources = current.sources.map {
+                            if (it.media.sourceUri == uri.toString()) SourceItem(probed, false) else it
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    private fun probeDocument(uri: Uri, displayName: String): MediaInfo {
+        val kind = documentSourceKind(displayName)
+        val unsupported = unsupportedDocumentReason(displayName)
+        if (kind == null || unsupported != null) {
+            return MediaInfo(
+                sourceUri = uri.toString(),
+                displayName = displayName,
+                importable = false,
+                error = unsupported ?: "不支持此格式",
+            )
+        }
+        return when (kind) {
+            DocumentSourceKind.Pdf -> probePdf(uri, displayName)
+            DocumentSourceKind.Image, DocumentSourceKind.Word, DocumentSourceKind.Excel ->
+                MediaInfo(
+                    sourceUri = uri.toString(),
+                    displayName = displayName,
+                    importable = true,
+                )
+        }
+    }
+
+    private fun probePdf(uri: Uri, displayName: String): MediaInfo =
+        runCatching {
+            app.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                PdfRenderer(pfd).use { renderer ->
+                    val count = renderer.pageCount
+                    require(count >= 1)
+                    MediaInfo(
+                        sourceUri = uri.toString(),
+                        displayName = displayName,
+                        importable = true,
+                        pageCount = count,
+                        pageStart = 1,
+                        pageEnd = count,
+                    )
+                }
+            } ?: error("无法读取页数")
+        }.getOrElse {
+            MediaInfo(
+                sourceUri = uri.toString(),
+                displayName = displayName,
+                importable = false,
+                error = "无法读取页数",
+            )
+        }
+
     private fun updateSession(mode: ConvertMode, transform: (WizardSession) -> WizardSession) {
         val snapshot = mutableState.value
-        val current = sessionFor(snapshot.video, snapshot.audio, mode)
-        val (video, audio) = replaceSession(snapshot.video, snapshot.audio, mode, transform(current))
-        mutableState.value = snapshot.copy(video = video, audio = audio)
+        val current = sessionFor(snapshot.sessions(), mode)
+        val next = replaceSession(snapshot.sessions(), mode, transform(current))
+        mutableState.value = snapshot.copy(video = next.video, audio = next.audio, document = next.document)
     }
 
     private fun currentSession(mode: ConvertMode): WizardSession {
         val snapshot = mutableState.value
-        return sessionFor(snapshot.video, snapshot.audio, mode)
+        return sessionFor(snapshot.sessions(), mode)
     }
 
     private fun markSourcesChanged(mode: ConvertMode, changed: Boolean) {
         when (mode) {
             ConvertMode.Video -> videoSourcesChanged = changed
             ConvertMode.Audio -> audioSourcesChanged = changed
+            ConvertMode.Document -> documentSourcesChanged = changed
         }
     }
 
     private fun sourcesChangedFor(mode: ConvertMode): Boolean =
-        sourcesChangedFor(videoSourcesChanged, audioSourcesChanged, mode)
+        sourcesChangedFor(videoSourcesChanged, audioSourcesChanged, mode, documentSourcesChanged)
 
     private fun updateSettings(mode: ConvertMode, preset: String? = null, quality: String? = null) {
         updateSession(mode) { session ->
-            session.copy(
-                preset = preset ?: session.preset,
+            val nextPreset = preset ?: session.preset
+            var next = session.copy(
+                preset = nextPreset,
                 quality = quality ?: session.quality,
             )
+            if (mode == ConvertMode.Document) {
+                val container = when (nextPreset) {
+                    "pdf-image" -> session.container?.takeIf { it in IMAGE_OUTPUT_CONTAINERS } ?: "jpg"
+                    else -> session.container
+                }
+                val output = if (next.output.kind in allowedDocumentOutputKinds(nextPreset)) {
+                    next.output
+                } else {
+                    defaultDocumentOutput(nextPreset)
+                }
+                next = next.copy(container = container, output = output)
+            }
+            next
         }
         persistSettings(mode)
         markSourcesChanged(mode, true)
@@ -482,4 +657,31 @@ private fun sizeFor(width: Int?, height: Int?): String = when (width to height) 
     1280 to 720 -> "720p"
     854 to 480 -> "480p"
     else -> "original"
+}
+
+private val IMAGE_OUTPUT_CONTAINERS = setOf("jpg", "png", "webp")
+
+private fun alignDocumentSession(
+    session: WizardSession,
+    previousKind: DocumentSourceKind?,
+): WizardSession {
+    val kind = documentKindOf(session.sources) ?: return session
+    if (kind == previousKind) return session
+    val preset = defaultDocumentPreset(kind)
+    val output = if (session.output.kind in allowedDocumentOutputKinds(preset)) {
+        session.output
+    } else {
+        defaultDocumentOutput(preset)
+    }
+    val container = when (preset) {
+        "pdf-image", "image-jpg" -> session.container?.takeIf { it in IMAGE_OUTPUT_CONTAINERS } ?: "jpg"
+        else -> session.container
+    }
+    return session.copy(preset = preset, output = output, container = container)
+}
+
+private fun documentMediaForEnqueue(media: MediaInfo): MediaInfo {
+    val pages = media.pageCount ?: return media
+    val (start, end) = clampPageRange(media.pageStart ?: 1, media.pageEnd ?: pages, pages)
+    return media.copy(pageStart = start, pageEnd = end)
 }

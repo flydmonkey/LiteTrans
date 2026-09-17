@@ -48,10 +48,13 @@ class AppViewModelTest {
         val state = AppUiState()
         assertEquals(SessionStore.DEFAULT_PRESET, state.video.preset)
         assertEquals("audio-mp3", state.audio.preset)
+        assertEquals("image-jpg", state.document.preset)
         assertEquals(OutputTarget.Kind.Downloads, state.video.output.kind)
         assertEquals(OutputTarget.Kind.Music, state.audio.output.kind)
+        assertEquals(OutputTarget.Kind.Gallery, state.document.output.kind)
         assertTrue(state.video.sources.isEmpty())
         assertTrue(state.audio.sources.isEmpty())
+        assertTrue(state.document.sources.isEmpty())
     }
 
     @Test
@@ -106,6 +109,10 @@ class AppViewModelTest {
         assertEquals("FLAC", presetTitle("audio-flac"))
         assertEquals("OGG · Opus", presetTitle("audio-ogg"))
         assertEquals("AMR", presetTitle("audio-amr"))
+        assertEquals("转 TXT", presetTitle("pdf-txt"))
+        assertFalse(shouldShowResolution("pdf-txt"))
+        assertFalse(shouldShowResolution("image-jpg"))
+        assertFalse(shouldShowResolution("office-pdf"))
     }
 
     @Test

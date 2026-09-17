@@ -103,7 +103,11 @@ private fun HistorySegmentTabs(
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
-        listOf(HistorySegment.Video to "视频", HistorySegment.Audio to "音频").forEach { (target, label) ->
+        listOf(
+            HistorySegment.Video to "视频",
+            HistorySegment.Audio to "音频",
+            HistorySegment.Document to "文档",
+        ).forEach { (target, label) ->
             val on = segment == target
             Column(
                 modifier = Modifier.clickable { onSegment(target) },
@@ -363,6 +367,34 @@ private fun TabGlyph(tab: RootTab, selected: Boolean) {
                     close()
                 }
                 drawPath(play, color, style = Fill)
+            }
+            RootTab.Document -> {
+                val left = 5.dp.toPx()
+                val top = 3.dp.toPx()
+                val width = 12.dp.toPx()
+                val height = 16.dp.toPx()
+                val fold = 4.5.dp.toPx()
+                val page = Path().apply {
+                    moveTo(left, top)
+                    lineTo(left + width - fold, top)
+                    lineTo(left + width, top + fold)
+                    lineTo(left + width, top + height)
+                    lineTo(left, top + height)
+                    close()
+                }
+                drawPath(page, color, style = stroke)
+                drawLine(
+                    color = color,
+                    start = Offset(left + width - fold, top),
+                    end = Offset(left + width - fold, top + fold),
+                    strokeWidth = 1.7.dp.toPx(),
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(left + width - fold, top + fold),
+                    end = Offset(left + width, top + fold),
+                    strokeWidth = 1.7.dp.toPx(),
+                )
             }
             RootTab.Audio -> {
                 val head = Offset(center.x - 4.dp.toPx(), center.y + 5.dp.toPx())

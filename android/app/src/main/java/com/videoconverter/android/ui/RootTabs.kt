@@ -5,7 +5,7 @@ import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.isDocumentPreset
 import com.videoconverter.android.domain.resolveConfig
 
-enum class RootTab { Transcode, Audio, History, Mine }
+enum class RootTab { Transcode, Audio, Document, History, Mine }
 
 enum class HistorySegment { Video, Audio, Document }
 
@@ -22,6 +22,7 @@ data class RootBack(
 fun rootTabLabel(tab: RootTab): String = when (tab) {
     RootTab.Transcode -> "视频转码"
     RootTab.Audio -> "音频转换"
+    RootTab.Document -> "文档"
     RootTab.History -> "历史记录"
     RootTab.Mine -> "我的"
 }
@@ -85,7 +86,7 @@ fun remainingJobsAfterClearFinished(jobs: List<Job>, segment: HistorySegment): L
     }
 
 fun historySegmentAfterEnqueue(mode: ConvertMode, preset: String): HistorySegment = when {
-    isDocumentPreset(preset) -> HistorySegment.Document
+    mode == ConvertMode.Document || isDocumentPreset(preset) -> HistorySegment.Document
     mode == ConvertMode.Audio || isAudioPreset(preset) -> HistorySegment.Audio
     else -> HistorySegment.Video
 }
@@ -97,7 +98,7 @@ fun consumeRootBack(
 ): RootBack? = when {
     tab == RootTab.Mine && minePage != MinePage.Root ->
         RootBack(tab, MinePage.Root, wizardStep)
-    tab == RootTab.Transcode || tab == RootTab.Audio ->
+    tab == RootTab.Transcode || tab == RootTab.Audio || tab == RootTab.Document ->
         retreatStep(wizardStep)?.let { RootBack(tab, minePage, it) }
     else -> null
 }

@@ -14,7 +14,7 @@ class RootTabsTest {
     @Test
     fun tabLabelsMatchProductCopy() {
         assertEquals(
-            listOf("视频转码", "音频转换", "历史记录", "我的"),
+            listOf("视频转码", "音频转换", "文档", "历史记录", "我的"),
             RootTab.entries.map(::rootTabLabel),
         )
     }
@@ -117,6 +117,14 @@ class RootTabsTest {
         assertEquals(
             HistorySegment.Audio,
             historySegmentAfterEnqueue(ConvertMode.Video, "audio-mp3"),
+        )
+        assertEquals(
+            RootBack(RootTab.Document, MinePage.Root, WizardStep.Sources),
+            consumeRootBack(RootTab.Document, MinePage.Root, WizardStep.Format),
+        )
+        assertEquals(
+            HistorySegment.Document,
+            historySegmentAfterEnqueue(ConvertMode.Document, "image-jpg"),
         )
     }
 

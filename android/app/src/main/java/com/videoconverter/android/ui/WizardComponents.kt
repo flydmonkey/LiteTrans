@@ -252,9 +252,10 @@ fun Dropzone(
     onMusic: (() -> Unit)? = null,
     centered: Boolean = false,
     audioMode: Boolean = false,
+    documentMode: Boolean = false,
 ) {
     val cards: @Composable (Boolean) -> Unit = { compact ->
-        val gap = if (audioMode) 8.dp else 12.dp
+        val gap = if (audioMode || documentMode) 8.dp else 12.dp
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(gap),
@@ -271,7 +272,7 @@ fun Dropzone(
             }
             SourceChoiceCard(
                 title = "相册",
-                hint = "最近的视频",
+                hint = if (documentMode) "最近的图片" else "最近的视频",
                 onClick = onGallery,
                 emphasized = !audioMode,
                 compact = compact,
@@ -293,22 +294,30 @@ fun Dropzone(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            if (audioMode) MusicMark() else VideoMark()
+            when {
+                audioMode -> MusicMark()
+                documentMode -> DocumentMark()
+                else -> VideoMark()
+            }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    if (audioMode) "添加要转换的音频" else "添加要转码的视频",
+                    when {
+                        audioMode -> "添加要转换的音频"
+                        documentMode -> "添加要转换的文件"
+                        else -> "添加要转码的视频"
+                    },
                     color = Color(LightTokens.Ink),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    if (audioMode) {
-                        "从音乐库选曲子，从相册抽视频音轨，或从文件夹选文件。"
-                    } else {
-                        "从相册选最近拍的，或从文件夹选原片。\n一次能选好几个，文件只留在这台手机上。"
+                    when {
+                        audioMode -> "从音乐库选曲子，从相册抽视频音轨，或从文件夹选文件。"
+                        documentMode -> "从相册选图片，或从文件夹选 PDF、Word、Excel。\n一次只加同一种文件，文件只留在这台手机上。"
+                        else -> "从相册选最近拍的，或从文件夹选原片。\n一次能选好几个，文件只留在这台手机上。"
                     },
                     color = Color(LightTokens.Muted),
                     fontSize = 13.sp,
@@ -396,6 +405,28 @@ private fun MusicMark() {
             contentAlignment = Alignment.Center,
         ) {
             Text("♪", color = Color.White, fontSize = 16.sp)
+        }
+    }
+}
+
+@Composable
+private fun DocumentMark() {
+    Box(
+        modifier = Modifier
+            .size(72.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(LightTokens.Card))
+            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(20.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(LightTokens.Accent)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("▤", color = Color.White, fontSize = 16.sp)
         }
     }
 }

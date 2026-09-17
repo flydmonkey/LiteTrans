@@ -40,9 +40,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.videoconverter.android.data.OutputTarget
+import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.documentSourceKind
 import com.videoconverter.android.ui.theme.LightTokens
+
+private val DOCUMENT_FILE_MIMES = arrayOf(
+    "image/*",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+)
+
+private val DOCUMENT_FORMAT_CHIPS = listOf(
+    ChipOption("jpg", "JPG", "兼容性最好"),
+    ChipOption("png", "PNG", "无损"),
+    ChipOption("webp", "WebP", "体积更小"),
+)
+
+private val COMPRESS_QUALITY_CHIPS = listOf(
+    ChipOption("high", "高", "尽量保留细节"),
+    ChipOption("standard", "标准", "一般观看够用"),
+    ChipOption("small", "更小", "文件更小"),
+)
 
 private val QUALITY_CHIPS = listOf(
     ChipOption("original", "原画", "尽量保留细节"),
@@ -69,26 +90,56 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
     var audioStep by remember { mutableStateOf(WizardStep.Sources) }
     var audioShowAll by remember { mutableStateOf(false) }
     var audioSelectedUri by remember { mutableStateOf<String?>(null) }
+    var documentStep by remember { mutableStateOf(WizardStep.Sources) }
+    var documentShowAll by remember { mutableStateOf(false) }
+    var documentSelectedUri by remember { mutableStateOf<String?>(null) }
     var historySegment by remember { mutableStateOf(HistorySegment.Video) }
     var pickerMode by remember { mutableStateOf(ConvertMode.Video) }
     var pendingStartMode by remember { mutableStateOf(ConvertMode.Video) }
     val videoImportable = state.video.sources.count { it.media.importable }
     val audioImportable = state.audio.sources.count { it.media.importable }
+    val documentImportable = state.document.sources.count { it.media.importable }
     val transcoding = state.jobs.any { it.status == JobStatus.Queued || it.status == JobStatus.Running }
     val videoProbing = state.video.sources.any { it.probing }
     val audioProbing = state.audio.sources.any { it.probing }
+    val documentProbing = state.document.sources.any { it.probing }
     val videoPreview = state.video.sources.firstOrNull { it.media.sourceUri == selectedUri }?.media
         ?: state.video.sources.firstOrNull { itemHasDuration(it.media) }?.media
     val audioPreview = state.audio.sources.firstOrNull { it.media.sourceUri == audioSelectedUri }?.media
         ?: state.audio.sources.firstOrNull { itemHasDuration(it.media) }?.media
+    val documentPreview = state.document.sources.firstOrNull { it.media.sourceUri == documentSelectedUri }?.media
+        ?: state.document.sources.firstOrNull {
+            documentSourceKind(it.media.displayName) in setOf(DocumentSourceKind.Pdf, DocumentSourceKind.Image)
+        }?.media
     val versionName = remember(context) { installedVersionName(context) }
     val audioMode = tab == RootTab.Audio
-    val currentMode = if (audioMode) ConvertMode.Audio else ConvertMode.Video
-    val currentStep = if (audioMode) audioStep else step
-    val currentSession = sessionFor(state.video, state.audio, currentMode)
-    val currentImportable = if (audioMode) audioImportable else videoImportable
-    val currentProbing = if (audioMode) audioProbing else videoProbing
-    val currentPreview = if (audioMode) audioPreview else videoPreview
+    val documentMode = tab == RootTab.Document
+    val currentMode = when (tab) {
+        RootTab.Audio -> ConvertMode.Audio
+        RootTab.Document -> ConvertMode.Document
+        else -> ConvertMode.Video
+    }
+    val currentStep = when (tab) {
+        RootTab.Audio -> audioStep
+        RootTab.Document -> documentStep
+        else -> step
+    }
+    val currentSession = sessionFor(state.sessions(), currentMode)
+    val currentImportable = when (tab) {
+        RootTab.Audio -> audioImportable
+        RootTab.Document -> documentImportable
+        else -> videoImportable
+    }
+    val currentProbing = when (tab) {
+        RootTab.Audio -> audioProbing
+        RootTab.Document -> documentProbing
+        else -> videoProbing
+    }
+    val currentPreview = when (tab) {
+        RootTab.Audio -> audioPreview
+        RootTab.Document -> documentPreview
+        else -> videoPreview
+    }
 
     val galleryPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(),
@@ -113,9 +164,14 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                 audioShowAll = reset.showAll
                 audioSelectedUri = reset.selectedUri
             }
+            ConvertMode.Document -> {
+                documentStep = reset.step
+                documentShowAll = reset.showAll
+                documentSelectedUri = reset.selectedUri
+            }
         }
         appViewModel.clearSources(mode)
-        val preset = sessionFor(state.video, state.audio, mode).preset
+        val preset = sessionFor(state.sessions(), mode).preset
         historySegment = historySegmentAfterEnqueue(mode, preset)
         tab = RootTab.History
     }
@@ -145,6 +201,7 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
             minePage = next.minePage
             when (next.tab) {
                 RootTab.Audio -> audioStep = next.wizardStep
+                RootTab.Document -> documentStep = next.wizardStep
                 else -> step = next.wizardStep
             }
         }
@@ -156,7 +213,7 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
             .background(Color(LightTokens.Canvas))
             .statusBarsPadding(),
     ) {
-        if (tab != RootTab.Transcode && tab != RootTab.Audio) {
+        if (tab != RootTab.Transcode && tab != RootTab.Audio && tab != RootTab.Document) {
             state.message?.let {
                 Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                     NoticeBar(it, appViewModel::clearMessage)
@@ -223,6 +280,33 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                     },
                     appViewModel = appViewModel,
                 )
+                RootTab.Document -> TranscodePane(
+                    mode = ConvertMode.Document,
+                    state = state,
+                    step = documentStep,
+                    showAll = documentShowAll,
+                    selectedUri = documentSelectedUri,
+                    preview = documentPreview,
+                    importable = documentImportable,
+                    onShowAll = { documentShowAll = !documentShowAll },
+                    onSelectUri = { documentSelectedUri = it },
+                    onStep = { target -> if (canEnterStep(target, documentImportable)) documentStep = target },
+                    onGallery = {
+                        pickerMode = ConvertMode.Document
+                        galleryPicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    },
+                    onFiles = {
+                        pickerMode = ConvertMode.Document
+                        filePicker.launch(DOCUMENT_FILE_MIMES)
+                    },
+                    onOutput = {
+                        pickerMode = ConvertMode.Document
+                        outputPicker.launch(null)
+                    },
+                    appViewModel = appViewModel,
+                )
                 RootTab.History -> HistoryScreen(
                     segment = historySegment,
                     onSegment = { historySegment = it },
@@ -243,16 +327,20 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                 )
             }
         }
-        if ((tab == RootTab.Transcode || tab == RootTab.Audio) && currentStep == WizardStep.Format) {
+        if ((tab == RootTab.Transcode || tab == RootTab.Audio || tab == RootTab.Document) &&
+            currentStep == WizardStep.Format
+        ) {
             FormatDetailPanel(
                 preset = currentSession.preset,
                 quality = currentSession.quality,
                 size = currentSession.size,
+                container = currentSession.container,
                 onQuality = { appViewModel.setQuality(it, currentMode) },
                 onSize = { appViewModel.setSize(it, currentMode) },
+                onContainer = { appViewModel.setContainer(it, currentMode) },
             )
         }
-        if (tab == RootTab.Transcode || tab == RootTab.Audio) {
+        if (tab == RootTab.Transcode || tab == RootTab.Audio || tab == RootTab.Document) {
             WizardDock(
                 step = currentStep,
                 summary = dockSummary(
@@ -271,12 +359,14 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                     ),
                     audioMode = audioMode,
                     losslessAudio = isLosslessAudioPreset(currentSession.preset),
+                    documentMode = documentMode,
+                    pageRangeLabel = pageRangeLabel(currentSession.sources.map { it.media }),
                 ),
                 action = dockActionLabel(
                     currentStep,
                     busy = false,
                     transcoding = transcoding,
-                    startLabel = if (audioMode) "开始转换" else "开始转码",
+                    startLabel = if (audioMode || documentMode) "开始转换" else "开始转码",
                 ),
                 actionEnabled = when (currentStep) {
                     WizardStep.Sources, WizardStep.Format -> currentImportable > 0 && !currentProbing
@@ -286,14 +376,22 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                 },
                 onBack = {
                     retreatStep(currentStep)?.let { next ->
-                        if (audioMode) audioStep = next else step = next
+                        when {
+                            audioMode -> audioStep = next
+                            documentMode -> documentStep = next
+                            else -> step = next
+                        }
                     }
                 },
                 onAction = {
                     when (currentStep) {
                         WizardStep.Sources, WizardStep.Format ->
                             advanceStep(currentStep, currentImportable)?.let { next ->
-                                if (audioMode) audioStep = next else step = next
+                                when {
+                                    audioMode -> audioStep = next
+                                    documentMode -> documentStep = next
+                                    else -> step = next
+                                }
                             }
                         WizardStep.Output -> startWithNotificationPermission(currentMode)
                     }
@@ -325,13 +423,15 @@ private fun TranscodePane(
     appViewModel: AppViewModel,
     onMusic: (() -> Unit)? = null,
 ) {
-    val session = sessionFor(state.video, state.audio, mode)
+    val session = sessionFor(state.sessions(), mode)
     val audioMode = mode == ConvertMode.Audio
+    val documentMode = mode == ConvertMode.Document
+    val documentKind = documentKindOf(session.sources) ?: DocumentSourceKind.Image
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(
             title = wizardScreenTitle(step),
             subtitle = when (step) {
-                WizardStep.Sources -> "预览并裁切要保留的片段"
+                WizardStep.Sources -> if (documentMode) "预览，PDF 可选择页范围" else "预览并裁切要保留的片段"
                 WizardStep.Format -> conversionPreview(
                     session.sources.map { it.media },
                     presetTitle(session.preset),
@@ -357,6 +457,7 @@ private fun TranscodePane(
                         onMusic = onMusic,
                         centered = true,
                         audioMode = audioMode,
+                        documentMode = documentMode,
                     )
                 }
             } else {
@@ -375,6 +476,7 @@ private fun TranscodePane(
                                     onFiles = onFiles,
                                     onMusic = onMusic,
                                     audioMode = audioMode,
+                                    documentMode = documentMode,
                                 )
                             }
                             items(session.sources, key = { it.media.sourceUri }) { source ->
@@ -387,12 +489,18 @@ private fun TranscodePane(
                                         it.sourceUri == source.media.sourceUri && it.status == JobStatus.Running
                                     },
                                     onOpen = {
-                                        if (itemHasDuration(source.media)) onSelectUri(source.media.sourceUri)
+                                        if (documentMode || itemHasDuration(source.media)) {
+                                            onSelectUri(source.media.sourceUri)
+                                        }
                                     },
                                     onRemove = { appViewModel.remove(source.media.sourceUri, mode) },
                                 )
                             }
-                            if (preview != null) {
+                            if (documentMode && preview != null) {
+                                item(key = "document-${preview.sourceUri}") {
+                                    DocumentSourcePreview(preview) { appViewModel.updateTrim(it, mode) }
+                                }
+                            } else if (!documentMode && preview != null) {
                                 item(key = "trim-${preview.sourceUri}") {
                                     TrimPanel(preview) { appViewModel.updateTrim(it, mode) }
                                 }
@@ -401,14 +509,14 @@ private fun TranscodePane(
                         WizardStep.Format -> {
                             item {
                                 PresetGrid(
-                                    cards = if (audioMode) {
-                                        AUDIO_PRESET_CARDS
-                                    } else {
-                                        collapsedPresetCards(session.preset, showAll)
+                                    cards = when {
+                                        audioMode -> AUDIO_PRESET_CARDS
+                                        documentMode -> documentCardsFor(documentKind)
+                                        else -> collapsedPresetCards(session.preset, showAll)
                                     },
                                     selected = session.preset,
                                     showAll = showAll,
-                                    showMore = !audioMode,
+                                    showMore = !audioMode && !documentMode,
                                     onSelect = { appViewModel.setPreset(it, mode) },
                                     onToggleMore = onShowAll,
                                 )
@@ -417,7 +525,11 @@ private fun TranscodePane(
                         WizardStep.Output -> {
                             item {
                                 OutputChoiceGrid(
-                                    cards = if (audioMode) AUDIO_OUTPUT_CHOICE_CARDS else OUTPUT_CHOICE_CARDS,
+                                    cards = when {
+                                        audioMode -> AUDIO_OUTPUT_CHOICE_CARDS
+                                        documentMode -> outputChoicesForDocument(session.preset)
+                                        else -> OUTPUT_CHOICE_CARDS
+                                    },
                                     selectedId = outputChoiceId(session.output),
                                     customHint = if (outputChoiceId(session.output) == OUTPUT_CHOICE_CUSTOM) {
                                         outputFolderLabel(LocalContext.current, session.output)
@@ -459,13 +571,29 @@ private fun installedVersionName(context: android.content.Context): String =
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull().orEmpty().ifBlank { "0.1.0" }
 
+private fun pageRangeLabel(sources: List<MediaInfo>): String {
+    val pdfs = sources.filter {
+        it.importable && documentSourceKind(it.displayName) == DocumentSourceKind.Pdf
+    }
+    if (pdfs.isEmpty()) return ""
+    if (pdfs.size == 1) {
+        val media = pdfs.first()
+        val start = media.pageStart ?: 1
+        val end = media.pageEnd ?: media.pageCount ?: start
+        return " · 第 $start–$end 页"
+    }
+    return " · ${pdfs.size} 个文件已选页"
+}
+
 @Composable
 private fun FormatDetailPanel(
     preset: String,
     quality: String,
     size: String,
+    container: String?,
     onQuality: (String) -> Unit,
     onSize: (String) -> Unit,
+    onContainer: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -476,6 +604,44 @@ private fun FormatDetailPanel(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         when {
+            preset == "office-pdf" -> {
+                Text(
+                    "简单文字和表格可以，复杂排版会对不齐",
+                    color = Color(LightTokens.Muted),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(LightTokens.Card))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                )
+            }
+            preset == "pdf-txt" -> {
+                Text(
+                    "扫描件抽不出字",
+                    color = Color(LightTokens.Muted),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(LightTokens.Card))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                )
+            }
+            preset == "pdf-image" -> {
+                CompactChips(
+                    title = "图片格式",
+                    options = DOCUMENT_FORMAT_CHIPS,
+                    selected = container ?: "jpg",
+                    onSelect = onContainer,
+                )
+            }
+            preset == "image-compress" || preset == "pdf-compress" -> {
+                CompactChips(
+                    title = "压缩",
+                    options = COMPRESS_QUALITY_CHIPS,
+                    selected = quality,
+                    onSelect = onQuality,
+                )
+            }
             isLosslessAudioPreset(preset) -> {
                 Text(
                     if (preset == "audio-flac") "无损压缩，比 WAV 小很多，播放器支持也广。"
@@ -499,6 +665,7 @@ private fun FormatDetailPanel(
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                 )
             }
+            preset.startsWith("image-") || preset.startsWith("pdf-") -> Unit
             else -> {
                 if (preset == "audio-amr") {
                     Text(

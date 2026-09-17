@@ -1,9 +1,12 @@
 package com.videoconverter.android.ui
 
 import com.videoconverter.android.data.OutputTarget
+import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.documentResultIsImage
+import com.videoconverter.android.domain.documentSourceKind
 
 enum class WizardStep { Sources, Format, Output }
 
@@ -38,6 +41,71 @@ val AUDIO_PRESET_CARDS = listOf(
     WizardPresetCard("audio-ogg", "OGG · Opus", "体积更小"),
     WizardPresetCard("audio-amr", "AMR", "通话录音常用"),
 )
+
+val IMAGE_DOCUMENT_CARDS = listOf(
+    WizardPresetCard("image-jpg", "JPG", "兼容性最好"),
+    WizardPresetCard("image-png", "PNG", "无损，文件更大"),
+    WizardPresetCard("image-webp", "WebP", "同样清晰，体积更小"),
+    WizardPresetCard("image-bmp", "BMP", "无压缩"),
+    WizardPresetCard("image-gif", "GIF", "静图，只保留一帧"),
+    WizardPresetCard("image-compress", "压缩", "尽量保持格式，缩小体积"),
+)
+
+val PDF_DOCUMENT_CARDS = listOf(
+    WizardPresetCard("pdf-image", "转图片", "每页一张图，还要选 JPG / PNG / WebP"),
+    WizardPresetCard("pdf-txt", "转 TXT", "抽取文字；扫描件会失败"),
+    WizardPresetCard("pdf-compress", "压缩", "缩小内嵌图，不把整页拍成图"),
+    WizardPresetCard("pdf-split", "拆分", "范围内每页一个 PDF"),
+)
+
+val OFFICE_DOCUMENT_CARDS = listOf(
+    WizardPresetCard("office-pdf", "转 PDF", "简单文字和表格可以，复杂排版会对不齐"),
+)
+
+fun documentCardsFor(kind: DocumentSourceKind): List<WizardPresetCard> = when (kind) {
+    DocumentSourceKind.Image -> IMAGE_DOCUMENT_CARDS
+    DocumentSourceKind.Pdf -> PDF_DOCUMENT_CARDS
+    DocumentSourceKind.Word, DocumentSourceKind.Excel -> OFFICE_DOCUMENT_CARDS
+}
+
+fun outputChoicesForDocument(preset: String): List<OutputChoiceCard> =
+    if (documentResultIsImage(preset)) {
+        listOf(
+            OutputChoiceCard(OUTPUT_CHOICE_GALLERY, "相册", "在系统相册里看到"),
+            OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, "下载", "系统下载文件夹"),
+            OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
+        )
+    } else {
+        listOf(
+            OutputChoiceCard(OUTPUT_CHOICE_DOCUMENTS, "文档", "系统文档文件夹"),
+            OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, "下载", "系统下载文件夹"),
+            OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
+        )
+    }
+
+fun allowedDocumentOutputKinds(preset: String): Set<OutputTarget.Kind> =
+    if (documentResultIsImage(preset)) {
+        setOf(
+            OutputTarget.Kind.Gallery,
+            OutputTarget.Kind.Downloads,
+            OutputTarget.Kind.SafTree,
+            OutputTarget.Kind.AppExternal,
+        )
+    } else {
+        setOf(
+            OutputTarget.Kind.Documents,
+            OutputTarget.Kind.Downloads,
+            OutputTarget.Kind.SafTree,
+            OutputTarget.Kind.AppExternal,
+        )
+    }
+
+fun defaultDocumentOutput(preset: String): OutputTarget = OutputTarget(
+    if (documentResultIsImage(preset)) OutputTarget.Kind.Gallery else OutputTarget.Kind.Documents,
+)
+
+fun documentKindOf(sources: List<SourceItem>): DocumentSourceKind? =
+    sources.firstOrNull()?.let { documentSourceKind(it.media.displayName) }
 
 private val CODEC_LABELS = mapOf(
     "h264" to "H.264",
@@ -159,7 +227,10 @@ fun dockSummary(
     formatPreview: String = "",
     audioMode: Boolean = false,
     losslessAudio: Boolean = false,
+    documentMode: Boolean = false,
+    pageRangeLabel: String = "",
 ): String {
+    if (documentMode && importableCount == 0) return "先添加要转换的文件"
     if (audioMode && importableCount == 0) return "先添加音频或带声音的视频"
     return when (step) {
         WizardStep.Sources -> if (importableCount == 0) "先添加源视频" else "已选 ${importableCount} 个文件"
@@ -168,6 +239,7 @@ fun dockSummary(
             val qualityPart = if (losslessAudio) "" else " · $qualityLabel"
             val body = when {
                 importableCount == 0 -> "先添加源视频，再开始转码"
+                documentMode -> "将 $importableCount 个文件转为 $presetTitle$pageRangeLabel"
                 audioOnly || audioMode -> "将 $importableCount 个文件转为 $presetTitle$qualityPart$trimLabel"
                 copyOnly -> "将 $importableCount 个视频转为 $presetTitle$trimLabel"
                 else -> "将 $importableCount 个视频转为 $presetTitle · $qualityLabel · $sizeLabel$trimLabel"
@@ -188,6 +260,9 @@ fun conversionPreview(items: List<MediaInfo>, target: String): String {
 fun presetTitle(id: String): String =
     WIZARD_PRESET_CARDS.find { it.id == id }?.title
         ?: AUDIO_PRESET_CARDS.find { it.id == id }?.title
+        ?: IMAGE_DOCUMENT_CARDS.find { it.id == id }?.title
+        ?: PDF_DOCUMENT_CARDS.find { it.id == id }?.title
+        ?: OFFICE_DOCUMENT_CARDS.find { it.id == id }?.title
         ?: id
 
 fun qualityLabel(id: String): String = when (id) {
@@ -254,6 +329,12 @@ fun historyDetail(job: Job, status: String): String {
     return buildString {
         append(status)
         if (preset.isNotBlank()) append(" · ").append(preset)
+        if (job.outputPaths.size > 1) {
+            val count = job.outputPaths.size
+            append(" · ").append(
+                if (documentResultIsImage(job.config.preset)) "${count} 张图片" else "${count} 个 PDF",
+            )
+        }
         if (job.status == JobStatus.Failed && !job.error.isNullOrBlank()) {
             append(" · ").append(job.error)
         }
@@ -269,6 +350,27 @@ fun sourceFromLabel(media: MediaInfo): String {
 fun sourceFormatLine(media: MediaInfo, probing: Boolean): String {
     if (probing) return "正在读取格式…"
     if (!media.importable) return media.error ?: "这个文件打不开"
+    when (documentSourceKind(media.displayName)) {
+        DocumentSourceKind.Pdf -> {
+            val pages = media.pageCount
+            val start = media.pageStart ?: 1
+            val end = media.pageEnd ?: pages ?: 1
+            return buildString {
+                append("PDF")
+                if (pages != null) append(" · ").append(pages).append(" 页")
+                if (pages != null && (start != 1 || end != pages)) {
+                    append(" · 第 ").append(start).append("–").append(end).append(" 页")
+                }
+            }
+        }
+        DocumentSourceKind.Word -> return "Word"
+        DocumentSourceKind.Excel -> return "Excel"
+        DocumentSourceKind.Image -> {
+            val ext = media.displayName.substringAfterLast('.', "").uppercase()
+            return ext.ifBlank { "图片" }
+        }
+        null -> Unit
+    }
     return listOf(
         friendlyContainer(media.container, media.displayName),
         friendlyCodec(media.videoCodec).ifBlank { friendlyCodec(media.audioCodec) },

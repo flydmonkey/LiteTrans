@@ -1,6 +1,7 @@
 package com.videoconverter.android.ui
 
 import com.videoconverter.android.data.OutputTarget
+import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.MediaInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -173,6 +174,26 @@ class WizardTest {
                 losslessAudio = true,
             ),
         )
+    }
+
+    @Test
+    fun documentCardsAndOutputChoicesFollowSourceKind() {
+        assertEquals(
+            listOf("pdf-image", "pdf-txt", "pdf-compress", "pdf-split"),
+            documentCardsFor(DocumentSourceKind.Pdf).map { it.id },
+        )
+        assertEquals(
+            listOf("image-jpg", "image-png", "image-webp", "image-bmp", "image-gif", "image-compress"),
+            documentCardsFor(DocumentSourceKind.Image).map { it.id },
+        )
+        assertEquals(listOf("office-pdf"), documentCardsFor(DocumentSourceKind.Word).map { it.id })
+        assertEquals(listOf("office-pdf"), documentCardsFor(DocumentSourceKind.Excel).map { it.id })
+        val split = outputChoicesForDocument("pdf-split").map { it.id }
+        assertTrue(split.containsAll(listOf("documents", "downloads", "custom")))
+        assertFalse(split.contains("gallery"))
+        val jpg = outputChoicesForDocument("image-jpg").map { it.id }
+        assertTrue(jpg.contains("gallery"))
+        assertFalse(jpg.contains("documents"))
     }
 
     @Test
