@@ -1,8 +1,8 @@
 package com.videoconverter.android.domain
 
-private val CONTAINERS = listOf("mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a")
+private val CONTAINERS = listOf("mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "ogg")
 private val VIDEO_ENCODERS = listOf("h264", "h265", "vp9", "mpeg4", "gif", "copy")
-private val AUDIO_ENCODERS = listOf("aac", "opus", "mp3", "copy")
+private val AUDIO_ENCODERS = listOf("aac", "opus", "mp3", "copy", "pcm_s16le")
 
 fun validate(config: ResolvedConfig, media: MediaInfo): Result<Unit> = runCatching {
     if (config.container !in CONTAINERS) {
@@ -19,7 +19,7 @@ fun validate(config: ResolvedConfig, media: MediaInfo): Result<Unit> = runCatchi
         }
     }
 
-    if (isAudioOnly(config)) {
+    if (isAudioOnlyConfig(config)) {
         if (media.audioCodec == null) {
             throw IllegalArgumentException("该文件没有音频流，无法导出音频")
         }
@@ -73,6 +73,8 @@ fun containerAcceptsAudio(container: String, codec: String): Boolean {
         "avi" -> normalized in listOf("mp3", "mp2", "ac3", "pcm_s16le")
         "mkv" -> true
         "mp3" -> normalized == "mp3"
+        "wav" -> true
+        "ogg" -> normalized in listOf("opus", "vorbis")
         else -> false
     }
 }
@@ -81,7 +83,3 @@ private fun normalizeCodec(codec: String): String = when (codec) {
     "h265" -> "hevc"
     else -> codec
 }
-
-private fun isAudioOnly(config: ResolvedConfig): Boolean =
-    config.container in listOf("mp3", "m4a") ||
-        config.preset in listOf("audio-mp3", "audio-aac")

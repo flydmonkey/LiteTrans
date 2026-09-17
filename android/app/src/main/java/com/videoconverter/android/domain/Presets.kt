@@ -14,6 +14,8 @@ fun listPresets(): List<PresetInfo> = listOf(
     PresetInfo("gif", "GIF", "短视频转成动图"),
     PresetInfo("audio-mp3", "仅音频 / MP3", "提取音频为 MP3"),
     PresetInfo("audio-aac", "仅音频 / M4A", "提取音频为 AAC"),
+    PresetInfo("audio-wav", "仅音频 / WAV", "无损 PCM"),
+    PresetInfo("audio-ogg", "仅音频 / OGG", "Opus，体积更小"),
 )
 
 fun resolveConfig(config: OutputConfig): Result<ResolvedConfig> = runCatching {
@@ -30,6 +32,8 @@ fun resolveConfig(config: OutputConfig): Result<ResolvedConfig> = runCatching {
         "gif" -> PresetDefaults("gif", "gif", null, false)
         "audio-mp3" -> PresetDefaults("mp3", null, "mp3", true)
         "audio-aac" -> PresetDefaults("m4a", null, "aac", true)
+        "audio-wav" -> PresetDefaults("wav", null, "pcm_s16le", true)
+        "audio-ogg" -> PresetDefaults("ogg", null, "opus", true)
         "custom" -> PresetDefaults("mp4", "h264", "aac", true)
         else -> throw IllegalArgumentException("未知预设：$preset")
     }
@@ -37,25 +41,38 @@ fun resolveConfig(config: OutputConfig): Result<ResolvedConfig> = runCatching {
     val quality = normalizeQuality(config.quality)
     val audioBitrateKbps = config.audioBitrateKbps ?: audioBitrateForQuality(quality)
 
-    if (preset == "audio-mp3" || preset == "audio-aac") {
-        val container = if (preset == "audio-aac") "m4a" else "mp3"
-        val audioEncoder = if (preset == "audio-aac") "aac" else "mp3"
-        return@runCatching ResolvedConfig(
-            preset = preset,
-            container = container,
-            extension = extensionFor(container).getOrThrow(),
-            videoEncoder = null,
-            audioEncoder = audioEncoder,
-            maxWidth = null,
-            maxHeight = null,
-            videoBitrateKbps = null,
-            frameRate = null,
-            audioBitrateKbps = audioBitrateKbps,
-            keepAudio = true,
-            quality = quality,
-            trimStartSecs = config.trimStartSecs,
-            trimEndSecs = config.trimEndSecs,
-        )
+    when (preset) {
+        "audio-mp3", "audio-aac", "audio-wav", "audio-ogg" -> {
+            val container = when (preset) {
+                "audio-aac" -> "m4a"
+                "audio-wav" -> "wav"
+                "audio-ogg" -> "ogg"
+                else -> "mp3"
+            }
+            val audioEncoder = when (preset) {
+                "audio-aac" -> "aac"
+                "audio-wav" -> "pcm_s16le"
+                "audio-ogg" -> "opus"
+                else -> "mp3"
+            }
+            val bitrate = if (preset == "audio-wav") null else audioBitrateKbps
+            return@runCatching ResolvedConfig(
+                preset = preset,
+                container = container,
+                extension = extensionFor(container).getOrThrow(),
+                videoEncoder = null,
+                audioEncoder = audioEncoder,
+                maxWidth = null,
+                maxHeight = null,
+                videoBitrateKbps = null,
+                frameRate = null,
+                audioBitrateKbps = bitrate,
+                keepAudio = true,
+                quality = quality,
+                trimStartSecs = config.trimStartSecs,
+                trimEndSecs = config.trimEndSecs,
+            )
+        }
     }
 
     val container = config.container?.takeIf { it.isNotEmpty() } ?: defaults.container
@@ -86,9 +103,13 @@ fun normalizeQuality(value: String?): String = when (value) {
 }
 
 fun extensionFor(container: String): Result<String> = when (container) {
-    "mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a" -> Result.success(container)
+    "mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "ogg" -> Result.success(container)
     else -> Result.failure(IllegalArgumentException("不支持的容器：$container"))
 }
+
+fun isAudioOnlyConfig(config: ResolvedConfig): Boolean =
+    config.container in listOf("mp3", "m4a", "wav", "ogg") ||
+        config.preset in listOf("audio-mp3", "audio-aac", "audio-wav", "audio-ogg")
 
 private fun audioBitrateForQuality(quality: String): Int = when (quality) {
     "original", "high" -> 320
