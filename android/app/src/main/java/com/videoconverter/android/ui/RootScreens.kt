@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -41,7 +42,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.videoconverter.android.domain.Job
-import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.sourceStem
 import com.videoconverter.android.ui.theme.LightTokens
 
@@ -95,20 +95,34 @@ private fun HistorySegmentTabs(
     segment: HistorySegment,
     onSegment: (HistorySegment) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(top = 4.dp, bottom = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
         listOf(HistorySegment.Video to "视频", HistorySegment.Audio to "音频").forEach { (target, label) ->
             val on = segment == target
-            Text(
-                label,
-                color = if (on) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (on) Color(LightTokens.Ink) else Color(LightTokens.Chip))
-                    .clickable { onSegment(target) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            )
+            Column(
+                modifier = Modifier.clickable { onSegment(target) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    label,
+                    color = if (on) Color(LightTokens.Ink) else Color(LightTokens.Muted),
+                    fontSize = 15.sp,
+                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 8.dp),
+                )
+                Box(
+                    modifier = Modifier
+                        .width(20.dp)
+                        .height(2.dp)
+                        .background(if (on) Color(LightTokens.Accent) else Color.Transparent),
+                )
+            }
         }
     }
 }
@@ -125,15 +139,14 @@ fun HistoryScreen(
     onShare: (Job) -> Unit,
     onRename: (Job, String) -> Unit,
     onDelete: (String) -> Unit,
-    onClearFinished: () -> Unit,
 ) {
     var renaming by remember { mutableStateOf<Job?>(null) }
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(
             title = "历史记录",
             subtitle = "打开、分享、重命名或删除转好的文件",
-            below = { HistorySegmentTabs(segment, onSegment) },
         )
+        HistorySegmentTabs(segment, onSegment)
         if (jobs.isEmpty()) {
             Box(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp),
@@ -165,24 +178,14 @@ fun HistoryScreen(
                 }
             }
         } else {
-            val finished = jobs.any { it.status !in setOf(JobStatus.Queued, JobStatus.Running) }
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 20.dp, bottom = 16.dp),
+                contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp),
             ) {
-                if (finished) {
-                    item {
-                        Text(
-                            "清空已完成",
-                            color = Color(LightTokens.Accent),
-                            modifier = Modifier.clickable(onClick = onClearFinished),
-                        )
-                    }
-                }
                 items(jobs.asReversed(), key = { it.id }) { job ->
                     JobRow(
                         job = job,

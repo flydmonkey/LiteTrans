@@ -91,6 +91,8 @@ fun outputMimeType(config: OutputConfig): String =
                 "m4a" -> "audio/mp4"
                 "wav" -> "audio/wav"
                 "ogg" -> "audio/ogg"
+                "flac" -> "audio/flac"
+                "amr" -> "audio/amr"
                 "gif" -> "image/gif"
                 "mp4" -> "video/mp4"
                 "mov" -> "video/quicktime"
@@ -138,7 +140,7 @@ fun supportsSystemPreview(media: MediaInfo): Boolean {
 fun canPlayPreview(media: MediaInfo): Boolean {
     val extension = media.displayName.substringAfterLast('.', "").lowercase()
     return supportsSystemPreview(media) ||
-        extension in setOf("mp3", "m4a", "aac", "wav", "ogg", "flac", "opus")
+        extension in setOf("mp3", "m4a", "aac", "wav", "ogg", "flac", "opus", "amr")
 }
 
 fun showVideoSurface(media: MediaInfo): Boolean =

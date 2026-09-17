@@ -1,8 +1,8 @@
 package com.videoconverter.android.domain
 
-private val CONTAINERS = listOf("mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "ogg")
+private val CONTAINERS = listOf("mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "ogg", "flac", "amr")
 private val VIDEO_ENCODERS = listOf("h264", "h265", "vp9", "mpeg4", "gif", "copy")
-private val AUDIO_ENCODERS = listOf("aac", "opus", "mp3", "copy", "pcm_s16le")
+private val AUDIO_ENCODERS = listOf("aac", "opus", "mp3", "copy", "pcm_s16le", "flac", "amr_nb")
 
 fun validate(config: ResolvedConfig, media: MediaInfo): Result<Unit> = runCatching {
     if (config.container !in CONTAINERS) {
@@ -74,6 +74,8 @@ fun containerAcceptsAudio(container: String, codec: String): Boolean {
         "mkv" -> true
         "mp3" -> normalized == "mp3"
         "wav" -> true
+        "flac" -> true
+        "amr" -> normalized in listOf("amr_nb", "amr_wb", "amrnb", "amrwb")
         "ogg" -> normalized in listOf("opus", "vorbis")
         else -> false
     }

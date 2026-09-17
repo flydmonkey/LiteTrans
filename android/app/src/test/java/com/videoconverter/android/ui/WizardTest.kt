@@ -113,12 +113,15 @@ class WizardTest {
         assertEquals("music", OUTPUT_CHOICE_MUSIC)
         assertEquals(OutputTarget.Kind.Music, outputKindForChoice(OUTPUT_CHOICE_MUSIC))
         assertTrue(isLosslessAudioPreset("audio-wav"))
+        assertTrue(isLosslessAudioPreset("audio-flac"))
         assertFalse(isLosslessAudioPreset("audio-mp3"))
         assertTrue(isAudioPreset("audio-wav"))
+        assertTrue(isAudioPreset("audio-flac"))
         assertTrue(isAudioPreset("audio-ogg"))
+        assertTrue(isAudioPreset("audio-amr"))
         assertEquals("开始转换", dockActionLabel(WizardStep.Output, false, false, "开始转换"))
         assertEquals(
-            listOf("audio-mp3", "audio-aac", "audio-wav", "audio-ogg"),
+            listOf("audio-mp3", "audio-aac", "audio-wav", "audio-flac", "audio-ogg", "audio-amr"),
             AUDIO_PRESET_CARDS.map { it.id },
         )
         assertEquals("MP3", AUDIO_PRESET_CARDS[0].title)
@@ -127,8 +130,12 @@ class WizardTest {
         assertEquals("苹果设备和相册常用", AUDIO_PRESET_CARDS[1].hint)
         assertEquals("WAV", AUDIO_PRESET_CARDS[2].title)
         assertEquals("无损，文件更大", AUDIO_PRESET_CARDS[2].hint)
-        assertEquals("OGG · Opus", AUDIO_PRESET_CARDS[3].title)
-        assertEquals("体积更小", AUDIO_PRESET_CARDS[3].hint)
+        assertEquals("FLAC", AUDIO_PRESET_CARDS[3].title)
+        assertEquals("无损，比 WAV 小", AUDIO_PRESET_CARDS[3].hint)
+        assertEquals("OGG · Opus", AUDIO_PRESET_CARDS[4].title)
+        assertEquals("体积更小", AUDIO_PRESET_CARDS[4].hint)
+        assertEquals("AMR", AUDIO_PRESET_CARDS[5].title)
+        assertEquals("通话录音常用", AUDIO_PRESET_CARDS[5].hint)
     }
 
     @Test

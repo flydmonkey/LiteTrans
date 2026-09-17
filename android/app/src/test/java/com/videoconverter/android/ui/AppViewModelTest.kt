@@ -38,7 +38,9 @@ class AppViewModelTest {
     @Test
     fun shouldShowResolutionHidesAllAudioPresets() {
         assertFalse(shouldShowResolution("audio-wav"))
+        assertFalse(shouldShowResolution("audio-flac"))
         assertFalse(shouldShowResolution("audio-ogg"))
+        assertFalse(shouldShowResolution("audio-amr"))
     }
 
     @Test
@@ -101,7 +103,9 @@ class AppViewModelTest {
     @Test
     fun presetTitleLooksUpAudioCards() {
         assertEquals("WAV", presetTitle("audio-wav"))
+        assertEquals("FLAC", presetTitle("audio-flac"))
         assertEquals("OGG · Opus", presetTitle("audio-ogg"))
+        assertEquals("AMR", presetTitle("audio-amr"))
     }
 
     @Test
@@ -134,7 +138,7 @@ class AppViewModelTest {
         assertTrue(canPlayPreview(mp3))
         assertFalse(showVideoSurface(mp3))
         assertFalse(supportsSystemPreview(mp3))
-        listOf("clip.m4a", "clip.aac", "clip.wav", "clip.ogg", "clip.flac", "clip.opus").forEach { name ->
+        listOf("clip.m4a", "clip.aac", "clip.wav", "clip.ogg", "clip.flac", "clip.opus", "clip.amr").forEach { name ->
             assertTrue(canPlayPreview(media(name, "audio")))
             assertFalse(showVideoSurface(media(name, "audio")))
         }
@@ -187,6 +191,8 @@ class AppViewModelTest {
         assertEquals("video/webm", outputMimeType(OutputConfig(preset = "webm-vp9")))
         assertEquals("video/mp4", outputMimeType(OutputConfig(preset = "mp4-h264")))
         assertEquals("audio/wav", outputMimeType(OutputConfig(preset = "audio-wav")))
+        assertEquals("audio/flac", outputMimeType(OutputConfig(preset = "audio-flac")))
+        assertEquals("audio/amr", outputMimeType(OutputConfig(preset = "audio-amr")))
         assertEquals("audio/ogg", outputMimeType(OutputConfig(preset = "audio-ogg")))
     }
 

@@ -21,7 +21,16 @@ fun buildFfmpegArgs(
         if (isAudioOnlyConfig(config)) {
             val encoder = config.audioEncoder ?: "mp3"
             args += listOf("-vn", "-c:a", ffmpegAudioCodec(encoder))
-            if (encoder != "pcm_s16le" && config.audioBitrateKbps != null) {
+            if (encoder == "amr_nb") {
+                args += listOf(
+                    "-ar",
+                    "8000",
+                    "-ac",
+                    "1",
+                    "-b:a",
+                    amrBitrateArg(config.quality),
+                )
+            } else if (encoder !in listOf("pcm_s16le", "flac") && config.audioBitrateKbps != null) {
                 args += listOf("-b:a", "${config.audioBitrateKbps}k")
             }
             pushOutput(args, config.container, outputPartial)
@@ -179,6 +188,8 @@ private fun ffmpegMuxer(container: String): String = when (container) {
     "m4a" -> "ipod"
     "wav" -> "wav"
     "ogg" -> "ogg"
+    "flac" -> "flac"
+    "amr" -> "amr"
     else -> "mp4"
 }
 
@@ -187,6 +198,8 @@ private fun ffmpegAudioCodec(encoder: String): String = when (encoder) {
     "opus" -> "libopus"
     "mp3" -> "libmp3lame"
     "pcm_s16le" -> "pcm_s16le"
+    "flac" -> "flac"
+    "amr_nb" -> "libopencore_amrnb"
     "copy" -> "copy"
     else -> "aac"
 }
@@ -311,6 +324,12 @@ private fun scaleFilter(
     } else {
         scale
     }
+}
+
+private fun amrBitrateArg(quality: String): String = when (quality) {
+    "original", "high" -> "12200"
+    "small" -> "4750"
+    else -> "7950"
 }
 
 private const val TRIM_THRESHOLD_SECS = 0.05

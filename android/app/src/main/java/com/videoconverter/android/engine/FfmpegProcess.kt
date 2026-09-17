@@ -282,7 +282,9 @@ class FfmpegProcess(
 
     private fun processBuilder(executable: String, args: List<String>): ProcessBuilder =
         ProcessBuilder(listOf(executable) + args).apply {
+            val nativeDir = File(context.applicationInfo.nativeLibraryDir).absolutePath
             environment()["PATH"] = "/system/bin:/vendor/bin"
+            environment()["LD_LIBRARY_PATH"] = nativeDir
         }
 
     private fun binaryPath(configured: String?, name: String): String =
@@ -450,6 +452,10 @@ private fun mimeType(container: String): String = when (container) {
     "avi" -> "video/x-msvideo"
     "gif" -> "image/gif"
     "mp3" -> "audio/mpeg"
+    "wav" -> "audio/wav"
+    "ogg" -> "audio/ogg"
+    "flac" -> "audio/flac"
+    "amr" -> "audio/amr"
     else -> "application/octet-stream"
 }
 

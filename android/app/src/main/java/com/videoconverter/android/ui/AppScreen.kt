@@ -234,7 +234,6 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                     onShare = { launchOutput(context, appViewModel.outputIntent(it, true)) },
                     onRename = { job, name -> appViewModel.rename(job.id, name) },
                     onDelete = appViewModel::delete,
-                    onClearFinished = { appViewModel.clearFinished(historySegment) },
                 )
                 RootTab.Mine -> MineScreen(
                     page = minePage,
@@ -479,7 +478,8 @@ private fun FormatDetailPanel(
         when {
             isLosslessAudioPreset(preset) -> {
                 Text(
-                    "原始采样，不压缩，文件更大",
+                    if (preset == "audio-flac") "无损压缩，比 WAV 小很多，播放器支持也广。"
+                    else "原始采样，不压缩，文件更大",
                     color = Color(LightTokens.Muted),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -500,6 +500,17 @@ private fun FormatDetailPanel(
                 )
             }
             else -> {
+                if (preset == "audio-amr") {
+                    Text(
+                        "通话录音常用。会转成 8kHz 单声道，适合语音，不适合音乐。",
+                        color = Color(LightTokens.Muted),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(LightTokens.Card))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    )
+                }
                 CompactChips(
                     title = if (isAudioPreset(preset)) "音质" else "画质",
                     options = QUALITY_CHIPS,

@@ -270,6 +270,28 @@ class FfmpegArgsTest {
     }
 
     @Test
+    fun flacOmitsBitrateAndUsesFlacMuxer() {
+        val config = resolveConfig(OutputConfig(preset = "audio-flac")).getOrThrow()
+        val args = buildFfmpegArgs("/in", "/out.partial.flac", config, h264()).getOrThrow()
+        assertTrue(args.contains("-vn"))
+        assertEquals("flac", valueAfter(args, "-c:a"))
+        assertEquals("flac", valueAfter(args, "-f"))
+        assertFalse(args.contains("-b:a"))
+    }
+
+    @Test
+    fun amrUsesNarrowBandRateAndExactBitrate() {
+        val config = resolveConfig(OutputConfig(preset = "audio-amr")).getOrThrow()
+        val args = buildFfmpegArgs("/in", "/out.partial.amr", config, h264()).getOrThrow()
+        assertTrue(args.contains("-vn"))
+        assertEquals("libopencore_amrnb", valueAfter(args, "-c:a"))
+        assertEquals("amr", valueAfter(args, "-f"))
+        assertEquals("8000", valueAfter(args, "-ar"))
+        assertEquals("1", valueAfter(args, "-ac"))
+        assertEquals("7950", valueAfter(args, "-b:a"))
+    }
+
+    @Test
     fun oggUsesLibopusAndBitrate() {
         val config = resolveConfig(OutputConfig(preset = "audio-ogg", quality = "standard")).getOrThrow()
         val args = buildFfmpegArgs("/in", "/out.partial.ogg", config, h264()).getOrThrow()

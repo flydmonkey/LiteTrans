@@ -50,9 +50,14 @@ fun aboutBody(versionName: String): String =
 
 fun isAudioHistoryJob(job: Job): Boolean {
     val preset = job.config.preset
-    if (preset in listOf("audio-mp3", "audio-aac", "audio-wav", "audio-ogg")) return true
+    if (preset in listOf(
+            "audio-mp3", "audio-aac", "audio-wav", "audio-flac", "audio-ogg", "audio-amr",
+        )
+    ) {
+        return true
+    }
     val container = resolveConfig(job.config).getOrNull()?.container
-    return container in listOf("mp3", "m4a", "wav", "ogg")
+    return container in listOf("mp3", "m4a", "wav", "ogg", "flac", "amr")
 }
 
 fun historyJobs(jobs: List<Job>, segment: HistorySegment): List<Job> =

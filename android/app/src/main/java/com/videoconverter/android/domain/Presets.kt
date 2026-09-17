@@ -15,7 +15,9 @@ fun listPresets(): List<PresetInfo> = listOf(
     PresetInfo("audio-mp3", "仅音频 / MP3", "提取音频为 MP3"),
     PresetInfo("audio-aac", "仅音频 / M4A", "提取音频为 AAC"),
     PresetInfo("audio-wav", "仅音频 / WAV", "无损 PCM"),
+    PresetInfo("audio-flac", "仅音频 / FLAC", "无损压缩，比 WAV 小"),
     PresetInfo("audio-ogg", "仅音频 / OGG", "Opus，体积更小"),
+    PresetInfo("audio-amr", "仅音频 / AMR", "通话录音常用"),
 )
 
 fun resolveConfig(config: OutputConfig): Result<ResolvedConfig> = runCatching {
@@ -33,7 +35,9 @@ fun resolveConfig(config: OutputConfig): Result<ResolvedConfig> = runCatching {
         "audio-mp3" -> PresetDefaults("mp3", null, "mp3", true)
         "audio-aac" -> PresetDefaults("m4a", null, "aac", true)
         "audio-wav" -> PresetDefaults("wav", null, "pcm_s16le", true)
+        "audio-flac" -> PresetDefaults("flac", null, "flac", true)
         "audio-ogg" -> PresetDefaults("ogg", null, "opus", true)
+        "audio-amr" -> PresetDefaults("amr", null, "amr_nb", true)
         "custom" -> PresetDefaults("mp4", "h264", "aac", true)
         else -> throw IllegalArgumentException("未知预设：$preset")
     }
@@ -42,20 +46,28 @@ fun resolveConfig(config: OutputConfig): Result<ResolvedConfig> = runCatching {
     val audioBitrateKbps = config.audioBitrateKbps ?: audioBitrateForQuality(quality)
 
     when (preset) {
-        "audio-mp3", "audio-aac", "audio-wav", "audio-ogg" -> {
+        "audio-mp3", "audio-aac", "audio-wav", "audio-flac", "audio-ogg", "audio-amr" -> {
             val container = when (preset) {
                 "audio-aac" -> "m4a"
                 "audio-wav" -> "wav"
+                "audio-flac" -> "flac"
                 "audio-ogg" -> "ogg"
+                "audio-amr" -> "amr"
                 else -> "mp3"
             }
             val audioEncoder = when (preset) {
                 "audio-aac" -> "aac"
                 "audio-wav" -> "pcm_s16le"
+                "audio-flac" -> "flac"
                 "audio-ogg" -> "opus"
+                "audio-amr" -> "amr_nb"
                 else -> "mp3"
             }
-            val bitrate = if (preset == "audio-wav") null else audioBitrateKbps
+            val bitrate = when (preset) {
+                "audio-wav", "audio-flac" -> null
+                "audio-amr" -> amrBitrateForQuality(quality)
+                else -> audioBitrateKbps
+            }
             return@runCatching ResolvedConfig(
                 preset = preset,
                 container = container,
@@ -103,18 +115,26 @@ fun normalizeQuality(value: String?): String = when (value) {
 }
 
 fun extensionFor(container: String): Result<String> = when (container) {
-    "mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "ogg" -> Result.success(container)
+    "mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "ogg", "flac", "amr" -> Result.success(container)
     else -> Result.failure(IllegalArgumentException("不支持的容器：$container"))
 }
 
 fun isAudioOnlyConfig(config: ResolvedConfig): Boolean =
-    config.container in listOf("mp3", "m4a", "wav", "ogg") ||
-        config.preset in listOf("audio-mp3", "audio-aac", "audio-wav", "audio-ogg")
+    config.container in listOf("mp3", "m4a", "wav", "ogg", "flac", "amr") ||
+        config.preset in listOf(
+            "audio-mp3", "audio-aac", "audio-wav", "audio-flac", "audio-ogg", "audio-amr",
+        )
 
 private fun audioBitrateForQuality(quality: String): Int = when (quality) {
     "original", "high" -> 320
     "small" -> 128
     else -> 192
+}
+
+private fun amrBitrateForQuality(quality: String): Int = when (quality) {
+    "original", "high" -> 12
+    "small" -> 5
+    else -> 8
 }
 
 private data class PresetDefaults(

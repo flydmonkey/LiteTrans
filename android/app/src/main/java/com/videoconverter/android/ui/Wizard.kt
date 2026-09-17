@@ -34,7 +34,9 @@ val AUDIO_PRESET_CARDS = listOf(
     WizardPresetCard("audio-mp3", "MP3", "兼容性最好"),
     WizardPresetCard("audio-aac", "M4A · AAC", "苹果设备和相册常用"),
     WizardPresetCard("audio-wav", "WAV", "无损，文件更大"),
+    WizardPresetCard("audio-flac", "FLAC", "无损，比 WAV 小"),
     WizardPresetCard("audio-ogg", "OGG · Opus", "体积更小"),
+    WizardPresetCard("audio-amr", "AMR", "通话录音常用"),
 )
 
 private val CODEC_LABELS = mapOf(
@@ -48,6 +50,7 @@ private val CODEC_LABELS = mapOf(
     "aac" to "AAC",
     "opus" to "Opus",
     "mp3" to "MP3",
+    "flac" to "FLAC",
 )
 
 fun wizardScreenTitle(step: WizardStep): String = when (step) {
@@ -198,9 +201,10 @@ fun sizeLabel(id: String): String = when (id) {
 }
 
 fun isAudioPreset(preset: String): Boolean =
-    preset == "audio-mp3" || preset == "audio-aac" || preset == "audio-wav" || preset == "audio-ogg"
+    preset == "audio-mp3" || preset == "audio-aac" || preset == "audio-wav" ||
+        preset == "audio-flac" || preset == "audio-ogg" || preset == "audio-amr"
 
-fun isLosslessAudioPreset(preset: String): Boolean = preset == "audio-wav"
+fun isLosslessAudioPreset(preset: String): Boolean = preset == "audio-wav" || preset == "audio-flac"
 
 fun isCopyPreset(preset: String): Boolean = preset == "mp4-copy"
 
@@ -286,6 +290,11 @@ private fun friendlyContainer(container: String?, name: String): String {
         "mp3" in value || ext == "MP3" -> "MP3"
         ext == "M4A" || value == "m4a" || value.startsWith("m4a,") -> "M4A"
         ext == "AAC" || value == "aac" || value.startsWith("aac,") -> "AAC"
+        ext == "FLAC" || "flac" in value -> "FLAC"
+        ext == "WAV" || value == "wav" || "wav" in value -> "WAV"
+        ext == "OGG" || ext == "OPUS" || "ogg" in value -> "OGG"
+        ext == "AMR" || "amr" in value -> "AMR"
+        ext == "APE" || "ape" in value -> "APE"
         "avi" in value || ext == "AVI" -> "AVI"
         ext == "MOV" -> "MOV"
         "mp4" in value || "mov" in value || ext == "MP4" || ext == "M4V" -> "MP4"
