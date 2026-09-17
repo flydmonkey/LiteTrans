@@ -65,6 +65,16 @@ class LanShareHandlerTest {
     }
 
     @Test
+    fun headErrorsOmitBody() {
+        val denied = handleLanRequest(LanHttpRequest("HEAD", "/", emptyMap()), jobs, "pw", exists, copy)
+        assertEquals(401, denied.status)
+        assertFalse(denied.sendBody)
+        val missing = handleLanRequest(LanHttpRequest("HEAD", "/nope", emptyMap()), jobs, "", exists, copy)
+        assertEquals(404, missing.status)
+        assertFalse(missing.sendBody)
+    }
+
+    @Test
     fun parseQueryDecodesK() {
         assertEquals("a b", parseLanQuery("k=a+b")["k"])
     }

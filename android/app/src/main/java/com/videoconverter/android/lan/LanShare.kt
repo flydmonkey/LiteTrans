@@ -224,7 +224,19 @@ data class LanHttpResponse(
     val filePath: String? = null,
     val rangeHeader: String? = null,
     val sendBody: Boolean = true,
+    val byteStart: Long = 0,
+    val byteLength: Long? = null,
 )
+
+fun parseLanHeaderLines(lines: List<String>): Map<String, String> {
+    val headers = LinkedHashMap<String, String>()
+    for (line in lines) {
+        val colon = line.indexOf(':')
+        if (colon <= 0) continue
+        headers[line.substring(0, colon).trim().lowercase()] = line.substring(colon + 1).trim()
+    }
+    return headers
+}
 
 fun parseHttpRequestLine(line: String): LanHttpRequest? {
     val trimmed = line.trim()
@@ -265,10 +277,10 @@ fun handleLanRequest(
     if (request.method != "GET" && request.method != "HEAD") {
         return lanPlainText(405, "Method Not Allowed")
     }
-    if (!lanTokenAllows(token, request.query["k"])) {
-        return lanPlainText(401, copy.needToken)
-    }
     val sendBody = request.method != "HEAD"
+    if (!lanTokenAllows(token, request.query["k"])) {
+        return lanPlainText(401, copy.needToken, sendBody)
+    }
     return when (val route = parseLanRoute(request.path)) {
         is LanRoute.Home -> {
             val html = renderLanHistoryHtml(jobs, token, copy, exists)
@@ -286,7 +298,7 @@ fun handleLanRequest(
                 else -> error("unreachable")
             }
             val target = resolveLanDownload(jobs, jobId, index, exists)
-                ?: return lanPlainText(404, "Not Found")
+                ?: return lanPlainText(404, "Not Found", sendBody)
             val inline = route is LanRoute.Media
             LanHttpResponse(
                 status = 200,
@@ -302,12 +314,13 @@ fun handleLanRequest(
                 sendBody = sendBody,
             )
         }
-        is LanRoute.NotFound -> lanPlainText(404, "Not Found")
+        is LanRoute.NotFound -> lanPlainText(404, "Not Found", sendBody)
     }
 }
 
-private fun lanPlainText(status: Int, body: String): LanHttpResponse = LanHttpResponse(
+private fun lanPlainText(status: Int, body: String, sendBody: Boolean = true): LanHttpResponse = LanHttpResponse(
     status = status,
     contentType = "text/plain; charset=utf-8",
     body = body.toByteArray(Charsets.UTF_8),
+    sendBody = sendBody,
 )

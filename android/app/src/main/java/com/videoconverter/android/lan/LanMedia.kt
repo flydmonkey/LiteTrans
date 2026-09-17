@@ -72,6 +72,37 @@ fun lanContentRangeValue(start: Long, endInclusive: Long, total: Long): String =
 
 fun lanUnsatisfiableContentRange(total: Long): String = "bytes */$total"
 
+fun applyLanResponseRange(response: LanHttpResponse, total: Long): LanHttpResponse {
+    if (response.filePath == null) return response
+    return when (val range = parseLanByteRange(response.rangeHeader, total)) {
+        LanByteRange.Whole -> response.copy(
+            status = 200,
+            headers = response.headers + ("Content-Length" to total.toString()),
+            byteStart = 0L,
+            byteLength = null,
+        )
+        is LanByteRange.Partial -> {
+            val length = range.endInclusive - range.start + 1
+            response.copy(
+                status = 206,
+                headers = response.headers + mapOf(
+                    "Content-Range" to lanContentRangeValue(range.start, range.endInclusive, total),
+                    "Content-Length" to length.toString(),
+                ),
+                byteStart = range.start,
+                byteLength = length,
+            )
+        }
+        LanByteRange.Unsatisfiable -> response.copy(
+            status = 416,
+            headers = response.headers + ("Content-Range" to lanUnsatisfiableContentRange(total)),
+            body = ByteArray(0),
+            filePath = null,
+            sendBody = false,
+        )
+    }
+}
+
 fun copyLanRange(input: java.io.InputStream, output: java.io.OutputStream, start: Long, length: Long) {
     var skipped = 0L
     while (skipped < start) {
