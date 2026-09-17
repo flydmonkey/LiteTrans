@@ -1,0 +1,47 @@
+name: LiteTrans
+options:
+  bundleIdPrefix: com.videoconverter
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    TARGETED_DEVICE_FAMILY: "1"
+    IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+targets:
+  LiteTrans:
+    type: application
+    platform: iOS
+    sources:
+      - LiteTrans
+    resources:
+      - LiteTrans/Resources/Assets.xcassets
+      - LiteTrans/Resources/Localizable.xcstrings
+    info:
+      path: LiteTrans/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: LiteTrans
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSPhotoLibraryAddUsageDescription: LiteTrans saves converted videos to Photos when you choose Photos as the output.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+    scheme:
+      testTargets:
+        - LiteTransTests
+  LiteTransTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - LiteTransTests
+    dependencies:
+      - target: LiteTrans
