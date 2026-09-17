@@ -2,6 +2,11 @@ package com.videoconverter.android.lan
 
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.resolveConfig
+import com.videoconverter.android.ui.HistorySegment
+import com.videoconverter.android.ui.historyEmptyLabel
+import com.videoconverter.android.ui.historyJobs
+import com.videoconverter.android.ui.statusLabel
 
 data class LanShareSettings(
     val enabled: Boolean = false,
@@ -116,4 +121,66 @@ fun lanPublicUrl(ip: String, port: Int, token: String): String {
     if (token.isEmpty()) return base
     val encoded = java.net.URLEncoder.encode(token, Charsets.UTF_8)
     return "${base}?k=$encoded"
+}
+
+fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) -> Boolean): String {
+    val sections = listOf(
+        HistorySegment.Video to "视频",
+        HistorySegment.Audio to "音频",
+        HistorySegment.Document to "文档",
+    )
+    return buildString {
+        append("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>")
+        append("body{background:#ecece8;color:#1f2428;font-family:sans-serif}")
+        append("a{color:#c45a2a}")
+        append("</style></head><body>")
+        if (token.isEmpty()) {
+            append("<p>同一网络中知道此地址的设备可以查看记录并下载已完成文件。</p>")
+        }
+        for ((segment, title) in sections) {
+            append("<h2>").append(title).append("</h2>")
+            val items = historyJobs(jobs, segment)
+            if (items.isEmpty()) {
+                append("<p>").append(historyEmptyLabel(segment)).append("</p>")
+            } else {
+                append("<ul>")
+                for (job in items) {
+                    val format = resolveConfig(job.config).getOrNull()?.container ?: job.config.preset
+                    append("<li>")
+                    append(escapeHtml(job.displayName))
+                    append(" ")
+                    append(escapeHtml(format))
+                    append(" ")
+                    append(escapeHtml(statusLabel(job.status)))
+                    if (job.status == JobStatus.Completed) {
+                        val paths = jobOutputPaths(job)
+                        val multi = paths.size > 1
+                        paths.forEachIndexed { index, path ->
+                            if (fileExists(path)) {
+                                append(" <a href=\"")
+                                append(lanHistoryDownloadHref(job.id, index, multi, token))
+                                append("\">下载</a>")
+                            }
+                        }
+                    }
+                    append("</li>")
+                }
+                append("</ul>")
+            }
+        }
+        append("</body></html>")
+    }
+}
+
+fun escapeHtml(raw: String): String = raw
+    .replace("&", "&amp;")
+    .replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("\"", "&quot;")
+
+private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, token: String): String {
+    val path = if (index > 0 || multi) "/d/$jobId/$index" else "/d/$jobId"
+    if (token.isEmpty()) return path
+    val encoded = java.net.URLEncoder.encode(token, Charsets.UTF_8)
+    return "$path?k=$encoded"
 }
