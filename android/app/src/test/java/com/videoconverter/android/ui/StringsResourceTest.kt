@@ -74,6 +74,8 @@ class StringsResourceTest {
             Triple(R.string.lan_segment_video, "Video", "视频"),
             Triple(R.string.lan_segment_audio, "Audio", "音频"),
             Triple(R.string.lan_segment_document, "Documents", "文档"),
+            Triple(R.string.lan_segment_image, "Images", "图片"),
+            Triple(R.string.history_empty_image, "No image history yet", "还没有图片记录"),
             Triple(
                 R.string.lan_open_warning,
                 "Anyone on this network who has the address can view, play or preview, and download finished files.",
@@ -234,6 +236,8 @@ class StringsResourceTest {
             R.string.lan_ports_busy,
             R.string.lan_download_named,
             R.string.lan_download_index,
+            R.string.lan_segment_image,
+            R.string.history_empty_image,
             R.string.trim_title,
             R.string.trim_hint,
             R.string.trim_reset,
@@ -399,6 +403,13 @@ class StringsResourceTest {
             assertEquals("日本語", ctx.getString(R.string.language_ja))
             assertEquals("한국어", ctx.getString(R.string.language_ko))
         }
+        assertEquals("圖片", tw.getString(R.string.lan_segment_image))
+        assertEquals(tw.getString(R.string.lan_segment_image), hk.getString(R.string.lan_segment_image))
+        assertEquals("画像", ja.getString(R.string.lan_segment_image))
+        assertTrue(ko.getString(R.string.lan_segment_image).any {
+            Character.UnicodeBlock.of(it) == Character.UnicodeBlock.HANGUL_SYLLABLES
+        })
+        assertEquals("還沒有圖片記錄", tw.getString(R.string.history_empty_image))
     }
 
     private fun zhCn() = locale("zh-CN")

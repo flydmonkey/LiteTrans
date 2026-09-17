@@ -20,6 +20,7 @@
     <string name="history_empty_video">No video history yet</string>
     <string name="history_empty_audio">No audio history yet</string>
     <string name="history_empty_document">No document history yet</string>
+    <string name="history_empty_image">No image history yet</string>
     <string name="history_subtitle">Open, share, rename, or delete converted files</string>
     <string name="history_empty_hint">Converted files will show up here</string>
     <string name="history_rename_title">Rename</string>
@@ -40,6 +41,7 @@
     <string name="lan_segment_video">Video</string>
     <string name="lan_segment_audio">Audio</string>
     <string name="lan_segment_document">Documents</string>
+    <string name="lan_segment_image">Images</string>
     <string name="lan_open_warning">Anyone on this network who has the address can view, play or preview, and download finished files.</string>
     <string name="lan_preview_failed">Can\'t preview. Download the file instead.</string>
     <string name="lan_download_to_open">Download and open it on your computer.</string>

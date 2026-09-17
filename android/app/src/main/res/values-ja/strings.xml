@@ -20,6 +20,7 @@
     <string name="history_empty_video">動画の履歴はまだありません</string>
     <string name="history_empty_audio">音声の履歴はまだありません</string>
     <string name="history_empty_document">ドキュメントの履歴はまだありません</string>
+    <string name="history_empty_image">画像の履歴はまだありません</string>
     <string name="history_subtitle">変換したファイルを開く、共有、名前変更、削除できます</string>
     <string name="history_empty_hint">変換したファイルがここに表示されます</string>
     <string name="history_rename_title">名前を変更</string>
@@ -40,6 +41,7 @@
     <string name="lan_segment_video">動画</string>
     <string name="lan_segment_audio">音声</string>
     <string name="lan_segment_document">ドキュメント</string>
+    <string name="lan_segment_image">画像</string>
     <string name="lan_open_warning">同じネットワークでこのアドレスを知る人は、閲覧、再生またはプレビューができ、完了ファイルをダウンロードできます。</string>
     <string name="lan_preview_failed">プレビューできません。代わりにファイルをダウンロードしてください。</string>
     <string name="lan_download_to_open">ダウンロードしてパソコンで開いてください。</string>

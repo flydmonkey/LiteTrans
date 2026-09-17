@@ -16,9 +16,11 @@ data class LanHistoryCopy(
     val video: String,
     val audio: String,
     val document: String,
+    val image: String,
     val emptyVideo: String,
     val emptyAudio: String,
     val emptyDocument: String,
+    val emptyImage: String,
     val download: String,
     val downloadNamed: String,
     val downloadIndex: String,
@@ -37,9 +39,11 @@ fun lanHistoryCopy(resources: Resources) = LanHistoryCopy(
     video = resources.getString(R.string.lan_segment_video),
     audio = resources.getString(R.string.lan_segment_audio),
     document = resources.getString(R.string.lan_segment_document),
+    image = resources.getString(R.string.lan_segment_image),
     emptyVideo = resources.getString(R.string.history_empty_video),
     emptyAudio = resources.getString(R.string.history_empty_audio),
     emptyDocument = resources.getString(R.string.history_empty_document),
+    emptyImage = resources.getString(R.string.history_empty_image),
     download = resources.getString(R.string.lan_download),
     downloadNamed = resources.getString(R.string.lan_download_named),
     downloadIndex = resources.getString(R.string.lan_download_index),
@@ -52,6 +56,20 @@ fun lanHistoryCopy(resources: Resources) = LanHistoryCopy(
     previewFailed = resources.getString(R.string.lan_preview_failed),
     downloadToOpen = resources.getString(R.string.lan_download_to_open),
 )
+
+fun lanLibraryTabLabel(tab: LanLibraryTab, copy: LanHistoryCopy): String = when (tab) {
+    LanLibraryTab.Video -> copy.video
+    LanLibraryTab.Audio -> copy.audio
+    LanLibraryTab.Image -> copy.image
+    LanLibraryTab.Document -> copy.document
+}
+
+fun lanLibraryEmptyLabel(tab: LanLibraryTab, copy: LanHistoryCopy): String = when (tab) {
+    LanLibraryTab.Video -> copy.emptyVideo
+    LanLibraryTab.Audio -> copy.emptyAudio
+    LanLibraryTab.Image -> copy.emptyImage
+    LanLibraryTab.Document -> copy.emptyDocument
+}
 
 data class LanShareSettings(
     val enabled: Boolean = false,

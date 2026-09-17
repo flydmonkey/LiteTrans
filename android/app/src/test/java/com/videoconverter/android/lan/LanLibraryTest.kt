@@ -75,6 +75,16 @@ class LanLibraryTest {
     }
 
     @Test
+    fun tabAndEmptyLabels() {
+        val copy = englishLanHistoryCopy()
+        assertEquals("Images", lanLibraryTabLabel(LanLibraryTab.Image, copy))
+        assertEquals("No image history yet", lanLibraryEmptyLabel(LanLibraryTab.Image, copy))
+        assertEquals("Video", lanLibraryTabLabel(LanLibraryTab.Video, copy))
+        assertEquals("Documents", lanLibraryTabLabel(LanLibraryTab.Document, copy))
+        assertEquals("No audio history yet", lanLibraryEmptyLabel(LanLibraryTab.Audio, copy))
+    }
+
+    @Test
     fun loneLaterIndexStillNeedsIndex() {
         val items = lanLibraryItems(
             listOf(job("d", JobStatus.Completed, listOf("/tmp/gone.pdf", "/tmp/b.pdf"), "scan.pdf", "pdf-split")),

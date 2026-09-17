@@ -20,6 +20,7 @@
     <string name="history_empty_video">아직 동영상 기록이 없습니다</string>
     <string name="history_empty_audio">아직 오디오 기록이 없습니다</string>
     <string name="history_empty_document">아직 문서 기록이 없습니다</string>
+    <string name="history_empty_image">아직 이미지 기록이 없습니다</string>
     <string name="history_subtitle">변환된 파일을 열거나 공유, 이름 변경, 삭제할 수 있습니다</string>
     <string name="history_empty_hint">변환된 파일이 여기에 표시됩니다</string>
     <string name="history_rename_title">이름 변경</string>
@@ -40,6 +41,7 @@
     <string name="lan_segment_video">동영상</string>
     <string name="lan_segment_audio">오디오</string>
     <string name="lan_segment_document">문서</string>
+    <string name="lan_segment_image">이미지</string>
     <string name="lan_open_warning">이 네트워크에서 주소를 아는 사람은 조회, 재생 또는 미리보기를 하고 완료된 파일을 다운로드할 수 있습니다.</string>
     <string name="lan_preview_failed">미리볼 수 없습니다. 대신 파일을 다운로드하세요.</string>
     <string name="lan_download_to_open">다운로드한 뒤 컴퓨터에서 여세요.</string>

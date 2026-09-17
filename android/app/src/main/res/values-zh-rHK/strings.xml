@@ -20,6 +20,7 @@
     <string name="history_empty_video">還沒有影片記錄</string>
     <string name="history_empty_audio">還沒有音訊記錄</string>
     <string name="history_empty_document">還沒有文件記錄</string>
+    <string name="history_empty_image">還沒有圖片記錄</string>
     <string name="history_subtitle">開啟、分享、重新命名或刪除轉好的檔案</string>
     <string name="history_empty_hint">轉好的檔案會出現在這裡</string>
     <string name="history_rename_title">重新命名</string>
@@ -40,6 +41,7 @@
     <string name="lan_segment_video">影片</string>
     <string name="lan_segment_audio">音訊</string>
     <string name="lan_segment_document">文件</string>
+    <string name="lan_segment_image">圖片</string>
     <string name="lan_open_warning">同一網路中知道此位址的裝置可以查看、播放或預覽並下載已完成檔案。</string>
     <string name="lan_preview_failed">無法預覽。請改為下載該檔案。</string>
     <string name="lan_download_to_open">下載後在電腦上開啟。</string>
