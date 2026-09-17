@@ -43,4 +43,26 @@ class LanMediaTest {
         assertFalse(isLanContentLocation("/storage/emulated/0/Download/a.mp4"))
         assertFalse(isLanContentLocation("file:///tmp/a.mp4"))
     }
+
+    @Test
+    fun parseByteRange() {
+        assertEquals(LanByteRange.Whole, parseLanByteRange(null, 100))
+        assertEquals(LanByteRange.Whole, parseLanByteRange("", 100))
+        assertEquals(LanByteRange.Partial(0, 49), parseLanByteRange("bytes=0-49", 100))
+        assertEquals(LanByteRange.Partial(50, 99), parseLanByteRange("Bytes=50-", 100))
+        assertEquals(LanByteRange.Partial(0, 99), parseLanByteRange("bytes=0-9999", 100))
+        assertEquals(LanByteRange.Unsatisfiable, parseLanByteRange("bytes=100-110", 100))
+        assertEquals(LanByteRange.Unsatisfiable, parseLanByteRange("bytes=80-20", 100))
+        assertEquals(LanByteRange.Unsatisfiable, parseLanByteRange("bytes=0-10,11-20", 100))
+        assertEquals("bytes 0-49/100", lanContentRangeValue(0, 49, 100))
+        assertEquals("bytes */100", lanUnsatisfiableContentRange(100))
+    }
+
+    @Test
+    fun copyLanRangeSkipsAndLimits() {
+        val input = java.io.ByteArrayInputStream(byteArrayOf(10, 11, 12, 13, 14))
+        val output = java.io.ByteArrayOutputStream()
+        copyLanRange(input, output, 1, 3)
+        assertTrue(output.toByteArray().contentEquals(byteArrayOf(11, 12, 13)))
+    }
 }
