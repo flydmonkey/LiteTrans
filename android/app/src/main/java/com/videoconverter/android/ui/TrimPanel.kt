@@ -179,7 +179,7 @@ private fun TrimPanelContent(
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(ShapeTokens.Panel))
-                    .background(Color.White),
+                    .background(MaterialTheme.colorScheme.surface),
             )
         } else if (!playPreview) {
             Text(
@@ -188,7 +188,7 @@ private fun TrimPanelContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(ShapeTokens.Panel))
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Panel))
                     .padding(horizontal = 16.dp, vertical = 28.dp),
             )
@@ -263,14 +263,14 @@ private fun TrimTrack(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(36.dp)
+            .height(28.dp)
             .pointerInput(duration) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     val width = size.width.toFloat()
                     val startX = ((startState.value / duration) * width).toFloat()
                     val endX = ((endState.value / duration) * width).toFloat()
-                    val hit = 28.dp.toPx()
+                    val hit = 18.dp.toPx()
                     val kind = when {
                         abs(down.position.x - startX) <= hit -> TrimDrag.Start
                         abs(down.position.x - endX) <= hit -> TrimDrag.End
@@ -306,14 +306,14 @@ private fun TrimTrack(
                     val playX = playRatio * width
                     drawRoundRect(
                         color = rangeColor,
-                        topLeft = Offset(startX, 8.dp.toPx()),
-                        size = Size((endX - startX).coerceAtLeast(2f), 20.dp.toPx()),
+                        topLeft = Offset(startX, 6.dp.toPx()),
+                        size = Size((endX - startX).coerceAtLeast(2f), 16.dp.toPx()),
                         cornerRadius = CornerRadius(99.dp.toPx()),
                     )
                     drawRect(
                         color = playheadColor,
                         topLeft = Offset(playX - 1.dp.toPx(), 2.dp.toPx()),
-                        size = Size(2.dp.toPx(), 32.dp.toPx()),
+                        size = Size(2.dp.toPx(), 24.dp.toPx()),
                     )
                 },
         )
@@ -329,11 +329,11 @@ private fun Handle(x: Float) {
         modifier = Modifier
             .offset {
                 IntOffset(
-                    (x - 14.dp.toPx()).roundToInt(),
-                    ((36.dp.toPx() - 28.dp.toPx()) / 2f).roundToInt(),
+                    (x - 9.dp.toPx()).roundToInt(),
+                    ((28.dp.toPx() - 18.dp.toPx()) / 2f).roundToInt(),
                 )
             }
-            .size(28.dp)
+            .size(18.dp)
             .border(2.dp, Color.White, CircleShape)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primary),
