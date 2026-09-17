@@ -94,6 +94,7 @@ fun outputChoiceId(output: OutputTarget): String = when (output.kind) {
     OutputTarget.Kind.Gallery -> OUTPUT_CHOICE_GALLERY
     OutputTarget.Kind.Movies -> OUTPUT_CHOICE_MOVIES
     OutputTarget.Kind.Downloads -> OUTPUT_CHOICE_DOWNLOADS
+    OutputTarget.Kind.Music -> "music"
     OutputTarget.Kind.SafTree, OutputTarget.Kind.AppExternal -> OUTPUT_CHOICE_CUSTOM
 }
 

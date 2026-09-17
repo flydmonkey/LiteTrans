@@ -67,6 +67,8 @@ fun outputMimeType(config: OutputConfig): String =
             when (it.container) {
                 "mp3" -> "audio/mpeg"
                 "m4a" -> "audio/mp4"
+                "wav" -> "audio/wav"
+                "ogg" -> "audio/ogg"
                 "gif" -> "image/gif"
                 "mp4" -> "video/mp4"
                 "mov" -> "video/quicktime"

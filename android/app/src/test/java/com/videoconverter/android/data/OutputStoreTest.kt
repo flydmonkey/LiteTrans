@@ -23,6 +23,11 @@ class OutputStoreTest {
     }
 
     @Test
+    fun musicRelativePathIsMusicFolder() {
+        assertEquals("Music/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Music))
+    }
+
+    @Test
     fun zeroUpdatedRowsFailsMediaStorePublish() {
         val error = assertThrows(IOException::class.java) {
             requireMediaStorePublished(0)

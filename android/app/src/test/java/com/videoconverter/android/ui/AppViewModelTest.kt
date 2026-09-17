@@ -88,6 +88,8 @@ class AppViewModelTest {
         assertEquals("image/gif", outputMimeType(OutputConfig(preset = "gif")))
         assertEquals("video/webm", outputMimeType(OutputConfig(preset = "webm-vp9")))
         assertEquals("video/mp4", outputMimeType(OutputConfig(preset = "mp4-h264")))
+        assertEquals("audio/wav", outputMimeType(OutputConfig(preset = "audio-wav")))
+        assertEquals("audio/ogg", outputMimeType(OutputConfig(preset = "audio-ogg")))
     }
 
     @Test
