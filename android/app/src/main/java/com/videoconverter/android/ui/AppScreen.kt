@@ -30,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,8 +90,8 @@ fun AppScreen(
 ) {
     val state by appViewModel.state.collectAsState()
     val context = LocalContext.current
-    var tab by remember { mutableStateOf(RootTab.Transcode) }
-    var minePage by remember { mutableStateOf(MinePage.Root) }
+    var tab by rememberSaveable { mutableStateOf(RootTab.Transcode) }
+    var minePage by rememberSaveable { mutableStateOf(MinePage.Root) }
     var step by remember { mutableStateOf(WizardStep.Sources) }
     var showAll by remember { mutableStateOf(false) }
     var selectedUri by remember { mutableStateOf<String?>(null) }
@@ -334,10 +335,10 @@ fun AppScreen(
                     onRename = { job, name -> appViewModel.rename(job.id, name) },
                     onDelete = appViewModel::delete,
                 )
-                RootTab.Mine -> if (minePage == MinePage.LanShare) {
-                    LanShareScreen(onBack = { minePage = MinePage.Root })
-                } else {
-                    MineScreen(
+                RootTab.Mine -> when (minePage) {
+                    MinePage.LanShare -> LanShareScreen(onBack = { minePage = MinePage.Root })
+                    MinePage.Language -> LanguageScreen(onBack = { minePage = MinePage.Root })
+                    else -> MineScreen(
                         page = minePage,
                         versionName = versionName,
                         onOpen = { minePage = it },

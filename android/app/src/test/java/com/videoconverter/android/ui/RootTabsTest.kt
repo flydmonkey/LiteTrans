@@ -35,6 +35,23 @@ class RootTabsTest {
         )
         assertEquals(R.string.mine_lan, minePageTitleRes(MinePage.LanShare))
         assertEquals(R.string.mine_language, minePageTitleRes(MinePage.Language))
+        assertEquals(R.string.language_follow_system, languageLabelRes(AppLanguage.System))
+        assertEquals(R.string.language_zh_cn, languageLabelRes(AppLanguage.ZhCn))
+        assertEquals(R.string.language_zh_tw, languageLabelRes(AppLanguage.ZhTw))
+        assertEquals(R.string.language_en, languageLabelRes(AppLanguage.En))
+        assertEquals(R.string.language_ja, languageLabelRes(AppLanguage.Ja))
+        assertEquals(R.string.language_ko, languageLabelRes(AppLanguage.Ko))
+        assertEquals(
+            listOf(
+                AppLanguage.System,
+                AppLanguage.ZhCn,
+                AppLanguage.ZhTw,
+                AppLanguage.En,
+                AppLanguage.Ja,
+                AppLanguage.Ko,
+            ),
+            languageOptions(),
+        )
         assertEquals(R.string.mine_privacy, minePageTitleRes(MinePage.Privacy))
         assertEquals(R.string.mine_terms, minePageTitleRes(MinePage.Terms))
         assertEquals(R.string.mine_about, minePageTitleRes(MinePage.About))

@@ -16,6 +16,10 @@ class AppLanguageTest {
         assertEquals(AppLanguage.System, AppLanguage.fromTag(null))
         assertEquals(AppLanguage.System, AppLanguage.fromTag(""))
         assertEquals(AppLanguage.ZhCn, AppLanguage.fromTag("zh-CN"))
+        assertEquals(AppLanguage.System, appLanguageFromLocaleTags(emptyList()))
+        assertEquals(AppLanguage.System, appLanguageFromLocaleTags(listOf("")))
+        assertEquals(AppLanguage.Ja, appLanguageFromLocaleTags(listOf("ja")))
+        assertEquals(AppLanguage.ZhCn, appLanguageFromLocaleTags(listOf("zh-CN", "en")))
     }
 
     @Test
