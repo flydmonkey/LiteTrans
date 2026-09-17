@@ -90,6 +90,8 @@ fun videoSessionFromSettings(settings: SessionSettings): WizardSession = default
     output = settings.output,
 )
 
+fun shouldPersistOutputForMode(mode: ConvertMode): Boolean = mode == ConvertMode.Video
+
 suspend fun persistOutputBeforeStart(
     output: OutputTarget,
     persist: suspend (OutputTarget) -> Unit,
@@ -323,7 +325,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             viewModelScope.launch {
                 persistOutputBeforeStart(
                     output = session.output,
-                    persist = { persistOutputTarget(it) },
+                    persist = { if (shouldPersistOutputForMode(mode)) persistOutputTarget(it) },
                     start = { TranscodeService.startPump(app) },
                 )
             }
@@ -377,7 +379,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             persistOutputBeforeStart(
                 output = session.output,
-                persist = { persistOutputTarget(it) },
+                persist = { if (shouldPersistOutputForMode(mode)) persistOutputTarget(it) },
                 start = { TranscodeService.enqueue(app, stamped) },
             )
         }

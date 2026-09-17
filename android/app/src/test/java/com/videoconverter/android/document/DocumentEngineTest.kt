@@ -40,6 +40,20 @@ class DocumentEngineTest {
     }
 
     @Test
+    fun planDocumentOutputsCompressesRangeToSinglePdf() {
+        val planned = planDocumentOutputs(
+            documentJob(
+                displayName = "scan.pdf",
+                preset = "pdf-compress",
+                pageCount = 2,
+                pageStart = 1,
+                pageEnd = 1,
+            ),
+        )
+        assertEquals(listOf("scan" to "pdf"), planned)
+    }
+
+    @Test
     fun planDocumentOutputsKeepsSingleImage() {
         val planned = planDocumentOutputs(
             documentJob(displayName = "photo.png", preset = "image-jpg"),

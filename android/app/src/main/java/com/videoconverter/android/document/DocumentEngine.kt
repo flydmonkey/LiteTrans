@@ -143,7 +143,7 @@ class DocumentEngine(
         return when (val preset = job.config.preset) {
             "pdf-split" -> {
                 val (start, end) = pageRange(job, source)
-                splitPdf(source, start, end, destDir, stem).also { files ->
+                splitPdf(source, start, end, destDir, stem, shouldCancel = { wasCancelled(job.id) }).also { files ->
                     files.indices.forEach { onItem(it + 1, total) }
                 }
             }
@@ -155,8 +155,9 @@ class DocumentEngine(
                 listOf(dest)
             }
             "pdf-compress" -> {
+                val (start, end) = pageRange(job, source)
                 val dest = plannedFile(destDir, planned.first())
-                compressPdf(source, quality, dest)
+                compressPdf(source, quality, dest, start, end)
                 onItem(1, total)
                 listOf(dest)
             }

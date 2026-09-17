@@ -37,24 +37,47 @@ fun extractPdfText(file: File, start: Int, end: Int): String = openReadablePdf(f
     text
 }
 
-fun splitPdf(file: File, start: Int, end: Int, destDir: File, stem: String): List<File> {
+fun splitPdf(
+    file: File,
+    start: Int,
+    end: Int,
+    destDir: File,
+    stem: String,
+    shouldCancel: () -> Boolean = { false },
+): List<File> {
     destDir.mkdirs()
     return openReadablePdf(file).use { document ->
         val (lo, hi) = clampPageRange(start, end, document.numberOfPages)
         val total = hi - lo + 1
-        (lo..hi).map { pageNumber ->
+        val files = mutableListOf<File>()
+        for (pageNumber in lo..hi) {
+            if (shouldCancel()) error("已取消")
             val dest = File(destDir, documentOutputFileName(stem, pageNumber - lo + 1, total, "pdf"))
             PDDocument().use { out ->
                 out.importPage(document.getPage(pageNumber - 1))
                 out.save(dest)
             }
-            dest
+            files += dest
         }
+        files
     }
 }
 
-fun compressPdf(file: File, quality: String, dest: File) {
+fun compressPdf(
+    file: File,
+    quality: String,
+    dest: File,
+    start: Int = 1,
+    end: Int = Int.MAX_VALUE,
+) {
     openReadablePdf(file).use { document ->
+        val (lo, hi) = clampPageRange(start, end, document.numberOfPages)
+        for (index in document.numberOfPages - 1 downTo 0) {
+            val pageNumber = index + 1
+            if (pageNumber < lo || pageNumber > hi) {
+                document.removePage(index)
+            }
+        }
         val maxEdge = pdfImageMaxEdge(quality)
         val jpegQuality = when (quality) {
             "high" -> 0.85f

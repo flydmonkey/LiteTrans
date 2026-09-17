@@ -174,6 +174,13 @@ class AppViewModelTest {
     }
 
     @Test
+    fun onlyVideoModePersistsSharedOutputTarget() {
+        assertTrue(shouldPersistOutputForMode(ConvertMode.Video))
+        assertFalse(shouldPersistOutputForMode(ConvertMode.Audio))
+        assertFalse(shouldPersistOutputForMode(ConvertMode.Document))
+    }
+
+    @Test
     fun outputTargetIsPersistedBeforeServiceStarts() = runBlocking {
         val output = OutputTarget(OutputTarget.Kind.SafTree, "content://tree/output")
         val events = mutableListOf<String>()

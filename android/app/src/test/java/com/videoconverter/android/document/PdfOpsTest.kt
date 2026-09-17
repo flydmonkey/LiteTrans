@@ -48,6 +48,31 @@ class PdfOpsTest {
     }
 
     @Test
+    fun compressKeepsOnlySelectedPageRange() {
+        val src = writtenTwoPagePdf()
+        val dest = kotlin.io.path.createTempFile("c-range", ".pdf").toFile()
+        compressPdf(src, "small", dest, start = 1, end = 1)
+        assertEquals(1, pdfPageCount(dest))
+        val text = extractPdfText(dest, 1, 1)
+        assertTrue(text.contains("Hello"))
+        assertTrue(!text.contains("World"))
+    }
+
+    @Test
+    fun splitStopsWhenCancelledAfterFirstPage() {
+        val src = writtenTwoPagePdf()
+        val out = kotlin.io.path.createTempDirectory("split-cancel").toFile()
+        try {
+            splitPdf(src, 1, 2, out, "clip", shouldCancel = { (out.listFiles()?.size ?: 0) >= 1 })
+            org.junit.Assert.fail("expected cancellation")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message!!.contains("取消"))
+        }
+        assertEquals(1, out.listFiles()?.size)
+        assertTrue(extractPdfText(out.listFiles()!!.single(), 1, 1).contains("Hello"))
+    }
+
+    @Test
     fun pdfImageMaxEdgeMatchesQuality() {
         assertEquals(1600, pdfImageMaxEdge("high"))
         assertEquals(1200, pdfImageMaxEdge("standard"))
