@@ -83,6 +83,7 @@ private val SIZE_CHIPS = listOf(
 fun AppScreen(
     appViewModel: AppViewModel = viewModel(),
     openLanShare: Boolean = false,
+    onOpenLanShareConsumed: () -> Unit = {},
 ) {
     val state by appViewModel.state.collectAsState()
     val context = LocalContext.current
@@ -149,6 +150,7 @@ fun AppScreen(
         if (openLanShare) {
             tab = RootTab.Mine
             minePage = MinePage.LanShare
+            onOpenLanShareConsumed()
         }
     }
 
