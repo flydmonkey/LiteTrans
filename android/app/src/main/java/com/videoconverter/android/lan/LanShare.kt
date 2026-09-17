@@ -84,7 +84,7 @@ fun lanContentType(fileName: String): String = when (fileName.substringAfterLast
 
 fun lanContentDisposition(fileName: String): String {
     val safe = fileName.replace(Regex("[\r\n\"]"), "_")
-    val encoded = java.net.URLEncoder.encode(safe, Charsets.UTF_8).replace("+", "%20")
+    val encoded = java.net.URLEncoder.encode(safe, "UTF-8").replace("+", "%20")
     return "attachment; filename=\"$safe\"; filename*=UTF-8''$encoded"
 }
 
@@ -119,7 +119,7 @@ fun chooseLanPort(
 fun lanPublicUrl(ip: String, port: Int, token: String): String {
     val base = "http://$ip:$port/"
     if (token.isEmpty()) return base
-    val encoded = java.net.URLEncoder.encode(token, Charsets.UTF_8)
+    val encoded = java.net.URLEncoder.encode(token, "UTF-8")
     return "${base}?k=$encoded"
 }
 
@@ -181,7 +181,7 @@ fun escapeHtml(raw: String): String = raw
 private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, token: String): String {
     val path = if (index > 0 || multi) "/d/$jobId/$index" else "/d/$jobId"
     if (token.isEmpty()) return path
-    val encoded = java.net.URLEncoder.encode(token, Charsets.UTF_8)
+    val encoded = java.net.URLEncoder.encode(token, "UTF-8")
     return "$path?k=$encoded"
 }
 
@@ -202,8 +202,8 @@ fun parseLanQuery(rawQuery: String?): Map<String, String> {
         val eq = part.indexOf('=')
         val rawKey = if (eq < 0) part else part.substring(0, eq)
         val rawVal = if (eq < 0) "" else part.substring(eq + 1)
-        val key = java.net.URLDecoder.decode(rawKey, Charsets.UTF_8)
-        val value = java.net.URLDecoder.decode(rawVal, Charsets.UTF_8)
+        val key = java.net.URLDecoder.decode(rawKey, "UTF-8")
+        val value = java.net.URLDecoder.decode(rawVal, "UTF-8")
         if (key.isEmpty()) null else key to value
     }.toMap()
 }
