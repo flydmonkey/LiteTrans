@@ -29,4 +29,13 @@ struct ConvertNavigationTests {
         #expect(popMineBack(.privacy) == .root)
         #expect(popMineBack(.root) == nil)
     }
+
+    @Test func appLanguageHasRequiredCases() {
+        #expect(AppLanguage.system.rawValue == "system")
+        #expect(AppLanguage.zhHans.rawValue == "zhHans")
+        #expect(AppLanguage.zhHant.rawValue == "zhHant")
+        #expect(AppLanguage.en.rawValue == "en")
+        #expect(AppLanguage.ja.rawValue == "ja")
+        #expect(AppLanguage.ko.rawValue == "ko")
+    }
 }

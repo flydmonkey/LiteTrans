@@ -1,14 +1,16 @@
 import SwiftUI
 
 struct RootView: View {
-    @State private var tab: RootTab = .convert
+    @Environment(AppModel.self) private var model
 
     var body: some View {
-        TabView(selection: $tab) {
-            NavigationStack {
-                Text("转码")
-                    .navigationTitle("转码")
-                    .navigationBarTitleDisplayMode(.large)
+        @Bindable var model = model
+        TabView(selection: $model.tab) {
+            NavigationStack(path: convertPath) {
+                ConvertHomeView()
+                    .navigationDestination(for: ConvertPage.self) { page in
+                        ConvertSettingDestination(page: page)
+                    }
             }
             .tabItem {
                 Label(String(localized: "tab_convert"), systemImage: "arrow.triangle.2.circlepath")
@@ -35,5 +37,18 @@ struct RootView: View {
             }
             .tag(RootTab.mine)
         }
+    }
+
+    private var convertPath: Binding<[ConvertPage]> {
+        Binding(
+            get: { model.convertPage == .home ? [] : [model.convertPage] },
+            set: { stack in
+                if let page = stack.last {
+                    model.convertPage = page
+                } else {
+                    model.convertPage = popConvertBack(model.convertPage) ?? .home
+                }
+            }
+        )
     }
 }

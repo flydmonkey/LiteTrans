@@ -13,6 +13,12 @@ public struct MediaInfo: Equatable, Sendable, Codable {
     public var error: String?
     public var trimStartSecs: Double?
     public var trimEndSecs: Double?
+    public var probing: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case sourceUri, displayName, durationSecs, container, videoCodec, width, height
+        case frameRate, audioCodec, channels, importable, error, trimStartSecs, trimEndSecs, probing
+    }
 
     public init(
         sourceUri: String,
@@ -28,7 +34,8 @@ public struct MediaInfo: Equatable, Sendable, Codable {
         importable: Bool = false,
         error: String? = nil,
         trimStartSecs: Double? = nil,
-        trimEndSecs: Double? = nil
+        trimEndSecs: Double? = nil,
+        probing: Bool = false
     ) {
         self.sourceUri = sourceUri
         self.displayName = displayName
@@ -44,6 +51,26 @@ public struct MediaInfo: Equatable, Sendable, Codable {
         self.error = error
         self.trimStartSecs = trimStartSecs
         self.trimEndSecs = trimEndSecs
+        self.probing = probing
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sourceUri = try container.decode(String.self, forKey: .sourceUri)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        durationSecs = try container.decodeIfPresent(Double.self, forKey: .durationSecs)
+        self.container = try container.decodeIfPresent(String.self, forKey: .container)
+        videoCodec = try container.decodeIfPresent(String.self, forKey: .videoCodec)
+        width = try container.decodeIfPresent(Int.self, forKey: .width)
+        height = try container.decodeIfPresent(Int.self, forKey: .height)
+        frameRate = try container.decodeIfPresent(Double.self, forKey: .frameRate)
+        audioCodec = try container.decodeIfPresent(String.self, forKey: .audioCodec)
+        channels = try container.decodeIfPresent(Int.self, forKey: .channels)
+        importable = try container.decodeIfPresent(Bool.self, forKey: .importable) ?? false
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+        trimStartSecs = try container.decodeIfPresent(Double.self, forKey: .trimStartSecs)
+        trimEndSecs = try container.decodeIfPresent(Double.self, forKey: .trimEndSecs)
+        probing = try container.decodeIfPresent(Bool.self, forKey: .probing) ?? false
     }
 }
 

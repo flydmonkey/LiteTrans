@@ -1,9 +1,10 @@
 import Foundation
 
 public enum RootTab: String, CaseIterable, Sendable { case convert, history, mine }
-public enum ConvertPage: String, Sendable { case home, format, quality, size, output }
-public enum ConvertSetting: String, Sendable { case format, quality, size, output }
+public enum ConvertPage: String, Sendable, Hashable { case home, format, quality, size, output }
+public enum ConvertSetting: String, Sendable, Hashable { case format, quality, size, output }
 public enum MinePage: String, Sendable { case root, language, privacy, terms, about }
+public enum AppLanguage: String, Sendable { case system, zhHans, zhHant, en, ja, ko }
 public enum OutputKind: String, Sendable, Codable { case photos, downloads, custom }
 
 public struct OutputTarget: Equatable, Sendable, Codable {
