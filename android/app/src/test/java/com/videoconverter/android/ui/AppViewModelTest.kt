@@ -3,6 +3,8 @@ package com.videoconverter.android.ui
 import android.content.Intent
 import android.net.Uri
 import com.videoconverter.android.data.OutputTarget
+import com.videoconverter.android.data.SessionSettings
+import com.videoconverter.android.data.SessionStore
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
@@ -31,6 +33,75 @@ class AppViewModelTest {
         assertFalse(shouldShowResolution("audio-aac"))
         assertFalse(shouldShowResolution("mp4-copy"))
         assertTrue(shouldShowResolution("mp4-h264"))
+    }
+
+    @Test
+    fun shouldShowResolutionHidesAllAudioPresets() {
+        assertFalse(shouldShowResolution("audio-wav"))
+        assertFalse(shouldShowResolution("audio-ogg"))
+    }
+
+    @Test
+    fun appUiStateDefaultsToIndependentSessions() {
+        val state = AppUiState()
+        assertEquals(SessionStore.DEFAULT_PRESET, state.video.preset)
+        assertEquals("audio-mp3", state.audio.preset)
+        assertEquals(OutputTarget.Kind.Downloads, state.video.output.kind)
+        assertEquals(OutputTarget.Kind.Music, state.audio.output.kind)
+        assertTrue(state.video.sources.isEmpty())
+        assertTrue(state.audio.sources.isEmpty())
+    }
+
+    @Test
+    fun emptyStartReasonUsesModeCopy() {
+        assertEquals("请先添加可转码的视频", emptyStartReason(ConvertMode.Video))
+        assertEquals("请先添加可转码的音频", emptyStartReason(ConvertMode.Audio))
+    }
+
+    @Test
+    fun applyProbedSourceRestrictsAudioOnly() {
+        val silent = MediaInfo(
+            sourceUri = "u",
+            displayName = "silent.mp4",
+            videoCodec = "h264",
+            audioCodec = null,
+            importable = true,
+        )
+        assertTrue(applyProbedSource(silent, ConvertMode.Video).importable)
+        val audio = applyProbedSource(silent, ConvertMode.Audio)
+        assertFalse(audio.importable)
+        assertTrue(audio.error!!.contains("没有音频流"))
+    }
+
+    @Test
+    fun videoSessionFromSettingsFillsVideoOnly() {
+        val settings = SessionSettings(
+            preset = "mp4-copy",
+            quality = "small",
+            maxWidth = 1280,
+            maxHeight = 720,
+            output = OutputTarget(OutputTarget.Kind.Movies),
+        )
+        val video = videoSessionFromSettings(settings)
+        assertEquals("mp4-copy", video.preset)
+        assertEquals("small", video.quality)
+        assertEquals("720p", video.size)
+        assertEquals(OutputTarget.Kind.Movies, video.output.kind)
+        assertEquals("audio-mp3", defaultAudioSession().preset)
+    }
+
+    @Test
+    fun sourcesChangedFlagsAreIndependentPerMode() {
+        assertFalse(sourcesChangedFor(videoChanged = false, audioChanged = true, ConvertMode.Video))
+        assertTrue(sourcesChangedFor(videoChanged = false, audioChanged = true, ConvertMode.Audio))
+        assertTrue(sourcesChangedFor(videoChanged = true, audioChanged = false, ConvertMode.Video))
+        assertFalse(sourcesChangedFor(videoChanged = true, audioChanged = false, ConvertMode.Audio))
+    }
+
+    @Test
+    fun presetTitleLooksUpAudioCards() {
+        assertEquals("WAV", presetTitle("audio-wav"))
+        assertEquals("OGG · Opus", presetTitle("audio-ogg"))
     }
 
     @Test

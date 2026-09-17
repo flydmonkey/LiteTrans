@@ -36,12 +36,9 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 data class AppUiState(
-    val sources: List<SourceItem> = emptyList(),
+    val video: WizardSession = defaultVideoSession(),
+    val audio: WizardSession = defaultAudioSession(),
     val jobs: List<Job> = emptyList(),
-    val preset: String = SessionStore.DEFAULT_PRESET,
-    val quality: String = SessionStore.DEFAULT_QUALITY,
-    val size: String = "original",
-    val output: OutputTarget = OutputTarget(OutputTarget.Kind.Downloads),
     val message: String? = null,
 )
 
@@ -49,6 +46,25 @@ enum class StartAction { StartPump, Enqueue }
 
 fun chooseStartAction(hasQueuedJobs: Boolean, sourcesChanged: Boolean): StartAction =
     if (hasQueuedJobs && !sourcesChanged) StartAction.StartPump else StartAction.Enqueue
+
+fun sourcesChangedFor(videoChanged: Boolean, audioChanged: Boolean, mode: ConvertMode): Boolean =
+    when (mode) {
+        ConvertMode.Video -> videoChanged
+        ConvertMode.Audio -> audioChanged
+    }
+
+fun emptyStartReason(mode: ConvertMode): String =
+    if (mode == ConvertMode.Audio) "请先添加可转码的音频" else "请先添加可转码的视频"
+
+fun applyProbedSource(media: MediaInfo, mode: ConvertMode): MediaInfo =
+    if (mode == ConvertMode.Audio) restrictAudioSource(media) else media
+
+fun videoSessionFromSettings(settings: SessionSettings): WizardSession = defaultVideoSession().copy(
+    preset = settings.preset ?: SessionStore.DEFAULT_PRESET,
+    quality = settings.quality ?: SessionStore.DEFAULT_QUALITY,
+    size = sizeFor(settings.maxWidth, settings.maxHeight),
+    output = settings.output,
+)
 
 suspend fun persistOutputBeforeStart(
     output: OutputTarget,
@@ -120,17 +136,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val probeSlots = Semaphore(4)
     private val mutableState = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
-    private var sourcesChanged = false
+    private var videoSourcesChanged = false
+    private var audioSourcesChanged = false
 
     init {
         viewModelScope.launch {
             val settings = sessionStore.load()
             mutableState.value = mutableState.value.copy(
                 jobs = withContext(Dispatchers.IO) { jobStore.load() },
-                preset = settings.preset ?: SessionStore.DEFAULT_PRESET,
-                quality = settings.quality ?: SessionStore.DEFAULT_QUALITY,
-                size = sizeFor(settings.maxWidth, settings.maxHeight),
-                output = settings.output,
+                video = videoSessionFromSettings(settings),
             )
             while (true) {
                 delay(500)
@@ -142,72 +156,76 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addUris(uris: List<Uri>) {
-        val existing = mutableState.value.sources.map { it.media.sourceUri }.toSet()
+    fun addUris(uris: List<Uri>, mode: ConvertMode) {
+        val existing = currentSession(mode).sources.map { it.media.sourceUri }.toSet()
         uris.distinctBy(Uri::toString).filterNot { it.toString() in existing }.forEach { uri ->
             takeReadPermission(uri)
             val placeholder = MediaInfo(
                 sourceUri = uri.toString(),
                 displayName = displayName(uri),
             )
-            mutableState.value = mutableState.value.copy(
-                sources = mutableState.value.sources + SourceItem(placeholder, probing = true),
-                message = null,
-            )
-            sourcesChanged = true
+            updateSession(mode) { session ->
+                session.copy(sources = session.sources + SourceItem(placeholder, probing = true))
+            }
+            mutableState.value = mutableState.value.copy(message = null)
+            markSourcesChanged(mode, true)
             viewModelScope.launch {
-                val result = probeSlots.withPermit {
+                val probed = probeSlots.withPermit {
                     runCatching { ffmpeg.probe(uri, placeholder.displayName) }
                         .getOrElse {
                             placeholder.copy(error = it.message ?: "无法读取媒体信息")
                         }
                 }
-                mutableState.value = mutableState.value.copy(
-                    sources = mutableState.value.sources.map {
-                        if (it.media.sourceUri == uri.toString()) SourceItem(result, false) else it
-                    },
-                )
+                val result = applyProbedSource(probed, mode)
+                updateSession(mode) { session ->
+                    session.copy(
+                        sources = session.sources.map {
+                            if (it.media.sourceUri == uri.toString()) SourceItem(result, false) else it
+                        },
+                    )
+                }
             }
         }
     }
 
-    fun remove(uri: String) {
+    fun remove(uri: String, mode: ConvertMode) {
         val running = mutableState.value.jobs.any {
             it.sourceUri == uri && it.status == JobStatus.Running
         }
         if (running) return
-        mutableState.value = mutableState.value.copy(
-            sources = mutableState.value.sources.filterNot { it.media.sourceUri == uri },
-        )
-        sourcesChanged = true
+        updateSession(mode) { session ->
+            session.copy(sources = session.sources.filterNot { it.media.sourceUri == uri })
+        }
+        markSourcesChanged(mode, true)
     }
 
-    fun clearSources() {
-        mutableState.value = mutableState.value.copy(sources = emptyList())
-        sourcesChanged = true
+    fun clearSources(mode: ConvertMode) {
+        updateSession(mode) { it.copy(sources = emptyList()) }
+        markSourcesChanged(mode, true)
     }
 
-    fun updateTrim(updated: MediaInfo) {
-        mutableState.value = mutableState.value.copy(
-            sources = mutableState.value.sources.map {
-                if (it.media.sourceUri == updated.sourceUri) it.copy(media = updated) else it
-            },
-        )
-        sourcesChanged = true
+    fun updateTrim(updated: MediaInfo, mode: ConvertMode) {
+        updateSession(mode) { session ->
+            session.copy(
+                sources = session.sources.map {
+                    if (it.media.sourceUri == updated.sourceUri) it.copy(media = updated) else it
+                },
+            )
+        }
+        markSourcesChanged(mode, true)
     }
 
-    fun setPreset(preset: String) = updateSettings(preset = preset)
+    fun setPreset(preset: String, mode: ConvertMode) = updateSettings(mode, preset = preset)
 
-    fun setQuality(quality: String) = updateSettings(quality = quality)
+    fun setQuality(quality: String, mode: ConvertMode) = updateSettings(mode, quality = quality)
 
-    fun setSize(size: String) {
-        val (width, height) = resolutionBounds(size)
-        mutableState.value = mutableState.value.copy(size = size)
-        persistSettings(maxWidth = width, maxHeight = height)
-        sourcesChanged = true
+    fun setSize(size: String, mode: ConvertMode) {
+        updateSession(mode) { it.copy(size = size) }
+        persistSettings(mode)
+        markSourcesChanged(mode, true)
     }
 
-    fun pickOutputTree(uri: Uri) {
+    fun pickOutputTree(uri: Uri, mode: ConvertMode) {
         runCatching {
             app.contentResolver.takePersistableUriPermission(
                 uri,
@@ -215,43 +233,44 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         val output = OutputTarget(OutputTarget.Kind.SafTree, uri.toString())
-        mutableState.value = mutableState.value.copy(output = output)
-        viewModelScope.launch { sessionStore.saveOutputTarget(output) }
+        updateSession(mode) { it.copy(output = output) }
+        persistOutput(mode, output)
     }
 
-    fun setOutputChoice(id: String) {
+    fun setOutputChoice(id: String, mode: ConvertMode) {
         val kind = outputKindForChoice(id) ?: return
         val output = OutputTarget(kind)
-        mutableState.value = mutableState.value.copy(output = output)
-        viewModelScope.launch { sessionStore.saveOutputTarget(output) }
+        updateSession(mode) { it.copy(output = output) }
+        persistOutput(mode, output)
     }
 
-    fun start(): Boolean {
+    fun start(mode: ConvertMode): Boolean {
         val snapshot = mutableState.value
+        val session = sessionFor(snapshot.video, snapshot.audio, mode)
         val queued = snapshot.jobs.any { it.status == JobStatus.Queued }
-        if (chooseStartAction(queued, sourcesChanged) == StartAction.StartPump) {
+        if (chooseStartAction(queued, sourcesChangedFor(mode)) == StartAction.StartPump) {
             viewModelScope.launch {
                 persistOutputBeforeStart(
-                    output = snapshot.output,
-                    persist = sessionStore::saveOutputTarget,
+                    output = session.output,
+                    persist = { persistOutputTarget(mode, it) },
                     start = { TranscodeService.startPump(app) },
                 )
             }
             return true
         }
-        if (snapshot.sources.any { it.probing }) {
+        if (session.sources.any { it.probing }) {
             mutableState.value = snapshot.copy(message = "请等待格式读取完成")
             return false
         }
-        val bounds = effectiveResolution(snapshot.preset, snapshot.size)
+        val bounds = effectiveResolution(session.preset, session.size)
         val config = OutputConfig(
-            preset = snapshot.preset,
-            quality = snapshot.quality,
+            preset = session.preset,
+            quality = session.quality,
             maxWidth = bounds.first,
             maxHeight = bounds.second,
         )
         val report = enqueueJobs(
-            sources = snapshot.sources.map { it.media },
+            sources = session.sources.map { it.media },
             config = config,
             outputDir = File(app.filesDir, "planned").absolutePath,
             nextId = { UUID.randomUUID().toString() },
@@ -261,7 +280,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return false
         }
         if (report.jobs.isEmpty()) {
-            val reason = report.skipped.firstOrNull()?.reason ?: "请先添加可转码的视频"
+            val reason = report.skipped.firstOrNull()?.reason ?: emptyStartReason(mode)
             mutableState.value = snapshot.copy(message = reason)
             return false
         }
@@ -269,11 +288,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             jobs = snapshot.jobs + report.jobs,
             message = report.skipped.firstOrNull()?.reason,
         )
-        sourcesChanged = false
+        markSourcesChanged(mode, false)
         viewModelScope.launch {
             persistOutputBeforeStart(
-                output = snapshot.output,
-                persist = sessionStore::saveOutputTarget,
+                output = session.output,
+                persist = { persistOutputTarget(mode, it) },
                 start = { TranscodeService.enqueue(app, report.jobs) },
             )
         }
@@ -284,7 +303,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun retry(jobId: String) = TranscodeService.retry(app, jobId)
 
-    fun clearFinished() = TranscodeService.clearFinished(app)
+    fun clearFinished(segment: HistorySegment) {
+        viewModelScope.launch(Dispatchers.IO) {
+            jobStore.update { remainingJobsAfterClearFinished(it, segment) }
+        }
+    }
 
     fun delete(jobId: String) {
         val job = mutableState.value.jobs.find { it.id == jobId } ?: return
@@ -350,29 +373,62 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         mutableState.value = mutableState.value.copy(message = null)
     }
 
-    private fun updateSettings(preset: String? = null, quality: String? = null) {
-        mutableState.value = mutableState.value.copy(
-            preset = preset ?: mutableState.value.preset,
-            quality = quality ?: mutableState.value.quality,
-        )
-        persistSettings()
-        sourcesChanged = true
+    private fun updateSession(mode: ConvertMode, transform: (WizardSession) -> WizardSession) {
+        val snapshot = mutableState.value
+        val current = sessionFor(snapshot.video, snapshot.audio, mode)
+        val (video, audio) = replaceSession(snapshot.video, snapshot.audio, mode, transform(current))
+        mutableState.value = snapshot.copy(video = video, audio = audio)
     }
 
-    private fun persistSettings(maxWidth: Int? = resolutionBounds(state.value.size).first,
-                                maxHeight: Int? = resolutionBounds(state.value.size).second) {
+    private fun currentSession(mode: ConvertMode): WizardSession {
         val snapshot = mutableState.value
+        return sessionFor(snapshot.video, snapshot.audio, mode)
+    }
+
+    private fun markSourcesChanged(mode: ConvertMode, changed: Boolean) {
+        when (mode) {
+            ConvertMode.Video -> videoSourcesChanged = changed
+            ConvertMode.Audio -> audioSourcesChanged = changed
+        }
+    }
+
+    private fun sourcesChangedFor(mode: ConvertMode): Boolean =
+        sourcesChangedFor(videoSourcesChanged, audioSourcesChanged, mode)
+
+    private fun updateSettings(mode: ConvertMode, preset: String? = null, quality: String? = null) {
+        updateSession(mode) { session ->
+            session.copy(
+                preset = preset ?: session.preset,
+                quality = quality ?: session.quality,
+            )
+        }
+        persistSettings(mode)
+        markSourcesChanged(mode, true)
+    }
+
+    private fun persistSettings(mode: ConvertMode) {
+        if (mode != ConvertMode.Video) return
+        val session = mutableState.value.video
+        val (maxWidth, maxHeight) = resolutionBounds(session.size)
         viewModelScope.launch {
             sessionStore.save(
                 SessionSettings(
-                    preset = snapshot.preset,
-                    quality = snapshot.quality,
+                    preset = session.preset,
+                    quality = session.quality,
                     maxWidth = maxWidth,
                     maxHeight = maxHeight,
-                    output = snapshot.output,
+                    output = session.output,
                 ),
             )
         }
+    }
+
+    private fun persistOutput(mode: ConvertMode, output: OutputTarget) {
+        viewModelScope.launch { persistOutputTarget(mode, output) }
+    }
+
+    private suspend fun persistOutputTarget(mode: ConvertMode, output: OutputTarget) {
+        if (mode == ConvertMode.Video) sessionStore.saveOutputTarget(output)
     }
 
     private fun displayName(uri: Uri): String =

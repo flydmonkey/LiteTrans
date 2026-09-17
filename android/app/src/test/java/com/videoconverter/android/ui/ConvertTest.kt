@@ -34,6 +34,19 @@ class ConvertTest {
     }
 
     @Test
+    fun restrictAudioSourceKeepsExistingProbeError() {
+        val failed = MediaInfo(
+            sourceUri = "u",
+            displayName = "broken.mp4",
+            importable = false,
+            error = "无法读取媒体信息",
+        )
+        val marked = restrictAudioSource(failed)
+        assertFalse(marked.importable)
+        assertEquals("无法读取媒体信息", marked.error)
+    }
+
+    @Test
     fun sessionForSelectsModeAndKeepsAudioTracks() {
         val video = defaultVideoSession().copy(preset = "mp4-copy")
         val audio = defaultAudioSession()

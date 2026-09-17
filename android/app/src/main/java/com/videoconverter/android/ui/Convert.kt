@@ -49,8 +49,9 @@ fun replaceSession(
 }
 
 fun restrictAudioSource(media: MediaInfo): MediaInfo =
-    if (media.audioCodec.isNullOrBlank()) {
-        media.copy(importable = false, error = "没有音频流，无法导出音频")
-    } else {
-        media
+    when {
+        !media.importable && !media.error.isNullOrBlank() -> media
+        media.audioCodec.isNullOrBlank() ->
+            media.copy(importable = false, error = "没有音频流，无法导出音频")
+        else -> media
     }

@@ -179,7 +179,10 @@ fun conversionPreview(items: List<MediaInfo>, target: String): String {
     return "$from  →  $target"
 }
 
-fun presetTitle(id: String): String = WIZARD_PRESET_CARDS.find { it.id == id }?.title ?: id
+fun presetTitle(id: String): String =
+    WIZARD_PRESET_CARDS.find { it.id == id }?.title
+        ?: AUDIO_PRESET_CARDS.find { it.id == id }?.title
+        ?: id
 
 fun qualityLabel(id: String): String = when (id) {
     "original" -> "原画"
