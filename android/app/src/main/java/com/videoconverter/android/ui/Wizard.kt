@@ -30,6 +30,13 @@ val WIZARD_PRESET_CARDS = listOf(
     WizardPresetCard("audio-aac", "M4A · AAC", "只导出音频"),
 )
 
+val AUDIO_PRESET_CARDS = listOf(
+    WizardPresetCard("audio-mp3", "MP3", "兼容性最好"),
+    WizardPresetCard("audio-aac", "M4A · AAC", "苹果设备和相册常用"),
+    WizardPresetCard("audio-wav", "WAV", "无损，文件更大"),
+    WizardPresetCard("audio-ogg", "OGG · Opus", "体积更小"),
+)
+
 private val CODEC_LABELS = mapOf(
     "h264" to "H.264",
     "hevc" to "H.265",
@@ -76,6 +83,7 @@ const val OUTPUT_CHOICE_GALLERY = "gallery"
 const val OUTPUT_CHOICE_MOVIES = "movies"
 const val OUTPUT_CHOICE_DOWNLOADS = "downloads"
 const val OUTPUT_CHOICE_CUSTOM = "custom"
+const val OUTPUT_CHOICE_MUSIC = "music"
 
 data class OutputChoiceCard(
     val id: String,
@@ -90,11 +98,17 @@ val OUTPUT_CHOICE_CARDS = listOf(
     OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
 )
 
+val AUDIO_OUTPUT_CHOICE_CARDS = listOf(
+    OutputChoiceCard(OUTPUT_CHOICE_MUSIC, "音乐", "进手机音乐库"),
+    OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, "下载", "系统下载文件夹"),
+    OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
+)
+
 fun outputChoiceId(output: OutputTarget): String = when (output.kind) {
     OutputTarget.Kind.Gallery -> OUTPUT_CHOICE_GALLERY
     OutputTarget.Kind.Movies -> OUTPUT_CHOICE_MOVIES
     OutputTarget.Kind.Downloads -> OUTPUT_CHOICE_DOWNLOADS
-    OutputTarget.Kind.Music -> "music"
+    OutputTarget.Kind.Music -> OUTPUT_CHOICE_MUSIC
     OutputTarget.Kind.SafTree, OutputTarget.Kind.AppExternal -> OUTPUT_CHOICE_CUSTOM
 }
 
@@ -102,6 +116,7 @@ fun outputKindForChoice(id: String): OutputTarget.Kind? = when (id) {
     OUTPUT_CHOICE_GALLERY -> OutputTarget.Kind.Gallery
     OUTPUT_CHOICE_MOVIES -> OutputTarget.Kind.Movies
     OUTPUT_CHOICE_DOWNLOADS -> OutputTarget.Kind.Downloads
+    OUTPUT_CHOICE_MUSIC -> OutputTarget.Kind.Music
     else -> null
 }
 
@@ -113,11 +128,16 @@ fun collapsedPresetCards(selectedId: String, showAll: Boolean): List<WizardPrese
     return primary.take(3) + selected
 }
 
-fun dockActionLabel(step: WizardStep, busy: Boolean, transcoding: Boolean): String = when {
+fun dockActionLabel(
+    step: WizardStep,
+    busy: Boolean,
+    transcoding: Boolean,
+    startLabel: String = "开始转码",
+): String = when {
     step != WizardStep.Output -> "下一步"
     busy -> "正在加入队列…"
     transcoding -> "正在转码…"
-    else -> "开始转码"
+    else -> startLabel
 }
 
 fun dockSummary(
@@ -131,17 +151,23 @@ fun dockSummary(
     trimLabel: String,
     outputLabel: String,
     formatPreview: String = "",
-): String = when (step) {
-    WizardStep.Sources -> if (importableCount == 0) "先添加源视频" else "已选 ${importableCount} 个文件"
-    WizardStep.Format -> formatPreview.ifBlank { "先添加源视频，再选要转成的格式" }
-    WizardStep.Output -> {
-        val body = when {
-            importableCount == 0 -> "先添加源视频，再开始转码"
-            audioOnly -> "将 $importableCount 个文件转为 $presetTitle · $qualityLabel$trimLabel"
-            copyOnly -> "将 $importableCount 个视频转为 $presetTitle$trimLabel"
-            else -> "将 $importableCount 个视频转为 $presetTitle · $qualityLabel · $sizeLabel$trimLabel"
+    audioMode: Boolean = false,
+    losslessAudio: Boolean = false,
+): String {
+    if (audioMode && importableCount == 0) return "先添加音频或带声音的视频"
+    return when (step) {
+        WizardStep.Sources -> if (importableCount == 0) "先添加源视频" else "已选 ${importableCount} 个文件"
+        WizardStep.Format -> formatPreview.ifBlank { "先添加源视频，再选要转成的格式" }
+        WizardStep.Output -> {
+            val qualityPart = if (losslessAudio) "" else " · $qualityLabel"
+            val body = when {
+                importableCount == 0 -> "先添加源视频，再开始转码"
+                audioOnly || audioMode -> "将 $importableCount 个文件转为 $presetTitle$qualityPart$trimLabel"
+                copyOnly -> "将 $importableCount 个视频转为 $presetTitle$trimLabel"
+                else -> "将 $importableCount 个视频转为 $presetTitle · $qualityLabel · $sizeLabel$trimLabel"
+            }
+            if (importableCount == 0) body else "$body · 存到$outputLabel"
         }
-        if (importableCount == 0) body else "$body · 存到$outputLabel"
     }
 }
 
@@ -168,7 +194,10 @@ fun sizeLabel(id: String): String = when (id) {
     else -> "原尺寸"
 }
 
-fun isAudioPreset(preset: String): Boolean = preset == "audio-mp3" || preset == "audio-aac"
+fun isAudioPreset(preset: String): Boolean =
+    preset == "audio-mp3" || preset == "audio-aac" || preset == "audio-wav" || preset == "audio-ogg"
+
+fun isLosslessAudioPreset(preset: String): Boolean = preset == "audio-wav"
 
 fun isCopyPreset(preset: String): Boolean = preset == "mp4-copy"
 

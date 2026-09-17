@@ -35,8 +35,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
-data class SourceItem(val media: MediaInfo, val probing: Boolean)
-
 data class AppUiState(
     val sources: List<SourceItem> = emptyList(),
     val jobs: List<Job> = emptyList(),

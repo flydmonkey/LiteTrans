@@ -101,6 +101,74 @@ class WizardTest {
     }
 
     @Test
+    fun audioOutputCardsAndDockCopy() {
+        assertEquals(
+            listOf("music", "downloads", "custom"),
+            AUDIO_OUTPUT_CHOICE_CARDS.map { it.id },
+        )
+        assertEquals("音乐", AUDIO_OUTPUT_CHOICE_CARDS[0].title)
+        assertEquals("下载", AUDIO_OUTPUT_CHOICE_CARDS[1].title)
+        assertEquals("自定义", AUDIO_OUTPUT_CHOICE_CARDS[2].title)
+        assertEquals(OUTPUT_CHOICE_MUSIC, outputChoiceId(OutputTarget(OutputTarget.Kind.Music)))
+        assertEquals("music", OUTPUT_CHOICE_MUSIC)
+        assertEquals(OutputTarget.Kind.Music, outputKindForChoice(OUTPUT_CHOICE_MUSIC))
+        assertTrue(isLosslessAudioPreset("audio-wav"))
+        assertFalse(isLosslessAudioPreset("audio-mp3"))
+        assertTrue(isAudioPreset("audio-wav"))
+        assertTrue(isAudioPreset("audio-ogg"))
+        assertEquals("开始转换", dockActionLabel(WizardStep.Output, false, false, "开始转换"))
+        assertEquals(
+            listOf("audio-mp3", "audio-aac", "audio-wav", "audio-ogg"),
+            AUDIO_PRESET_CARDS.map { it.id },
+        )
+        assertEquals("MP3", AUDIO_PRESET_CARDS[0].title)
+        assertEquals("兼容性最好", AUDIO_PRESET_CARDS[0].hint)
+        assertEquals("M4A · AAC", AUDIO_PRESET_CARDS[1].title)
+        assertEquals("苹果设备和相册常用", AUDIO_PRESET_CARDS[1].hint)
+        assertEquals("WAV", AUDIO_PRESET_CARDS[2].title)
+        assertEquals("无损，文件更大", AUDIO_PRESET_CARDS[2].hint)
+        assertEquals("OGG · Opus", AUDIO_PRESET_CARDS[3].title)
+        assertEquals("体积更小", AUDIO_PRESET_CARDS[3].hint)
+    }
+
+    @Test
+    fun audioModeDockSummaryUsesAudioEmptyCopyAndSkipsResolution() {
+        val empty = "先添加音频或带声音的视频"
+        assertEquals(
+            empty,
+            dockSummary(WizardStep.Sources, 0, "MP3", "标准", "原尺寸", true, false, "", "音乐", audioMode = true),
+        )
+        assertEquals(
+            empty,
+            dockSummary(WizardStep.Format, 0, "MP3", "标准", "原尺寸", true, false, "", "音乐", audioMode = true),
+        )
+        assertEquals(
+            empty,
+            dockSummary(WizardStep.Output, 0, "MP3", "标准", "原尺寸", true, false, "", "音乐", audioMode = true),
+        )
+        assertEquals(
+            "将 1 个文件转为 MP3 · 原画 · 存到音乐",
+            dockSummary(WizardStep.Output, 1, "MP3", "原画", "原尺寸", true, false, "", "音乐", audioMode = true),
+        )
+        assertEquals(
+            "将 1 个文件转为 WAV · 存到音乐",
+            dockSummary(
+                WizardStep.Output,
+                1,
+                "WAV",
+                "原画",
+                "原尺寸",
+                true,
+                false,
+                "",
+                "音乐",
+                audioMode = true,
+                losslessAudio = true,
+            ),
+        )
+    }
+
+    @Test
     fun copyPresetHidesResolutionViaExistingHelper() {
         assertTrue(isCopyPreset("mp4-copy"))
         assertTrue(isAudioPreset("audio-mp3"))
