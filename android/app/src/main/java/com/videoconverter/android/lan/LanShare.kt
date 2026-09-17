@@ -67,6 +67,7 @@ fun lanTokenAllows(storedToken: String, queryK: String?): Boolean {
 sealed class LanRoute {
     data object Home : LanRoute()
     data class Download(val jobId: String, val index: Int) : LanRoute()
+    data class Media(val jobId: String, val index: Int) : LanRoute()
     data object NotFound : LanRoute()
 }
 
@@ -74,12 +75,14 @@ fun parseLanRoute(path: String): LanRoute {
     val trimmed = path.substringBefore('?')
     if (trimmed == "/" || trimmed.isEmpty()) return LanRoute.Home
     val parts = trimmed.trim('/').split('/')
-    if (parts.size !in 2..3 || parts[0] != "d") return LanRoute.NotFound
+    if (parts.size !in 2..3) return LanRoute.NotFound
+    val kind = parts[0]
+    if (kind != "d" && kind != "m") return LanRoute.NotFound
     val jobId = parts[1]
     if (jobId.isEmpty() || jobId.contains("..") || '/' in jobId) return LanRoute.NotFound
     val index = if (parts.size == 2) 0 else parts[2].toIntOrNull() ?: return LanRoute.NotFound
     if (index < 0) return LanRoute.NotFound
-    return LanRoute.Download(jobId, index)
+    return if (kind == "d") LanRoute.Download(jobId, index) else LanRoute.Media(jobId, index)
 }
 
 fun jobOutputPaths(job: Job): List<String> =
@@ -266,7 +269,12 @@ private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, to
     return "$path?k=$encoded"
 }
 
-data class LanHttpRequest(val method: String, val path: String, val query: Map<String, String>)
+data class LanHttpRequest(
+    val method: String,
+    val path: String,
+    val query: Map<String, String>,
+    val headers: Map<String, String> = emptyMap(),
+)
 
 data class LanHttpResponse(
     val status: Int,
@@ -274,6 +282,8 @@ data class LanHttpResponse(
     val body: ByteArray,
     val headers: Map<String, String> = emptyMap(),
     val filePath: String? = null,
+    val rangeHeader: String? = null,
+    val sendBody: Boolean = true,
 )
 
 fun parseHttpRequestLine(line: String): LanHttpRequest? {
@@ -312,12 +322,13 @@ fun handleLanRequest(
     exists: (String) -> Boolean,
     copy: LanHistoryCopy,
 ): LanHttpResponse {
-    if (request.method != "GET") {
+    if (request.method != "GET" && request.method != "HEAD") {
         return lanPlainText(405, "Method Not Allowed")
     }
     if (!lanTokenAllows(token, request.query["k"])) {
         return lanPlainText(401, copy.needToken)
     }
+    val sendBody = request.method != "HEAD"
     return when (val route = parseLanRoute(request.path)) {
         is LanRoute.Home -> {
             val html = renderLanHistoryHtml(jobs, token, copy, exists)
@@ -325,20 +336,30 @@ fun handleLanRequest(
                 status = 200,
                 contentType = "text/html; charset=utf-8",
                 body = html.toByteArray(Charsets.UTF_8),
+                sendBody = sendBody,
             )
         }
-        is LanRoute.Download -> {
-            val target = resolveLanDownload(jobs, route.jobId, route.index, exists)
+        is LanRoute.Download, is LanRoute.Media -> {
+            val (jobId, index) = when (route) {
+                is LanRoute.Download -> route.jobId to route.index
+                is LanRoute.Media -> route.jobId to route.index
+                else -> error("unreachable")
+            }
+            val target = resolveLanDownload(jobs, jobId, index, exists)
                 ?: return lanPlainText(404, "Not Found")
+            val inline = route is LanRoute.Media
             LanHttpResponse(
                 status = 200,
                 contentType = target.contentType,
                 body = ByteArray(0),
                 headers = mapOf(
                     "Content-Type" to target.contentType,
-                    "Content-Disposition" to lanContentDisposition(target.downloadName),
+                    "Content-Disposition" to lanContentDisposition(target.downloadName, inline),
+                    "Accept-Ranges" to "bytes",
                 ),
                 filePath = target.path,
+                rangeHeader = request.headers["range"],
+                sendBody = sendBody,
             )
         }
         is LanRoute.NotFound -> lanPlainText(404, "Not Found")

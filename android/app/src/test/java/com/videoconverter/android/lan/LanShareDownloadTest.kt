@@ -29,6 +29,10 @@ class LanShareDownloadTest {
         assertEquals(LanRoute.NotFound, parseLanRoute("/d/a1/x"))
         assertEquals(LanRoute.NotFound, parseLanRoute("/d/../secret"))
         assertEquals(LanRoute.NotFound, parseLanRoute("/other"))
+        assertEquals(LanRoute.Media("a1", 0), parseLanRoute("/m/a1"))
+        assertEquals(LanRoute.Media("a1", 2), parseLanRoute("/m/a1/2"))
+        assertEquals(LanRoute.NotFound, parseLanRoute("/m/"))
+        assertEquals(LanRoute.NotFound, parseLanRoute("/m/../secret"))
     }
 
     @Test

@@ -44,6 +44,27 @@ class LanShareHandlerTest {
     }
 
     @Test
+    fun mediaIsInlineAndHeadOmitsBodyFlag() {
+        val get = handleLanRequest(LanHttpRequest("GET", "/m/v", mapOf("k" to "pw")), jobs, "pw", exists, copy)
+        assertEquals(200, get.status)
+        assertEquals("/tmp/v.mp4", get.filePath)
+        assertTrue(get.headers["Content-Disposition"]!!.startsWith("inline;"))
+        assertEquals("bytes", get.headers["Accept-Ranges"])
+        assertTrue(get.sendBody)
+
+        val head = handleLanRequest(LanHttpRequest("HEAD", "/m/v", mapOf("k" to "pw")), jobs, "pw", exists, copy)
+        assertEquals(200, head.status)
+        assertEquals("/tmp/v.mp4", head.filePath)
+        assertFalse(head.sendBody)
+
+        val ranged = handleLanRequest(
+            LanHttpRequest("GET", "/m/v", mapOf("k" to "pw"), headers = mapOf("range" to "bytes=0-1")),
+            jobs, "pw", exists, copy,
+        )
+        assertEquals("bytes=0-1", ranged.rangeHeader)
+    }
+
+    @Test
     fun parseQueryDecodesK() {
         assertEquals("a b", parseLanQuery("k=a+b")["k"])
     }
