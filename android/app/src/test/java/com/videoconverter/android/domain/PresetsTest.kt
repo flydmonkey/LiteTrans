@@ -34,4 +34,53 @@ class PresetsTest {
         assertEquals("copy", resolved.videoEncoder)
         assertEquals("copy", resolved.audioEncoder)
     }
+
+    @Test
+    fun listsAudioWavAndOggPresets() {
+        val ids = listPresets().map { it.id }
+        assertTrue(ids.contains("audio-wav"))
+        assertTrue(ids.contains("audio-flac"))
+        assertTrue(ids.contains("audio-ogg"))
+        assertTrue(ids.contains("audio-amr"))
+    }
+
+    @Test
+    fun flacPresetHasFlacAndNoBitrate() {
+        val resolved = resolveConfig(OutputConfig(preset = "audio-flac")).getOrThrow()
+        assertEquals("flac", resolved.container)
+        assertEquals("flac", resolved.extension)
+        assertEquals(null, resolved.videoEncoder)
+        assertEquals("flac", resolved.audioEncoder)
+        assertEquals(null, resolved.audioBitrateKbps)
+        assertTrue(isAudioOnlyConfig(resolved))
+    }
+
+    @Test
+    fun wavPresetHasPcmAndNoBitrate() {
+        val resolved = resolveConfig(OutputConfig(preset = "audio-wav")).getOrThrow()
+        assertEquals("wav", resolved.container)
+        assertEquals("wav", resolved.extension)
+        assertEquals(null, resolved.videoEncoder)
+        assertEquals("pcm_s16le", resolved.audioEncoder)
+        assertEquals(null, resolved.audioBitrateKbps)
+        assertTrue(isAudioOnlyConfig(resolved))
+    }
+
+    @Test
+    fun amrPresetUsesNarrowBandBitrate() {
+        val resolved = resolveConfig(OutputConfig(preset = "audio-amr", quality = "small")).getOrThrow()
+        assertEquals("amr", resolved.container)
+        assertEquals("amr_nb", resolved.audioEncoder)
+        assertEquals(5, resolved.audioBitrateKbps)
+        assertTrue(isAudioOnlyConfig(resolved))
+    }
+
+    @Test
+    fun oggPresetUsesOpusBitrate() {
+        val resolved = resolveConfig(OutputConfig(preset = "audio-ogg", quality = "small")).getOrThrow()
+        assertEquals("ogg", resolved.container)
+        assertEquals("opus", resolved.audioEncoder)
+        assertEquals(128, resolved.audioBitrateKbps)
+        assertTrue(isAudioOnlyConfig(resolved))
+    }
 }

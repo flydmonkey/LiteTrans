@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Process
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
+import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.allocateOutputPath
 import com.videoconverter.android.domain.partialOutputPath
 import java.io.File
@@ -17,14 +18,35 @@ import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-fun defaultRelativePath(): String = "Download/轻转码"
+fun defaultRelativePath(): String = mediaStoreRelativePath(OutputTarget.Kind.Downloads)
+
+fun mediaStoreRelativePath(kind: OutputTarget.Kind): String = when (kind) {
+    OutputTarget.Kind.Gallery -> "DCIM/轻转码"
+    OutputTarget.Kind.Movies -> "Movies/轻转码"
+    OutputTarget.Kind.Downloads -> "Download/轻转码"
+    OutputTarget.Kind.Music -> "Music/轻转码"
+    OutputTarget.Kind.Documents -> "Documents/轻转码"
+    OutputTarget.Kind.SafTree, OutputTarget.Kind.AppExternal ->
+        throw IllegalArgumentException("not a MediaStore target")
+}
 
 data class OutputTarget(
     val kind: Kind,
     val treeUri: String? = null,
 ) {
-    enum class Kind { Downloads, SafTree, AppExternal }
+    enum class Kind { Downloads, SafTree, AppExternal, Gallery, Movies, Music, Documents }
 }
+
+fun exportedLocations(job: Job): List<String> =
+    job.outputPaths.ifEmpty { listOfNotNull(job.outputPath) }
+
+fun outputTargetForJob(kindName: String?, treeUri: String?, fallback: OutputTarget): OutputTarget {
+    val kind = OutputTarget.Kind.entries.firstOrNull { it.name == kindName } ?: return fallback
+    return OutputTarget(kind, treeUri)
+}
+
+fun stampJobOutputTarget(job: Job, target: OutputTarget): Job =
+    job.copy(outputKind = target.kind.name, outputTreeUri = target.treeUri)
 
 data class JobOutput(
     val partial: File,
@@ -83,30 +105,37 @@ class OutputStore(
     ): ExportedOutput = withContext(Dispatchers.IO) {
         require(source.isFile) { "转码输出不存在" }
         when (target.kind) {
-            OutputTarget.Kind.Downloads -> exportToDownloadsOrFallback(source, stem, ext, mimeType)
+            OutputTarget.Kind.Downloads,
+            OutputTarget.Kind.Gallery,
+            OutputTarget.Kind.Movies,
+            OutputTarget.Kind.Music,
+            OutputTarget.Kind.Documents,
+            -> exportToMediaStore(source, stem, ext, mimeType, target.kind)
             OutputTarget.Kind.SafTree -> exportToSaf(source, stem, ext, mimeType, target)
             OutputTarget.Kind.AppExternal -> exportToAppExternal(source, stem, ext)
         }
     }
 
-    private suspend fun exportToDownloadsOrFallback(
+    private suspend fun exportToMediaStore(
         source: File,
         stem: String,
         ext: String,
         mimeType: String,
+        kind: OutputTarget.Kind,
     ): ExportedOutput {
         val resolver = context.contentResolver
-        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val collection = mediaStoreCollection(kind, mimeType)
+        val relativePath = "${mediaStoreRelativePath(kind)}/"
         val displayName = try {
-            uniqueDisplayName(stem, ext, mediaStoreNames(collection))
+            uniqueDisplayName(stem, ext, mediaStoreNames(collection, relativePath))
         } catch (_: Exception) {
             return exportToAppExternal(source, stem, ext)
         }
         val values = ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, displayName)
-            put(MediaStore.Downloads.MIME_TYPE, mimeType)
-            put(MediaStore.Downloads.RELATIVE_PATH, "${defaultRelativePath()}/")
-            put(MediaStore.Downloads.IS_PENDING, 1)
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val destination = try {
             resolver.insert(collection, values)
@@ -122,7 +151,7 @@ class OutputStore(
             requireMediaStorePublished(
                 resolver.update(
                     destination,
-                    ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                    ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
                     null,
                     null,
                 ),
@@ -133,20 +162,20 @@ class OutputStore(
         }
         return ExportedOutput(
             location = destination.toString(),
-            target = OutputTarget(OutputTarget.Kind.Downloads),
+            target = OutputTarget(kind),
         )
     }
 
-    private fun mediaStoreNames(collection: Uri): Set<String> {
+    private fun mediaStoreNames(collection: Uri, relativePath: String): Set<String> {
         val names = mutableSetOf<String>()
         context.contentResolver.query(
             collection,
-            arrayOf(MediaStore.Downloads.DISPLAY_NAME),
-            "${MediaStore.Downloads.RELATIVE_PATH} = ?",
-            arrayOf("${defaultRelativePath()}/"),
+            arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} = ?",
+            arrayOf(relativePath),
             null,
         )?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(MediaStore.Downloads.DISPLAY_NAME)
+            val nameIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
             while (nameIndex >= 0 && cursor.moveToNext()) names += cursor.getString(nameIndex)
         }
         return names
@@ -207,6 +236,47 @@ class OutputStore(
             Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
         ) == PackageManager.PERMISSION_GRANTED
     }
+
+    fun deleteExported(location: String?) {
+        if (location.isNullOrBlank()) return
+        val parsed = Uri.parse(location)
+        if (parsed.scheme == "content") {
+            context.contentResolver.delete(parsed, null, null)
+            return
+        }
+        File(location).delete()
+    }
+
+    fun renameExported(location: String, newDisplayName: String): String {
+        val parsed = Uri.parse(location)
+        if (parsed.scheme == "content") {
+            val renamed = runCatching {
+                android.provider.DocumentsContract.renameDocument(
+                    context.contentResolver,
+                    parsed,
+                    newDisplayName,
+                )
+            }.getOrNull()
+            if (renamed != null) return renamed.toString()
+            val updated = context.contentResolver.update(
+                parsed,
+                ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, newDisplayName)
+                },
+                null,
+                null,
+            )
+            if (updated <= 0) throw IOException("无法重命名输出文件")
+            return location
+        }
+        val source = File(location)
+        val destination = File(source.parentFile, newDisplayName)
+        if (destination.exists() && destination.absolutePath != source.absolutePath) {
+            throw IOException("已有同名文件")
+        }
+        if (!source.renameTo(destination)) throw IOException("无法重命名输出文件")
+        return destination.absolutePath
+    }
 }
 
 private fun safeSegment(value: String, fallback: String): String =
@@ -220,6 +290,22 @@ private fun outputDirectoryError(): IOException =
 
 internal fun requireMediaStorePublished(updatedRows: Int) {
     if (updatedRows == 0) throw IOException("无法发布输出文件")
+}
+
+internal fun mediaStoreCollection(kind: OutputTarget.Kind, mimeType: String): Uri {
+    val volume = MediaStore.VOLUME_EXTERNAL_PRIMARY
+    return when (kind) {
+        OutputTarget.Kind.Downloads -> MediaStore.Downloads.getContentUri(volume)
+        OutputTarget.Kind.Music -> MediaStore.Audio.Media.getContentUri(volume)
+        OutputTarget.Kind.Documents -> MediaStore.Files.getContentUri(volume)
+        OutputTarget.Kind.Gallery, OutputTarget.Kind.Movies -> when {
+            mimeType.startsWith("audio/") -> MediaStore.Audio.Media.getContentUri(volume)
+            mimeType.startsWith("image/") -> MediaStore.Images.Media.getContentUri(volume)
+            else -> MediaStore.Video.Media.getContentUri(volume)
+        }
+        OutputTarget.Kind.SafTree, OutputTarget.Kind.AppExternal ->
+            throw IllegalArgumentException("not a MediaStore target")
+    }
 }
 
 internal fun <T> mapSafExportErrors(block: () -> T): T =

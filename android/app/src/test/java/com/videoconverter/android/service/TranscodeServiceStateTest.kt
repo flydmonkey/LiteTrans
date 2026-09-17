@@ -1,5 +1,6 @@
 package com.videoconverter.android.service
 
+import com.videoconverter.android.document.shouldRunDocumentEngine
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
@@ -106,6 +107,13 @@ class TranscodeServiceStateTest {
 
         TranscodeService.recordDestroyed()
         assertFalse(TranscodeService.isAlive)
+    }
+
+    @Test
+    fun shouldRunDocumentEngine() {
+        assertTrue(shouldRunDocumentEngine("pdf-txt"))
+        assertFalse(shouldRunDocumentEngine("mp4-h264"))
+        assertFalse(shouldRunDocumentEngine("audio-mp3"))
     }
 
     @Test

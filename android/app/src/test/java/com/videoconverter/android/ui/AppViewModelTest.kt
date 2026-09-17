@@ -3,6 +3,8 @@ package com.videoconverter.android.ui
 import android.content.Intent
 import android.net.Uri
 import com.videoconverter.android.data.OutputTarget
+import com.videoconverter.android.data.SessionSettings
+import com.videoconverter.android.data.SessionStore
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
@@ -34,6 +36,86 @@ class AppViewModelTest {
     }
 
     @Test
+    fun shouldShowResolutionHidesAllAudioPresets() {
+        assertFalse(shouldShowResolution("audio-wav"))
+        assertFalse(shouldShowResolution("audio-flac"))
+        assertFalse(shouldShowResolution("audio-ogg"))
+        assertFalse(shouldShowResolution("audio-amr"))
+    }
+
+    @Test
+    fun appUiStateDefaultsToIndependentSessions() {
+        val state = AppUiState()
+        assertEquals(SessionStore.DEFAULT_PRESET, state.video.preset)
+        assertEquals("audio-mp3", state.audio.preset)
+        assertEquals("image-jpg", state.document.preset)
+        assertEquals(OutputTarget.Kind.Downloads, state.video.output.kind)
+        assertEquals(OutputTarget.Kind.Music, state.audio.output.kind)
+        assertEquals(OutputTarget.Kind.Gallery, state.document.output.kind)
+        assertTrue(state.video.sources.isEmpty())
+        assertTrue(state.audio.sources.isEmpty())
+        assertTrue(state.document.sources.isEmpty())
+    }
+
+    @Test
+    fun emptyStartReasonUsesModeCopy() {
+        assertEquals("请先添加可转码的视频", emptyStartReason(ConvertMode.Video))
+        assertEquals("请先添加可转码的音频", emptyStartReason(ConvertMode.Audio))
+    }
+
+    @Test
+    fun applyProbedSourceRestrictsAudioOnly() {
+        val silent = MediaInfo(
+            sourceUri = "u",
+            displayName = "silent.mp4",
+            videoCodec = "h264",
+            audioCodec = null,
+            importable = true,
+        )
+        assertTrue(applyProbedSource(silent, ConvertMode.Video).importable)
+        val audio = applyProbedSource(silent, ConvertMode.Audio)
+        assertFalse(audio.importable)
+        assertTrue(audio.error!!.contains("没有音频流"))
+    }
+
+    @Test
+    fun videoSessionFromSettingsFillsVideoOnly() {
+        val settings = SessionSettings(
+            preset = "mp4-copy",
+            quality = "small",
+            maxWidth = 1280,
+            maxHeight = 720,
+            output = OutputTarget(OutputTarget.Kind.Movies),
+        )
+        val video = videoSessionFromSettings(settings)
+        assertEquals("mp4-copy", video.preset)
+        assertEquals("small", video.quality)
+        assertEquals("720p", video.size)
+        assertEquals(OutputTarget.Kind.Movies, video.output.kind)
+        assertEquals("audio-mp3", defaultAudioSession().preset)
+    }
+
+    @Test
+    fun sourcesChangedFlagsAreIndependentPerMode() {
+        assertFalse(sourcesChangedFor(videoChanged = false, audioChanged = true, ConvertMode.Video))
+        assertTrue(sourcesChangedFor(videoChanged = false, audioChanged = true, ConvertMode.Audio))
+        assertTrue(sourcesChangedFor(videoChanged = true, audioChanged = false, ConvertMode.Video))
+        assertFalse(sourcesChangedFor(videoChanged = true, audioChanged = false, ConvertMode.Audio))
+    }
+
+    @Test
+    fun presetTitleLooksUpAudioCards() {
+        assertEquals("WAV", presetTitle("audio-wav"))
+        assertEquals("FLAC", presetTitle("audio-flac"))
+        assertEquals("OGG · Opus", presetTitle("audio-ogg"))
+        assertEquals("AMR", presetTitle("audio-amr"))
+        assertEquals("转 TXT", presetTitle("pdf-txt"))
+        assertFalse(shouldShowResolution("pdf-txt"))
+        assertFalse(shouldShowResolution("image-jpg"))
+        assertFalse(shouldShowResolution("office-pdf"))
+    }
+
+    @Test
     fun queuedResumeWithoutNewSourcesOnlyRestartsPump() {
         assertEquals(StartAction.StartPump, chooseStartAction(true, false))
         assertEquals(StartAction.Enqueue, chooseStartAction(true, true))
@@ -58,10 +140,44 @@ class AppViewModelTest {
     }
 
     @Test
+    fun audioCanPlayPreviewWithoutVideoSurface() {
+        val mp3 = media("clip.mp3", "mp3")
+        assertTrue(canPlayPreview(mp3))
+        assertFalse(showVideoSurface(mp3))
+        assertFalse(supportsSystemPreview(mp3))
+        listOf("clip.m4a", "clip.aac", "clip.wav", "clip.ogg", "clip.flac", "clip.opus", "clip.amr").forEach { name ->
+            assertTrue(canPlayPreview(media(name, "audio")))
+            assertFalse(showVideoSurface(media(name, "audio")))
+        }
+    }
+
+    @Test
+    fun videoSurfaceRequiresCodecAndSystemPreview() {
+        val mp4 = media("clip.mp4", "mov,mp4,m4a,3gp,3g2,mj2").copy(videoCodec = "h264")
+        assertTrue(canPlayPreview(mp4))
+        assertTrue(showVideoSurface(mp4))
+
+        val mkv = media("clip.mkv", "matroska,webm").copy(videoCodec = "h264")
+        assertFalse(canPlayPreview(mkv))
+        assertFalse(showVideoSurface(mkv))
+
+        val audioOnlyMp4 = media("clip.mp4", "mov,mp4,m4a,3gp,3g2,mj2")
+        assertTrue(canPlayPreview(audioOnlyMp4))
+        assertFalse(showVideoSurface(audioOnlyMp4))
+    }
+
+    @Test
     fun resolutionHiddenPresetClearsBounds() {
         val bounds = effectiveResolution("mp4-copy", "1080p")
         assertNull(bounds.first)
         assertNull(bounds.second)
+    }
+
+    @Test
+    fun onlyVideoModePersistsSharedOutputTarget() {
+        assertTrue(shouldPersistOutputForMode(ConvertMode.Video))
+        assertFalse(shouldPersistOutputForMode(ConvertMode.Audio))
+        assertFalse(shouldPersistOutputForMode(ConvertMode.Document))
     }
 
     @Test
@@ -88,6 +204,10 @@ class AppViewModelTest {
         assertEquals("image/gif", outputMimeType(OutputConfig(preset = "gif")))
         assertEquals("video/webm", outputMimeType(OutputConfig(preset = "webm-vp9")))
         assertEquals("video/mp4", outputMimeType(OutputConfig(preset = "mp4-h264")))
+        assertEquals("audio/wav", outputMimeType(OutputConfig(preset = "audio-wav")))
+        assertEquals("audio/flac", outputMimeType(OutputConfig(preset = "audio-flac")))
+        assertEquals("audio/amr", outputMimeType(OutputConfig(preset = "audio-amr")))
+        assertEquals("audio/ogg", outputMimeType(OutputConfig(preset = "audio-ogg")))
     }
 
     @Test
@@ -98,6 +218,14 @@ class AppViewModelTest {
 
         assertEquals(uri, intent.data)
         assertEquals("video/mp4", intent.type)
+    }
+
+    @Test
+    fun untitledDisplayNameAvoidsWrongCategory() {
+        assertEquals("clip.mp4", sourceDisplayNameOrUntitled("clip.mp4", "ignored"))
+        assertEquals("from-path.m4a", sourceDisplayNameOrUntitled(null, "dir/from-path.m4a"))
+        assertEquals("未命名", sourceDisplayNameOrUntitled(null, null))
+        assertEquals("未命名", sourceDisplayNameOrUntitled("", "/"))
     }
 
     private fun media(name: String, container: String) = MediaInfo(

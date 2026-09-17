@@ -260,6 +260,48 @@ class FfmpegArgsTest {
     }
 
     @Test
+    fun wavOmitsBitrateAndUsesPcmMuxer() {
+        val config = resolveConfig(OutputConfig(preset = "audio-wav")).getOrThrow()
+        val args = buildFfmpegArgs("/in", "/out.partial.wav", config, h264()).getOrThrow()
+        assertTrue(args.contains("-vn"))
+        assertEquals("pcm_s16le", valueAfter(args, "-c:a"))
+        assertEquals("wav", valueAfter(args, "-f"))
+        assertFalse(args.contains("-b:a"))
+    }
+
+    @Test
+    fun flacOmitsBitrateAndUsesFlacMuxer() {
+        val config = resolveConfig(OutputConfig(preset = "audio-flac")).getOrThrow()
+        val args = buildFfmpegArgs("/in", "/out.partial.flac", config, h264()).getOrThrow()
+        assertTrue(args.contains("-vn"))
+        assertEquals("flac", valueAfter(args, "-c:a"))
+        assertEquals("flac", valueAfter(args, "-f"))
+        assertFalse(args.contains("-b:a"))
+    }
+
+    @Test
+    fun amrUsesNarrowBandRateAndExactBitrate() {
+        val config = resolveConfig(OutputConfig(preset = "audio-amr")).getOrThrow()
+        val args = buildFfmpegArgs("/in", "/out.partial.amr", config, h264()).getOrThrow()
+        assertTrue(args.contains("-vn"))
+        assertEquals("libopencore_amrnb", valueAfter(args, "-c:a"))
+        assertEquals("amr", valueAfter(args, "-f"))
+        assertEquals("8000", valueAfter(args, "-ar"))
+        assertEquals("1", valueAfter(args, "-ac"))
+        assertEquals("7950", valueAfter(args, "-b:a"))
+    }
+
+    @Test
+    fun oggUsesLibopusAndBitrate() {
+        val config = resolveConfig(OutputConfig(preset = "audio-ogg", quality = "standard")).getOrThrow()
+        val args = buildFfmpegArgs("/in", "/out.partial.ogg", config, h264()).getOrThrow()
+        assertTrue(args.contains("-vn"))
+        assertEquals("libopus", valueAfter(args, "-c:a"))
+        assertEquals("ogg", valueAfter(args, "-f"))
+        assertEquals("192k", valueAfter(args, "-b:a"))
+    }
+
+    @Test
     fun mapsSupportedVideoCodecs() {
         assertEquals("h264_mediacodec", ffmpegVideoCodec("h264", true))
         assertEquals("libx264", ffmpegVideoCodec("h264", false))

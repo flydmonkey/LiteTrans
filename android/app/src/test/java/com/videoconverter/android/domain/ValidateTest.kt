@@ -39,4 +39,13 @@ class ValidateTest {
         ).getOrThrow()
         assertTrue(validate(config, h264()).isSuccess)
     }
+
+    @Test
+    fun wavAndOggWithoutAudioFail() {
+        listOf("audio-wav", "audio-ogg", "audio-flac", "audio-amr").forEach { preset ->
+            val config = resolveConfig(OutputConfig(preset = preset)).getOrThrow()
+            val err = validate(config, h264().copy(audioCodec = null)).exceptionOrNull()!!.message!!
+            assertTrue(err.contains("没有音频流"))
+        }
+    }
 }

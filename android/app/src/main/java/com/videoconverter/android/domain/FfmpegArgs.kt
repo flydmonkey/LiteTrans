@@ -18,15 +18,21 @@ fun buildFfmpegArgs(
     return runCatching {
         val args = startArgs(input, config, media).toMutableList()
 
-        if (isAudioOnly(config)) {
-            val encoder = config.audioEncoder ?: if (config.container == "m4a") "aac" else "mp3"
-            args += listOf(
-                "-vn",
-                "-c:a",
-                ffmpegAudioCodec(encoder),
-                "-b:a",
-                "${config.audioBitrateKbps ?: 192}k",
-            )
+        if (isAudioOnlyConfig(config)) {
+            val encoder = config.audioEncoder ?: "mp3"
+            args += listOf("-vn", "-c:a", ffmpegAudioCodec(encoder))
+            if (encoder == "amr_nb") {
+                args += listOf(
+                    "-ar",
+                    "8000",
+                    "-ac",
+                    "1",
+                    "-b:a",
+                    amrBitrateArg(config.quality),
+                )
+            } else if (encoder !in listOf("pcm_s16le", "flac") && config.audioBitrateKbps != null) {
+                args += listOf("-b:a", "${config.audioBitrateKbps}k")
+            }
             pushOutput(args, config.container, outputPartial)
             return@runCatching args
         }
@@ -180,6 +186,10 @@ private fun ffmpegMuxer(container: String): String = when (container) {
     "gif" -> "gif"
     "mp3" -> "mp3"
     "m4a" -> "ipod"
+    "wav" -> "wav"
+    "ogg" -> "ogg"
+    "flac" -> "flac"
+    "amr" -> "amr"
     else -> "mp4"
 }
 
@@ -187,6 +197,9 @@ private fun ffmpegAudioCodec(encoder: String): String = when (encoder) {
     "aac" -> "aac"
     "opus" -> "libopus"
     "mp3" -> "libmp3lame"
+    "pcm_s16le" -> "pcm_s16le"
+    "flac" -> "flac"
+    "amr_nb" -> "libopencore_amrnb"
     "copy" -> "copy"
     else -> "aac"
 }
@@ -208,10 +221,6 @@ private fun fallbackAudioEncoder(container: String): String = when (container) {
     "mp3", "avi" -> "mp3"
     else -> "aac"
 }
-
-private fun isAudioOnly(config: ResolvedConfig): Boolean =
-    config.container in listOf("mp3", "m4a") ||
-        config.preset in listOf("audio-mp3", "audio-aac")
 
 private fun hardwareVideoQualityArgs(quality: String): List<String> {
     val bitrate = when (quality) {
@@ -315,6 +324,12 @@ private fun scaleFilter(
     } else {
         scale
     }
+}
+
+private fun amrBitrateArg(quality: String): String = when (quality) {
+    "original", "high" -> "12200"
+    "small" -> "4750"
+    else -> "7950"
 }
 
 private const val TRIM_THRESHOLD_SECS = 0.05

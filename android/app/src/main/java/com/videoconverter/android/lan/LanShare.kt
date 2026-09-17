@@ -1,0 +1,314 @@
+package com.videoconverter.android.lan
+
+import com.videoconverter.android.domain.Job
+import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.resolveConfig
+import com.videoconverter.android.ui.HistorySegment
+import com.videoconverter.android.ui.historyEmptyLabel
+import com.videoconverter.android.ui.historyJobs
+import com.videoconverter.android.ui.statusLabel
+import java.net.InetAddress
+import java.net.NetworkInterface
+import java.net.ServerSocket
+import java.nio.file.Files
+import java.nio.file.LinkOption
+
+data class LanShareSettings(
+    val enabled: Boolean = false,
+    val token: String = "",
+)
+
+fun normalizeLanToken(raw: String): String = raw.trim()
+
+fun lanTokenAllows(storedToken: String, queryK: String?): Boolean {
+    if (storedToken.isEmpty()) return true
+    return queryK == storedToken
+}
+
+sealed class LanRoute {
+    data object Home : LanRoute()
+    data class Download(val jobId: String, val index: Int) : LanRoute()
+    data object NotFound : LanRoute()
+}
+
+fun parseLanRoute(path: String): LanRoute {
+    val trimmed = path.substringBefore('?')
+    if (trimmed == "/" || trimmed.isEmpty()) return LanRoute.Home
+    val parts = trimmed.trim('/').split('/')
+    if (parts.size !in 2..3 || parts[0] != "d") return LanRoute.NotFound
+    val jobId = parts[1]
+    if (jobId.isEmpty() || jobId.contains("..") || '/' in jobId) return LanRoute.NotFound
+    val index = if (parts.size == 2) 0 else parts[2].toIntOrNull() ?: return LanRoute.NotFound
+    if (index < 0) return LanRoute.NotFound
+    return LanRoute.Download(jobId, index)
+}
+
+fun jobOutputPaths(job: Job): List<String> =
+    job.outputPaths.filter { it.isNotBlank() }.ifEmpty { listOfNotNull(job.outputPath?.takeIf { it.isNotBlank() }) }
+
+data class LanDownloadTarget(
+    val path: String,
+    val downloadName: String,
+    val contentType: String,
+)
+
+fun resolveLanDownload(
+    jobs: List<Job>,
+    jobId: String,
+    index: Int,
+    exists: (String) -> Boolean,
+): LanDownloadTarget? {
+    if (jobId.contains("..") || '/' in jobId) return null
+    val job = jobs.firstOrNull { it.id == jobId } ?: return null
+    if (job.status != JobStatus.Completed) return null
+    val paths = jobOutputPaths(job)
+    val path = paths.getOrNull(index) ?: return null
+    if (!exists(path)) return null
+    val base = java.io.File(path).name.ifBlank { job.displayName }
+    val downloadName = if (base.contains('.')) base else job.displayName
+    return LanDownloadTarget(path, downloadName, lanContentType(downloadName))
+}
+
+fun lanFileIsRegular(path: String): Boolean {
+    if (path.isBlank()) return false
+    return try {
+        Files.isRegularFile(java.io.File(path).toPath(), LinkOption.NOFOLLOW_LINKS)
+    } catch (_: Exception) {
+        false
+    }
+}
+
+fun lanContentType(fileName: String): String = when (fileName.substringAfterLast('.', "").lowercase()) {
+    "mp4" -> "video/mp4"
+    "mp3" -> "audio/mpeg"
+    "m4a" -> "audio/mp4"
+    "wav" -> "audio/wav"
+    "ogg" -> "audio/ogg"
+    "flac" -> "audio/flac"
+    "amr" -> "audio/amr"
+    "jpg", "jpeg" -> "image/jpeg"
+    "png" -> "image/png"
+    "webp" -> "image/webp"
+    "gif" -> "image/gif"
+    "bmp" -> "image/bmp"
+    "pdf" -> "application/pdf"
+    "txt" -> "text/plain; charset=utf-8"
+    else -> "application/octet-stream"
+}
+
+fun lanContentDisposition(fileName: String): String {
+    val safe = fileName.replace(Regex("[\r\n\"]"), "_")
+    val encoded = java.net.URLEncoder.encode(safe, "UTF-8").replace("+", "%20")
+    return "attachment; filename=\"$safe\"; filename*=UTF-8''$encoded"
+}
+
+const val LAN_SHARE_PREFERRED_PORT = 17890
+const val LAN_SHARE_PORT_ATTEMPTS = 10
+const val LAN_SHARE_PORTS_BUSY_MESSAGE = "端口都被占用，稍后再试"
+
+data class LanIface(val name: String, val hostAddress: String, val loopback: Boolean)
+
+fun collectLanIfaces(ifaces: Iterable<NetworkInterface>): List<LanIface> =
+    ifaces.flatMap { ni ->
+        ni.inetAddresses.toList().mapNotNull { addr ->
+            val host = addr.hostAddress ?: return@mapNotNull null
+            LanIface(
+                name = ni.name,
+                hostAddress = host.substringBefore('%'),
+                loopback = ni.isLoopback || addr.isLoopbackAddress,
+            )
+        }
+    }
+
+fun isLanWifiOrHotspotName(name: String): Boolean {
+    val n = name.lowercase()
+    return n.startsWith("wlan") ||
+        n.startsWith("ap") ||
+        n.contains("wlan") ||
+        n.contains("swlan") ||
+        n.contains("softap")
+}
+
+fun pickLanIpv4(ifaces: List<LanIface>): String? {
+    val usable = ifaces.filter { iface ->
+        !iface.loopback && iface.hostAddress.matches(Regex("""\d{1,3}(?:\.\d{1,3}){3}"""))
+    }
+    return usable.firstOrNull { iface -> isLanWifiOrHotspotName(iface.name) }?.hostAddress
+}
+
+fun openLanServerSocket(ip: String, port: Int): ServerSocket =
+    ServerSocket(port, 0, InetAddress.getByName(ip))
+
+fun chooseLanPort(
+    preferred: Int = LAN_SHARE_PREFERRED_PORT,
+    attempts: Int = LAN_SHARE_PORT_ATTEMPTS,
+    occupied: Set<Int>,
+): Int? {
+    repeat(attempts) { offset ->
+        val port = preferred + offset
+        if (port !in occupied) return port
+    }
+    return null
+}
+
+fun lanPublicUrl(ip: String, port: Int, token: String): String {
+    val base = "http://$ip:$port/"
+    if (token.isEmpty()) return base
+    val encoded = java.net.URLEncoder.encode(token, "UTF-8")
+    return "${base}?k=$encoded"
+}
+
+fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) -> Boolean): String {
+    val sections = listOf(
+        HistorySegment.Video to "视频",
+        HistorySegment.Audio to "音频",
+        HistorySegment.Document to "文档",
+    )
+    return buildString {
+        append("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>")
+        append("body{background:#ecece8;color:#1f2428;font-family:sans-serif}")
+        append("a{color:#c45a2a}")
+        append("</style></head><body>")
+        if (token.isEmpty()) {
+            append("<p>同一网络中知道此地址的设备可以查看记录并下载已完成文件。</p>")
+        }
+        for ((segment, title) in sections) {
+            append("<h2>").append(title).append("</h2>")
+            val items = historyJobs(jobs, segment)
+            if (items.isEmpty()) {
+                append("<p>").append(historyEmptyLabel(segment)).append("</p>")
+            } else {
+                append("<ul>")
+                for (job in items) {
+                    val format = resolveConfig(job.config).getOrNull()?.container ?: job.config.preset
+                    append("<li>")
+                    append(escapeHtml(job.displayName))
+                    append(" ")
+                    append(escapeHtml(format))
+                    append(" ")
+                    append(escapeHtml(statusLabel(job.status)))
+                    if (job.status == JobStatus.Completed) {
+                        val paths = jobOutputPaths(job)
+                        val existing = paths.mapIndexedNotNull { index, path ->
+                            if (fileExists(path)) index to path else null
+                        }
+                        val multi = existing.size > 1
+                        for ((index, path) in existing) {
+                            append(" <a href=\"")
+                            append(lanHistoryDownloadHref(job.id, index, multi, token))
+                            append("\">")
+                            append(escapeHtml(lanHistoryDownloadLabel(path, index, multi)))
+                            append("</a>")
+                        }
+                    }
+                    append("</li>")
+                }
+                append("</ul>")
+            }
+        }
+        append("</body></html>")
+    }
+}
+
+fun escapeHtml(raw: String): String = raw
+    .replace("&", "&amp;")
+    .replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("\"", "&quot;")
+
+internal fun lanHistoryDownloadLabel(path: String, index: Int, multi: Boolean): String {
+    if (!multi) return "下载"
+    val base = java.io.File(path).name
+    return if (base.isNotBlank()) "下载 $base" else "下载 #$index"
+}
+
+private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, token: String): String {
+    val path = if (index > 0 || multi) "/d/$jobId/$index" else "/d/$jobId"
+    if (token.isEmpty()) return path
+    val encoded = java.net.URLEncoder.encode(token, "UTF-8")
+    return "$path?k=$encoded"
+}
+
+data class LanHttpRequest(val method: String, val path: String, val query: Map<String, String>)
+
+data class LanHttpResponse(
+    val status: Int,
+    val contentType: String,
+    val body: ByteArray,
+    val headers: Map<String, String> = emptyMap(),
+    val filePath: String? = null,
+)
+
+fun parseHttpRequestLine(line: String): LanHttpRequest? {
+    val trimmed = line.trim()
+    val firstSpace = trimmed.indexOf(' ')
+    if (firstSpace <= 0) return null
+    val method = trimmed.substring(0, firstSpace)
+    val rest = trimmed.substring(firstSpace + 1).trimStart()
+    if (rest.isEmpty()) return null
+    val targetEnd = rest.indexOf(' ')
+    val target = if (targetEnd < 0) rest else rest.substring(0, targetEnd)
+    if (target.isEmpty()) return null
+    val queryStart = target.indexOf('?')
+    val path = if (queryStart < 0) target else target.substring(0, queryStart)
+    val query = if (queryStart < 0) emptyMap() else parseLanQuery(target.substring(queryStart + 1))
+    return LanHttpRequest(method, path, query)
+}
+
+fun parseLanQuery(rawQuery: String?): Map<String, String> {
+    if (rawQuery.isNullOrEmpty()) return emptyMap()
+    return rawQuery.split('&').mapNotNull { part ->
+        if (part.isEmpty()) return@mapNotNull null
+        val eq = part.indexOf('=')
+        val rawKey = if (eq < 0) part else part.substring(0, eq)
+        val rawVal = if (eq < 0) "" else part.substring(eq + 1)
+        val key = java.net.URLDecoder.decode(rawKey, "UTF-8")
+        val value = java.net.URLDecoder.decode(rawVal, "UTF-8")
+        if (key.isEmpty()) null else key to value
+    }.toMap()
+}
+
+fun handleLanRequest(
+    request: LanHttpRequest,
+    jobs: List<Job>,
+    token: String,
+    exists: (String) -> Boolean,
+): LanHttpResponse {
+    if (request.method != "GET") {
+        return lanPlainText(405, "Method Not Allowed")
+    }
+    if (!lanTokenAllows(token, request.query["k"])) {
+        return lanPlainText(401, "需要正确口令")
+    }
+    return when (val route = parseLanRoute(request.path)) {
+        is LanRoute.Home -> {
+            val html = renderLanHistoryHtml(jobs, token, exists)
+            LanHttpResponse(
+                status = 200,
+                contentType = "text/html; charset=utf-8",
+                body = html.toByteArray(Charsets.UTF_8),
+            )
+        }
+        is LanRoute.Download -> {
+            val target = resolveLanDownload(jobs, route.jobId, route.index, exists)
+                ?: return lanPlainText(404, "Not Found")
+            LanHttpResponse(
+                status = 200,
+                contentType = target.contentType,
+                body = ByteArray(0),
+                headers = mapOf(
+                    "Content-Type" to target.contentType,
+                    "Content-Disposition" to lanContentDisposition(target.downloadName),
+                ),
+                filePath = target.path,
+            )
+        }
+        is LanRoute.NotFound -> lanPlainText(404, "Not Found")
+    }
+}
+
+private fun lanPlainText(status: Int, body: String): LanHttpResponse = LanHttpResponse(
+    status = status,
+    contentType = "text/plain; charset=utf-8",
+    body = body.toByteArray(Charsets.UTF_8),
+)

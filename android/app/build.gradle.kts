@@ -28,7 +28,36 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
-    packaging { jniLibs { useLegacyPackaging = true } }
+    packaging {
+        jniLibs { useLegacyPackaging = true }
+        resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE", "META-INF/NOTICE")
+    }
+    sourceSets.getByName("test") {
+        resources.srcDir(layout.buildDirectory.dir("generated/pdfboxTestResources"))
+    }
+}
+
+val unpackPdfBoxTestResources by tasks.registering(Copy::class) {
+    val pdfBoxAar = configurations.detachedConfiguration(
+        dependencies.create("com.tom-roush:pdfbox-android:2.0.27.0"),
+    ).apply {
+        isTransitive = false
+        isCanBeResolved = true
+    }
+    from({ zipTree(pdfBoxAar.singleFile) }) {
+        include("assets/com/tom_roush/pdfbox/resources/**")
+        eachFile {
+            relativePath = RelativePath(true, *relativePath.segments.drop(1).toTypedArray())
+        }
+        includeEmptyDirs = false
+    }
+    into(layout.buildDirectory.dir("generated/pdfboxTestResources"))
+}
+
+tasks.configureEach {
+    if (name.startsWith("process") && name.endsWith("UnitTestJavaRes")) {
+        dependsOn(unpackPdfBoxTestResources)
+    }
 }
 
 dependencies {
@@ -43,6 +72,9 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
+    implementation("com.fasterxml:aalto-xml:1.3.3")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     testImplementation("org.robolectric:robolectric:4.14.1")

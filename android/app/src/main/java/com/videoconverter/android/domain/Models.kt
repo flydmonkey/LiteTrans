@@ -15,6 +15,9 @@ data class MediaInfo(
     val error: String? = null,
     val trimStartSecs: Double? = null,
     val trimEndSecs: Double? = null,
+    val pageCount: Int? = null,
+    val pageStart: Int? = null,
+    val pageEnd: Int? = null,
 )
 
 data class PresetInfo(val id: String, val label: String, val description: String)
@@ -64,6 +67,9 @@ data class Job(
     val error: String?,
     val config: OutputConfig,
     val media: MediaInfo,
+    val outputKind: String? = null,
+    val outputTreeUri: String? = null,
+    val outputPaths: List<String> = emptyList(),
 )
 
 data class SkippedSource(val sourceUri: String, val displayName: String, val reason: String)
