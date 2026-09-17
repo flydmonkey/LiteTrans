@@ -1,5 +1,6 @@
 package com.videoconverter.android.ui
 
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
@@ -13,34 +14,51 @@ import org.junit.Test
 class RootTabsTest {
     @Test
     fun tabLabelsMatchProductCopy() {
+        assertEquals(R.string.tab_history, rootTabLabelRes(RootTab.History))
         assertEquals(
-            listOf("视频转码", "音频转换", "文档", "历史记录", "我的"),
-            RootTab.entries.map(::rootTabLabel),
+            listOf(
+                R.string.tab_transcode,
+                R.string.tab_audio,
+                R.string.tab_document,
+                R.string.tab_history,
+                R.string.tab_mine,
+            ),
+            RootTab.entries.map(::rootTabLabelRes),
         )
     }
 
     @Test
     fun mineEntriesArePrivacyTermsAndAbout() {
         assertEquals(
-            listOf(MinePage.LanShare, MinePage.Privacy, MinePage.Terms, MinePage.About),
+            listOf(MinePage.LanShare, MinePage.Language, MinePage.Privacy, MinePage.Terms, MinePage.About),
             mineItems().map { it.page },
         )
-        assertEquals("局域网访问", minePageTitle(MinePage.LanShare))
-        assertEquals("隐私协议", minePageTitle(MinePage.Privacy))
-        assertEquals("使用条款", minePageTitle(MinePage.Terms))
-        assertEquals("关于", minePageTitle(MinePage.About))
-        assertEquals("我的", minePageTitle(MinePage.Root))
+        assertEquals(R.string.mine_lan, minePageTitleRes(MinePage.LanShare))
+        assertEquals(R.string.mine_language, minePageTitleRes(MinePage.Language))
+        assertEquals(R.string.mine_privacy, minePageTitleRes(MinePage.Privacy))
+        assertEquals(R.string.mine_terms, minePageTitleRes(MinePage.Terms))
+        assertEquals(R.string.mine_about, minePageTitleRes(MinePage.About))
+        assertEquals(R.string.tab_mine, minePageTitleRes(MinePage.Root))
+        assertEquals(
+            listOf(
+                R.string.mine_lan,
+                R.string.mine_language,
+                R.string.mine_privacy,
+                R.string.mine_terms,
+                R.string.mine_about,
+            ),
+            mineItems().map { it.titleRes },
+        )
     }
 
     @Test
-    fun legalCopyStaysLocalAndOffline() {
-        assertTrue(minePageBody(MinePage.Privacy).contains("不会上传"))
-        assertTrue(minePageBody(MinePage.Privacy).contains("不要求联网才能转码"))
-        assertTrue(minePageBody(MinePage.Privacy).contains("局域网访问"))
-        assertTrue(minePageBody(MinePage.Terms).contains("历史记录"))
-        assertTrue(aboutBody("0.1.0").contains("LiteTrans"))
-        assertTrue(aboutBody("0.1.0").contains("0.1.0"))
-        assertTrue(aboutBody("0.1.0").contains("不上传"))
+    fun legalCopyUsesStringResources() {
+        assertEquals(R.string.privacy_body, minePageBodyRes(MinePage.Privacy))
+        assertEquals(R.string.terms_body, minePageBodyRes(MinePage.Terms))
+        assertEquals(R.string.about_body, aboutBodyRes())
+        assertEquals(0, minePageBodyRes(MinePage.Root))
+        assertEquals(0, minePageBodyRes(MinePage.LanShare))
+        assertEquals(0, minePageBodyRes(MinePage.Language))
     }
 
     @Test
@@ -59,9 +77,9 @@ class RootTabsTest {
         assertEquals(listOf(pdf), historyJobs(jobs, HistorySegment.Document))
         assertEquals(listOf(video), historyJobs(jobs, HistorySegment.Video))
         assertEquals(listOf(fromVideoExtract, wav, flac), historyJobs(jobs, HistorySegment.Audio))
-        assertEquals("还没有视频记录", historyEmptyLabel(HistorySegment.Video))
-        assertEquals("还没有音频记录", historyEmptyLabel(HistorySegment.Audio))
-        assertEquals("还没有文档记录", historyEmptyLabel(HistorySegment.Document))
+        assertEquals(R.string.history_empty_video, historyEmptyLabelRes(HistorySegment.Video))
+        assertEquals(R.string.history_empty_audio, historyEmptyLabelRes(HistorySegment.Audio))
+        assertEquals(R.string.history_empty_document, historyEmptyLabelRes(HistorySegment.Document))
     }
 
     @Test
@@ -92,6 +110,10 @@ class RootTabsTest {
         assertEquals(
             RootBack(RootTab.Mine, MinePage.Root, WizardStep.Sources),
             consumeRootBack(RootTab.Mine, MinePage.LanShare, WizardStep.Sources),
+        )
+        assertEquals(
+            RootBack(RootTab.Mine, MinePage.Root, WizardStep.Sources),
+            consumeRootBack(RootTab.Mine, MinePage.Language, WizardStep.Sources),
         )
         assertEquals(
             RootBack(RootTab.Transcode, MinePage.Root, WizardStep.Sources),
@@ -146,6 +168,7 @@ class RootTabsTest {
     fun leavingMineResetsDetail() {
         assertEquals(MinePage.Root, minePageAfterLeavingTab(RootTab.History, MinePage.Privacy))
         assertEquals(MinePage.Root, minePageAfterLeavingTab(RootTab.History, MinePage.LanShare))
+        assertEquals(MinePage.Root, minePageAfterLeavingTab(RootTab.History, MinePage.Language))
         assertEquals(MinePage.Privacy, minePageAfterLeavingTab(RootTab.Mine, MinePage.Privacy))
     }
 

@@ -36,26 +36,49 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.ui.theme.LightTokens
 import java.util.Locale
 
-data class ChipOption(val id: String, val title: String, val hint: String)
+data class ChipOption(
+    val id: String,
+    val titleRes: Int = 0,
+    val hintRes: Int = 0,
+    val title: String = "",
+)
 
 fun outputFolderLabel(context: Context, output: OutputTarget): String = when (output.kind) {
-    OutputTarget.Kind.Gallery -> "相册"
-    OutputTarget.Kind.Movies -> "影库"
-    OutputTarget.Kind.Downloads -> "下载"
-    OutputTarget.Kind.Music -> "音乐"
-    OutputTarget.Kind.Documents -> "文档"
+    OutputTarget.Kind.Gallery -> context.getString(R.string.output_gallery)
+    OutputTarget.Kind.Movies -> context.getString(R.string.output_movies)
+    OutputTarget.Kind.Downloads -> context.getString(R.string.output_downloads)
+    OutputTarget.Kind.Music -> context.getString(R.string.output_music)
+    OutputTarget.Kind.Documents -> context.getString(R.string.output_documents)
     OutputTarget.Kind.SafTree -> output.treeUri
         ?.let(Uri::parse)
         ?.let { DocumentFile.fromTreeUri(context, it)?.name }
-        ?: "所选文件夹"
-    OutputTarget.Kind.AppExternal -> "应用输出目录"
+        ?: context.getString(R.string.output_selected_folder)
+    OutputTarget.Kind.AppExternal -> context.getString(R.string.output_app_dir)
 }
+
+@Composable
+fun chipTitle(option: ChipOption): String =
+    if (option.titleRes != 0) stringResource(option.titleRes) else option.title
+
+@Composable
+fun chipHint(option: ChipOption): String =
+    if (option.hintRes != 0) stringResource(option.hintRes) else ""
+
+@Composable
+fun presetCardTitle(card: WizardPresetCard): String =
+    if (card.titleRes != 0) stringResource(card.titleRes) else card.title
+
+@Composable
+fun presetCardHint(card: WizardPresetCard): String = stringResource(card.hintRes)
 
 internal fun formatClock(seconds: Double): String {
     val total = kotlin.math.round(seconds).toInt().coerceAtLeast(0)
@@ -115,7 +138,7 @@ fun PageHeader(
 
 @Composable
 fun AppTopBar(step: WizardStep, subtitle: String) {
-    PageHeader(title = wizardScreenTitle(step), subtitle = subtitle)
+    PageHeader(title = stringResource(wizardScreenTitleRes(step)), subtitle = subtitle)
 }
 
 @Composable
@@ -125,9 +148,9 @@ fun StepTabs(
     onSelect: (WizardStep) -> Unit,
 ) {
     val tabs = listOf(
-        WizardStep.Sources to "添加",
-        WizardStep.Format to "格式",
-        WizardStep.Output to "存放",
+        WizardStep.Sources to stringResource(R.string.wizard_step_sources),
+        WizardStep.Format to stringResource(R.string.wizard_step_format),
+        WizardStep.Output to stringResource(R.string.wizard_step_output),
     )
     Box(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -238,7 +261,7 @@ fun NoticeBar(message: String, onDismiss: () -> Unit) {
             modifier = Modifier.weight(1f).padding(end = 12.dp),
         )
         Text(
-            "知道了",
+            stringResource(R.string.action_got_it),
             color = Color(LightTokens.Accent),
             modifier = Modifier.clickable(onClick = onDismiss),
         )
@@ -262,8 +285,9 @@ fun Dropzone(
         ) {
             if (audioMode && onMusic != null) {
                 SourceChoiceCard(
-                    title = "音乐",
-                    hint = "手机音乐库",
+                    title = stringResource(R.string.wizard_source_music),
+                    hint = stringResource(R.string.wizard_source_music_hint),
+                    icon = "♪",
                     onClick = onMusic,
                     emphasized = true,
                     compact = compact,
@@ -271,16 +295,21 @@ fun Dropzone(
                 )
             }
             SourceChoiceCard(
-                title = "相册",
-                hint = if (documentMode) "最近的图片" else "最近的视频",
+                title = stringResource(R.string.wizard_source_gallery),
+                hint = stringResource(
+                    if (documentMode) R.string.wizard_source_gallery_hint_image
+                    else R.string.wizard_source_gallery_hint_video,
+                ),
+                icon = "▶",
                 onClick = onGallery,
                 emphasized = !audioMode,
                 compact = compact,
                 modifier = Modifier.weight(1f),
             )
             SourceChoiceCard(
-                title = "文件",
-                hint = "本机文件夹",
+                title = stringResource(R.string.wizard_source_files),
+                hint = stringResource(R.string.wizard_source_files_hint),
+                icon = "▤",
                 onClick = onFiles,
                 emphasized = false,
                 compact = compact,
@@ -304,21 +333,25 @@ fun Dropzone(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    when {
-                        audioMode -> "添加要转换的音频"
-                        documentMode -> "添加要转换的文件"
-                        else -> "添加要转码的视频"
-                    },
+                    stringResource(
+                        when {
+                            audioMode -> R.string.wizard_add_audio
+                            documentMode -> R.string.wizard_add_document
+                            else -> R.string.wizard_add_video
+                        },
+                    ),
                     color = Color(LightTokens.Ink),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    when {
-                        audioMode -> "从音乐库选曲子，从相册抽视频音轨，或从文件夹选文件。"
-                        documentMode -> "从相册选图片，或从文件夹选 PDF、Word、Excel。\n一次只加同一种文件，文件只留在这台手机上。"
-                        else -> "从相册选最近拍的，或从文件夹选原片。\n一次能选好几个，文件只留在这台手机上。"
-                    },
+                    stringResource(
+                        when {
+                            audioMode -> R.string.wizard_add_audio_hint
+                            documentMode -> R.string.wizard_add_document_hint
+                            else -> R.string.wizard_add_video_hint
+                        },
+                    ),
                     color = Color(LightTokens.Muted),
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
@@ -336,6 +369,7 @@ fun Dropzone(
 private fun SourceChoiceCard(
     title: String,
     hint: String,
+    icon: String,
     onClick: () -> Unit,
     emphasized: Boolean,
     modifier: Modifier = Modifier,
@@ -364,11 +398,7 @@ private fun SourceChoiceCard(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                when (title) {
-                    "相册" -> "▶"
-                    "音乐" -> "♪"
-                    else -> "▤"
-                },
+                icon,
                 color = if (emphasized) Color.White else Color(LightTokens.Ink),
                 fontSize = if (compact) 12.sp else 14.sp,
             )
@@ -490,7 +520,7 @@ fun FileRow(
         }
         if (canRemove) {
             Text(
-                "移除",
+                stringResource(R.string.action_remove),
                 color = Color(LightTokens.Accent),
                 modifier = Modifier.clickable(onClick = onRemove),
             )
@@ -564,12 +594,12 @@ fun OptionChips(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
-                        option.title,
+                        chipTitle(option),
                         color = if (on) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        option.hint,
+                        chipHint(option),
                         color = if (on) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
                         fontSize = 12.sp,
                     )
@@ -596,10 +626,10 @@ fun OutputChoiceGrid(
                     val hint = if (card.id == OUTPUT_CHOICE_CUSTOM && !customHint.isNullOrBlank()) {
                         customHint
                     } else {
-                        card.hint
+                        stringResource(card.hintRes)
                     }
                     OutputChoiceCardView(
-                        title = card.title,
+                        title = stringResource(card.titleRes),
                         hint = hint,
                         selected = selectedId == card.id,
                         onSelect = { onSelect(card.id) },
@@ -714,7 +744,7 @@ fun JobRow(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    historyTitle(job),
+                    historyTitle(job, stringResource(R.string.untitled)),
                     color = Color(LightTokens.Ink),
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp,
@@ -722,7 +752,11 @@ fun JobRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    historyDetail(job, statusLabel(job.status)),
+                    historyDetail(
+                        LocalContext.current.resources,
+                        job,
+                        stringResource(statusLabelRes(job.status)),
+                    ),
                     color = Color(LightTokens.Muted),
                     fontSize = 13.sp,
                     maxLines = 2,
@@ -750,16 +784,16 @@ fun JobRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (active) AccentText("取消", onCancel)
+            if (active) AccentText(stringResource(R.string.action_cancel), onCancel)
             if (job.status == JobStatus.Failed || job.status == JobStatus.Cancelled) {
-                AccentText("再试一次", onRetry)
+                AccentText(stringResource(R.string.action_retry), onRetry)
             }
             if (job.status == JobStatus.Completed) {
-                AccentText("打开", onOpen)
-                AccentText("分享", onShare)
-                AccentText("重命名", onRename)
+                AccentText(stringResource(R.string.action_open), onOpen)
+                AccentText(stringResource(R.string.action_share), onShare)
+                AccentText(stringResource(R.string.action_rename), onRename)
             }
-            AccentText("删除", onDelete)
+            AccentText(stringResource(R.string.action_delete), onDelete)
         }
     }
 }
@@ -795,7 +829,7 @@ fun WizardDock(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (step != WizardStep.Sources) {
-                ActionButton("上一步", onBack, Modifier.weight(1f), filled = false)
+                ActionButton(stringResource(R.string.action_previous), onBack, Modifier.weight(1f), filled = false)
                 ActionButton(action, onAction, Modifier.weight(2f), filled = true, enabled = actionEnabled)
             } else {
                 ActionButton(action, onAction, Modifier.fillMaxWidth(), filled = true, enabled = actionEnabled)
@@ -832,25 +866,25 @@ private fun PresetCard(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                card.title,
+                presetCardTitle(card),
                 color = titleColor,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(end = if (card.badge != null) 36.dp else 0.dp),
+                modifier = Modifier.padding(end = if (card.badgeRes != null) 36.dp else 0.dp),
             )
             Text(
-                card.hint,
+                presetCardHint(card),
                 color = hintColor,
                 fontSize = 13.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        card.badge?.let { badge ->
+        card.badgeRes?.let { badgeRes ->
             Text(
-                badge,
+                stringResource(badgeRes),
                 color = if (selected) Color(LightTokens.Ink) else Color.White,
                 fontSize = 11.sp,
                 modifier = Modifier
@@ -874,12 +908,12 @@ private fun MorePresetCard(showAll: Boolean, onClick: () -> Unit, modifier: Modi
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            if (showAll) "收起" else "更多",
+            stringResource(if (showAll) R.string.action_collapse else R.string.action_more),
             color = Color(LightTokens.Ink),
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            if (showAll) "只看常用格式" else "GIF、音频和其他格式",
+            stringResource(if (showAll) R.string.wizard_less_formats else R.string.wizard_more_formats),
             color = Color(LightTokens.Muted),
             fontSize = 13.sp,
             modifier = Modifier.padding(top = 6.dp),

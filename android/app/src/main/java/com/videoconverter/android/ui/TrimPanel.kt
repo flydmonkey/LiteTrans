@@ -41,6 +41,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -49,6 +50,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.ui.theme.LightTokens
 import kotlin.math.abs
@@ -146,15 +148,15 @@ private fun TrimPanelContent(
             verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                Text("裁剪时间", color = Color(LightTokens.Ink), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.trim_title), color = Color(LightTokens.Ink), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "播放选中段，看到想要的位置就点「设为开始」或「设为结束」",
+                    stringResource(R.string.trim_hint),
                     color = Color(LightTokens.Muted),
                     fontSize = 13.sp,
                 )
             }
             Text(
-                "恢复整段",
+                stringResource(R.string.trim_reset),
                 color = Color(LightTokens.Accent),
                 modifier = Modifier.clickable {
                     onChange(media.copy(trimStartSecs = null, trimEndSecs = null))
@@ -180,7 +182,7 @@ private fun TrimPanelContent(
             )
         } else if (!playPreview) {
             Text(
-                "该格式使用时间轴裁剪，不提供视频预览",
+                stringResource(R.string.trim_no_preview),
                 color = Color(LightTokens.Muted),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -196,7 +198,7 @@ private fun TrimPanelContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (player != null) {
-                InkChip(if (playing) "暂停" else "播放选中段") {
+                InkChip(stringResource(if (playing) R.string.trim_pause else R.string.trim_play_selection)) {
                     if (player.isPlaying) {
                         player.pause()
                         playing = false
@@ -211,8 +213,8 @@ private fun TrimPanelContent(
                     }
                 }
             }
-            InkChip("设为开始") { applyTrim(playhead, end) }
-            InkChip("设为结束") { applyTrim(start, playhead) }
+            InkChip(stringResource(R.string.trim_set_start)) { applyTrim(playhead, end) }
+            InkChip(stringResource(R.string.trim_set_end)) { applyTrim(start, playhead) }
         }
 
         TrimTrack(
@@ -229,10 +231,10 @@ private fun TrimPanelContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("开始 ${formatClock(start)}", color = Color(LightTokens.Muted), fontSize = 13.sp)
-            Text("当前 ${formatClock(playhead)}", color = Color(LightTokens.Muted), fontSize = 13.sp)
-            Text("结束 ${formatClock(end)}", color = Color(LightTokens.Muted), fontSize = 13.sp)
-            Text("保留 ${formatDurationLabel(end - start)}", color = Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(stringResource(R.string.trim_start, formatClock(start)), color = Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(stringResource(R.string.trim_current, formatClock(playhead)), color = Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(stringResource(R.string.trim_end, formatClock(end)), color = Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(stringResource(R.string.trim_keep, formatDurationLabel(end - start, LocalContext.current.resources)), color = Color(LightTokens.Muted), fontSize = 13.sp)
         }
     }
 }
@@ -349,10 +351,14 @@ private fun InkChip(label: String, onClick: () -> Unit) {
     )
 }
 
-private fun formatDurationLabel(seconds: Double): String {
+private fun formatDurationLabel(seconds: Double, resources: android.content.res.Resources): String {
     val total = kotlin.math.round(seconds).toInt().coerceAtLeast(0)
-    if (total < 60) return "$total 秒"
+    if (total < 60) return resources.getString(R.string.duration_seconds, total)
     val mins = total / 60
     val secs = total % 60
-    return if (secs == 0) "$mins 分钟" else "$mins 分 $secs 秒"
+    return if (secs == 0) {
+        resources.getString(R.string.duration_minutes, mins)
+    } else {
+        resources.getString(R.string.duration_min_sec, mins, secs)
+    }
 }

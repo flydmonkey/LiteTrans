@@ -2,6 +2,7 @@ package com.videoconverter.android.ui
 
 import android.content.Intent
 import android.net.Uri
+import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.data.SessionSettings
 import com.videoconverter.android.data.SessionStore
@@ -16,8 +17,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [29], qualifiers = "en")
 class AppViewModelTest {
     @Test
     fun resolutionOptionsMapToExpectedBounds() {
@@ -59,8 +62,9 @@ class AppViewModelTest {
 
     @Test
     fun emptyStartReasonUsesModeCopy() {
-        assertEquals("请先添加可转码的视频", emptyStartReason(ConvertMode.Video))
-        assertEquals("请先添加可转码的音频", emptyStartReason(ConvertMode.Audio))
+        assertEquals(R.string.error_add_video_first, emptyStartReasonRes(ConvertMode.Video))
+        assertEquals(R.string.error_add_audio_first, emptyStartReasonRes(ConvertMode.Audio))
+        assertEquals(R.string.error_add_document_first, emptyStartReasonRes(ConvertMode.Document))
     }
 
     @Test
@@ -72,10 +76,10 @@ class AppViewModelTest {
             audioCodec = null,
             importable = true,
         )
-        assertTrue(applyProbedSource(silent, ConvertMode.Video).importable)
-        val audio = applyProbedSource(silent, ConvertMode.Audio)
+        assertTrue(applyProbedSource(silent, ConvertMode.Video, "no audio").importable)
+        val audio = applyProbedSource(silent, ConvertMode.Audio, "no audio stream")
         assertFalse(audio.importable)
-        assertTrue(audio.error!!.contains("没有音频流"))
+        assertTrue(audio.error!!.contains("no audio stream"))
     }
 
     @Test
@@ -105,11 +109,12 @@ class AppViewModelTest {
 
     @Test
     fun presetTitleLooksUpAudioCards() {
-        assertEquals("WAV", presetTitle("audio-wav"))
-        assertEquals("FLAC", presetTitle("audio-flac"))
-        assertEquals("OGG · Opus", presetTitle("audio-ogg"))
-        assertEquals("AMR", presetTitle("audio-amr"))
-        assertEquals("转 TXT", presetTitle("pdf-txt"))
+        val resources = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.app.Application>().resources
+        assertEquals("WAV", presetTitle(resources, "audio-wav"))
+        assertEquals("FLAC", presetTitle(resources, "audio-flac"))
+        assertEquals("OGG · Opus", presetTitle(resources, "audio-ogg"))
+        assertEquals("AMR", presetTitle(resources, "audio-amr"))
+        assertEquals(R.string.preset_pdf_txt_title, presetTitleRes("pdf-txt"))
         assertFalse(shouldShowResolution("pdf-txt"))
         assertFalse(shouldShowResolution("image-jpg"))
         assertFalse(shouldShowResolution("office-pdf"))
@@ -123,12 +128,12 @@ class AppViewModelTest {
     }
 
     @Test
-    fun statusLabelsAreChinese() {
-        assertEquals("排队中", statusLabel(JobStatus.Queued))
-        assertEquals("正在转码", statusLabel(JobStatus.Running))
-        assertEquals("已完成", statusLabel(JobStatus.Completed))
-        assertEquals("出错了", statusLabel(JobStatus.Failed))
-        assertEquals("已取消", statusLabel(JobStatus.Cancelled))
+    fun statusLabelsUseStringResources() {
+        assertEquals(R.string.status_queued, statusLabelRes(JobStatus.Queued))
+        assertEquals(R.string.status_running, statusLabelRes(JobStatus.Running))
+        assertEquals(R.string.status_completed, statusLabelRes(JobStatus.Completed))
+        assertEquals(R.string.status_failed, statusLabelRes(JobStatus.Failed))
+        assertEquals(R.string.status_cancelled, statusLabelRes(JobStatus.Cancelled))
     }
 
     @Test
@@ -222,10 +227,10 @@ class AppViewModelTest {
 
     @Test
     fun untitledDisplayNameAvoidsWrongCategory() {
-        assertEquals("clip.mp4", sourceDisplayNameOrUntitled("clip.mp4", "ignored"))
-        assertEquals("from-path.m4a", sourceDisplayNameOrUntitled(null, "dir/from-path.m4a"))
-        assertEquals("未命名", sourceDisplayNameOrUntitled(null, null))
-        assertEquals("未命名", sourceDisplayNameOrUntitled("", "/"))
+        assertEquals("clip.mp4", sourceDisplayNameOrUntitled("clip.mp4", "ignored", "Untitled"))
+        assertEquals("from-path.m4a", sourceDisplayNameOrUntitled(null, "dir/from-path.m4a", "Untitled"))
+        assertEquals("Untitled", sourceDisplayNameOrUntitled(null, null, "Untitled"))
+        assertEquals("Untitled", sourceDisplayNameOrUntitled("", "/", "Untitled"))
     }
 
     private fun media(name: String, container: String) = MediaInfo(

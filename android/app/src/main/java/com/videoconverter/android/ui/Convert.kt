@@ -65,10 +65,10 @@ fun replaceSession(
     ConvertMode.Document -> sessions.copy(document = session)
 }
 
-fun restrictAudioSource(media: MediaInfo): MediaInfo =
+fun restrictAudioSource(media: MediaInfo, noAudioError: String): MediaInfo =
     when {
         !media.importable && !media.error.isNullOrBlank() -> media
         media.audioCodec.isNullOrBlank() ->
-            media.copy(importable = false, error = "没有音频流，无法导出音频")
+            media.copy(importable = false, error = noAudioError)
         else -> media
     }

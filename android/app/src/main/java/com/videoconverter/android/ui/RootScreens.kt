@@ -41,6 +41,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.sourceStem
 import com.videoconverter.android.ui.theme.LightTokens
@@ -79,7 +81,7 @@ fun RootTabBar(
                 ) {
                     TabGlyph(tab, on)
                     Text(
-                        rootTabLabel(tab),
+                        stringResource(rootTabLabelRes(tab)),
                         color = if (on) Color(LightTokens.Accent) else Color(LightTokens.Muted),
                         fontSize = 11.sp,
                         fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
@@ -104,9 +106,9 @@ private fun HistorySegmentTabs(
         verticalAlignment = Alignment.Bottom,
     ) {
         listOf(
-            HistorySegment.Video to "视频",
-            HistorySegment.Audio to "音频",
-            HistorySegment.Document to "文档",
+            HistorySegment.Video to stringResource(R.string.lan_segment_video),
+            HistorySegment.Audio to stringResource(R.string.lan_segment_audio),
+            HistorySegment.Document to stringResource(R.string.lan_segment_document),
         ).forEach { (target, label) ->
             val on = segment == target
             Column(
@@ -147,8 +149,8 @@ fun HistoryScreen(
     var renaming by remember { mutableStateOf<Job?>(null) }
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(
-            title = "历史记录",
-            subtitle = "打开、分享、重命名或删除转好的文件",
+            title = stringResource(R.string.tab_history),
+            subtitle = stringResource(R.string.history_subtitle),
         )
         HistorySegmentTabs(segment, onSegment)
         if (jobs.isEmpty()) {
@@ -178,7 +180,7 @@ fun HistoryScreen(
                         }
                     }
                     Text(emptyLabel, color = Color(LightTokens.Ink), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("转好的文件会出现在这里", color = Color(LightTokens.Muted), fontSize = 13.sp)
+                    Text(stringResource(R.string.history_empty_hint), color = Color(LightTokens.Muted), fontSize = 13.sp)
                 }
             }
         } else {
@@ -206,7 +208,7 @@ fun HistoryScreen(
     }
     renaming?.let { job ->
         RenameDialog(
-            initial = sourceStem(historyTitle(job)),
+            initial = sourceStem(historyTitle(job, stringResource(R.string.untitled))),
             onConfirm = { name ->
                 onRename(job, name)
                 renaming = null
@@ -225,7 +227,7 @@ fun MineScreen(
 ) {
     if (page == MinePage.Root) {
         Column(modifier = Modifier.fillMaxSize()) {
-            PageHeader(title = "我的")
+            PageHeader(title = stringResource(R.string.tab_mine))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -251,7 +253,7 @@ fun MineScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(item.title, color = Color(LightTokens.Ink), fontSize = 16.sp)
+                        Text(stringResource(item.titleRes), color = Color(LightTokens.Ink), fontSize = 16.sp)
                         Text("›", color = Color(LightTokens.Muted), fontSize = 20.sp)
                     }
                 }
@@ -260,17 +262,22 @@ fun MineScreen(
     } else {
         Column(modifier = Modifier.fillMaxSize()) {
             PageHeader(
-                title = minePageTitle(page),
+                title = stringResource(minePageTitleRes(page)),
                 leading = {
                     Text(
-                        "返回",
+                        stringResource(R.string.action_back),
                         color = Color(LightTokens.Accent),
                         modifier = Modifier.clickable(onClick = onBack),
                     )
                 },
             )
             Text(
-                if (page == MinePage.About) aboutBody(versionName) else minePageBody(page),
+                if (page == MinePage.About) {
+                    stringResource(aboutBodyRes(), versionName)
+                } else {
+                    val bodyRes = minePageBodyRes(page)
+                    if (bodyRes != 0) stringResource(bodyRes) else ""
+                },
                 color = Color(LightTokens.Muted),
                 fontSize = 15.sp,
                 lineHeight = 22.sp,
@@ -307,8 +314,8 @@ private fun RenameDialog(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("重命名", color = Color(LightTokens.Ink), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Text("只改文件名，扩展名会保持原样。", color = Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(stringResource(R.string.history_rename_title), color = Color(LightTokens.Ink), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.history_rename_hint), color = Color(LightTokens.Muted), fontSize = 13.sp)
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
@@ -320,14 +327,14 @@ private fun RenameDialog(
                 horizontalArrangement = Arrangement.End,
             ) {
                 Text(
-                    "取消",
+                    stringResource(R.string.action_cancel),
                     color = Color(LightTokens.Muted),
                     modifier = Modifier
                         .clickable(onClick = onDismiss)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 )
                 Text(
-                    "保存",
+                    stringResource(R.string.action_save),
                     color = Color(LightTokens.Accent),
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier

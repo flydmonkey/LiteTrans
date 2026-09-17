@@ -4,9 +4,7 @@ import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.ui.HistorySegment
-import com.videoconverter.android.ui.historyEmptyLabel
 import com.videoconverter.android.ui.historyJobs
-import com.videoconverter.android.ui.statusLabel
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
@@ -176,7 +174,7 @@ fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) ->
             append("<h2>").append(title).append("</h2>")
             val items = historyJobs(jobs, segment)
             if (items.isEmpty()) {
-                append("<p>").append(historyEmptyLabel(segment)).append("</p>")
+                append("<p>").append(lanHistoryEmptyLabel(segment)).append("</p>")
             } else {
                 append("<ul>")
                 for (job in items) {
@@ -186,7 +184,7 @@ fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) ->
                     append(" ")
                     append(escapeHtml(format))
                     append(" ")
-                    append(escapeHtml(statusLabel(job.status)))
+                    append(escapeHtml(lanStatusLabel(job.status)))
                     if (job.status == JobStatus.Completed) {
                         val paths = jobOutputPaths(job)
                         val existing = paths.mapIndexedNotNull { index, path ->
@@ -208,6 +206,20 @@ fun renderLanHistoryHtml(jobs: List<Job>, token: String, fileExists: (String) ->
         }
         append("</body></html>")
     }
+}
+
+private fun lanHistoryEmptyLabel(segment: HistorySegment): String = when (segment) {
+    HistorySegment.Video -> "还没有视频记录"
+    HistorySegment.Audio -> "还没有音频记录"
+    HistorySegment.Document -> "还没有文档记录"
+}
+
+private fun lanStatusLabel(status: JobStatus): String = when (status) {
+    JobStatus.Queued -> "排队中"
+    JobStatus.Running -> "正在转码"
+    JobStatus.Completed -> "已完成"
+    JobStatus.Failed -> "出错了"
+    JobStatus.Cancelled -> "已取消"
 }
 
 fun escapeHtml(raw: String): String = raw

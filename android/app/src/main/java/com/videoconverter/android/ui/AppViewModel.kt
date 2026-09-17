@@ -8,6 +8,7 @@ import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.videoconverter.android.R
 import com.videoconverter.android.data.JobStore
 import com.videoconverter.android.data.OutputStore
 import com.videoconverter.android.data.OutputTarget
@@ -74,14 +75,14 @@ fun sourcesChangedFor(
         ConvertMode.Document -> documentChanged
     }
 
-fun emptyStartReason(mode: ConvertMode): String = when (mode) {
-    ConvertMode.Audio -> "请先添加可转码的音频"
-    ConvertMode.Document -> "请先添加可转换的文件"
-    ConvertMode.Video -> "请先添加可转码的视频"
+fun emptyStartReasonRes(mode: ConvertMode): Int = when (mode) {
+    ConvertMode.Audio -> R.string.error_add_audio_first
+    ConvertMode.Document -> R.string.error_add_document_first
+    ConvertMode.Video -> R.string.error_add_video_first
 }
 
-fun applyProbedSource(media: MediaInfo, mode: ConvertMode): MediaInfo =
-    if (mode == ConvertMode.Audio) restrictAudioSource(media) else media
+fun applyProbedSource(media: MediaInfo, mode: ConvertMode, noAudioError: String): MediaInfo =
+    if (mode == ConvertMode.Audio) restrictAudioSource(media, noAudioError) else media
 
 fun videoSessionFromSettings(settings: SessionSettings): WizardSession = defaultVideoSession().copy(
     preset = settings.preset ?: SessionStore.DEFAULT_PRESET,
@@ -101,11 +102,11 @@ suspend fun persistOutputBeforeStart(
     start()
 }
 
-fun sourceDisplayNameOrUntitled(queryName: String?, lastPathSegment: String?): String {
+fun sourceDisplayNameOrUntitled(queryName: String?, lastPathSegment: String?, untitled: String): String {
     val queried = queryName?.takeIf { it.isNotBlank() }
     if (queried != null) return queried
     val segment = lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
-    return segment ?: "未命名"
+    return segment ?: untitled
 }
 
 fun outputMimeType(config: OutputConfig): String {
@@ -168,13 +169,16 @@ fun shouldShowResolution(preset: String): Boolean =
 fun effectiveResolution(preset: String, size: String): Pair<Int?, Int?> =
     if (shouldShowResolution(preset)) resolutionBounds(size) else null to null
 
-fun statusLabel(status: JobStatus): String = when (status) {
-    JobStatus.Queued -> "排队中"
-    JobStatus.Running -> "正在转码"
-    JobStatus.Completed -> "已完成"
-    JobStatus.Failed -> "出错了"
-    JobStatus.Cancelled -> "已取消"
+fun statusLabelRes(status: JobStatus): Int = when (status) {
+    JobStatus.Queued -> R.string.status_queued
+    JobStatus.Running -> R.string.status_running
+    JobStatus.Completed -> R.string.status_completed
+    JobStatus.Failed -> R.string.status_failed
+    JobStatus.Cancelled -> R.string.status_cancelled
 }
+
+fun statusLabel(context: android.content.Context, status: JobStatus): String =
+    context.getString(statusLabelRes(status))
 
 fun supportsSystemPreview(media: MediaInfo): Boolean {
     val extension = media.displayName.substringAfterLast('.', "").lowercase()
@@ -241,10 +245,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val probed = probeSlots.withPermit {
                     runCatching { ffmpeg.probe(uri, placeholder.displayName) }
                         .getOrElse {
-                            placeholder.copy(error = it.message ?: "无法读取媒体信息")
+                            placeholder.copy(error = it.message ?: app.getString(R.string.error_cannot_read_media))
                         }
                 }
-                val result = applyProbedSource(probed, mode)
+                val result = applyProbedSource(probed, mode, app.getString(R.string.error_no_audio_stream))
                 updateSession(mode) { session ->
                     session.copy(
                         sources = session.sources.map {
@@ -332,7 +336,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return true
         }
         if (session.sources.any { it.probing }) {
-            mutableState.value = snapshot.copy(message = "请等待格式读取完成")
+            mutableState.value = snapshot.copy(message = app.getString(R.string.error_wait_probe))
             return false
         }
         val bounds = effectiveResolution(session.preset, session.size)
@@ -362,11 +366,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 exists = { File(it).exists() },
             )
         }.getOrElse {
-            mutableState.value = snapshot.copy(message = it.message ?: "无法创建转码任务")
+            mutableState.value = snapshot.copy(message = it.message ?: app.getString(R.string.error_cannot_create_job))
             return false
         }
         if (report.jobs.isEmpty()) {
-            val reason = report.skipped.firstOrNull()?.reason ?: emptyStartReason(mode)
+            val reason = report.skipped.firstOrNull()?.reason ?: app.getString(emptyStartReasonRes(mode))
             mutableState.value = snapshot.copy(message = reason)
             return false
         }
@@ -412,7 +416,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun rename(jobId: String, rawName: String) {
         val stem = sanitizeRenameStem(rawName)
         if (stem == null) {
-            mutableState.value = mutableState.value.copy(message = "请输入可用的文件名")
+            mutableState.value = mutableState.value.copy(message = app.getString(R.string.error_invalid_filename))
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
@@ -428,7 +432,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }.onFailure {
-                mutableState.value = mutableState.value.copy(message = it.message ?: "无法重命名")
+                mutableState.value = mutableState.value.copy(message = it.message ?: app.getString(R.string.error_cannot_rename))
             }
         }
     }
@@ -478,7 +482,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         if (mixed) {
-            mutableState.value = mutableState.value.copy(message = "请一次只加同一种文件")
+            mutableState.value = mutableState.value.copy(message = app.getString(R.string.error_mixed_document_types))
         }
         if (accepted.isEmpty()) return
         val previousKind = documentKindOf(session.sources)
@@ -519,7 +523,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 sourceUri = uri.toString(),
                 displayName = displayName,
                 importable = false,
-                error = unsupported ?: "不支持此格式",
+                error = unsupported ?: app.getString(R.string.error_unsupported_format),
             )
         }
         return when (kind) {
@@ -548,13 +552,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         pageEnd = count,
                     )
                 }
-            } ?: error("无法读取页数")
+            } ?: error(app.getString(R.string.error_cannot_read_pages))
         }.getOrElse {
             MediaInfo(
                 sourceUri = uri.toString(),
                 displayName = displayName,
                 importable = false,
-                error = "无法读取页数",
+                error = app.getString(R.string.error_cannot_read_pages),
             )
         }
 
@@ -642,7 +646,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )?.use { cursor ->
             val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
-        }.let { sourceDisplayNameOrUntitled(it, uri.lastPathSegment) }
+        }.let { sourceDisplayNameOrUntitled(it, uri.lastPathSegment, app.getString(R.string.untitled)) }
 
     private fun takeReadPermission(uri: Uri) {
         runCatching {

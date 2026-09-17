@@ -28,10 +28,12 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.videoconverter.android.R
 import com.videoconverter.android.data.LanShareStore
 import com.videoconverter.android.lan.lanPublicUrl
 import com.videoconverter.android.lan.normalizeLanToken
@@ -89,10 +91,10 @@ fun LanShareScreen(onBack: () -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(
-            title = minePageTitle(MinePage.LanShare),
+            title = stringResource(minePageTitleRes(MinePage.LanShare)),
             leading = {
                 Text(
-                    "返回",
+                    stringResource(R.string.action_back),
                     color = Color(LightTokens.Accent),
                     modifier = Modifier.clickable {
                         persistToken()
@@ -115,7 +117,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "局域网访问",
+                    stringResource(R.string.mine_lan),
                     color = Color(LightTokens.Ink),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -137,8 +139,8 @@ fun LanShareScreen(onBack: () -> Unit) {
                         if (tokenFocused && !focus.isFocused) persistToken()
                         tokenFocused = focus.isFocused
                     },
-                label = { Text("口令") },
-                placeholder = { Text("可留空") },
+                label = { Text(stringResource(R.string.lan_token_label)) },
+                placeholder = { Text(stringResource(R.string.lan_token_placeholder)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(
@@ -150,7 +152,7 @@ fun LanShareScreen(onBack: () -> Unit) {
             )
             if (settings.token.isEmpty()) {
                 Text(
-                    "未设口令时，同一网络中知道地址即可访问。",
+                    stringResource(R.string.lan_token_empty_hint),
                     color = Color(LightTokens.Muted),
                     fontSize = 13.sp,
                     lineHeight = 20.sp,
@@ -167,7 +169,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                         fontSize = 15.sp,
                     )
                     Text(
-                        if (copied) "已复制" else "复制",
+                        stringResource(if (copied) R.string.action_copied else R.string.action_copy),
                         color = Color(LightTokens.Accent),
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable {
@@ -178,7 +180,7 @@ fun LanShareScreen(onBack: () -> Unit) {
                     )
                 } else {
                     Text(
-                        boundError ?: "先连上 Wi‑Fi 或热点",
+                        boundError ?: stringResource(R.string.lan_need_wifi),
                         color = Color(LightTokens.Muted),
                         fontSize = 15.sp,
                     )

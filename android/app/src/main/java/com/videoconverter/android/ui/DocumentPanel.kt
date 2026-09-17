@@ -31,9 +31,11 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.clampPageRange
@@ -72,24 +74,24 @@ private fun PdfPagePanel(
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("页范围", color = androidx.compose.ui.graphics.Color(LightTokens.Ink), fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.document_page_range), color = androidx.compose.ui.graphics.Color(LightTokens.Ink), fontWeight = FontWeight.SemiBold)
         SourceBitmap(media.sourceUri, previewPage)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PageField("起始页", start, Modifier.weight(1f)) { value ->
+            PageField(stringResource(R.string.document_start_page), start, Modifier.weight(1f)) { value ->
                 val (lo, hi) = clampPageRange(value, end, pages)
                 onChange(media.copy(pageStart = lo, pageEnd = hi))
             }
-            PageField("结束页", end, Modifier.weight(1f)) { value ->
+            PageField(stringResource(R.string.document_end_page), end, Modifier.weight(1f)) { value ->
                 val (lo, hi) = clampPageRange(start, value, pages)
                 onChange(media.copy(pageStart = lo, pageEnd = hi))
             }
         }
         Text(
-            "共 $pages 页",
+            stringResource(R.string.document_total_pages, pages),
             color = androidx.compose.ui.graphics.Color(LightTokens.Muted),
             fontSize = 13.sp,
         )
@@ -107,7 +109,7 @@ private fun ImageSourcePreview(media: MediaInfo) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("预览", color = androidx.compose.ui.graphics.Color(LightTokens.Ink), fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.document_preview), color = androidx.compose.ui.graphics.Color(LightTokens.Ink), fontWeight = FontWeight.SemiBold)
         SourceBitmap(media.sourceUri, page = null)
     }
 }
@@ -162,7 +164,7 @@ private fun SourceBitmap(uri: String, page: Int?) {
                 contentScale = ContentScale.Fit,
             )
         } else {
-            Text("无法预览", color = androidx.compose.ui.graphics.Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(stringResource(R.string.document_preview_failed), color = androidx.compose.ui.graphics.Color(LightTokens.Muted), fontSize = 13.sp)
         }
     }
 }

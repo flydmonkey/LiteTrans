@@ -1,5 +1,7 @@
 package com.videoconverter.android.ui
 
+import android.content.res.Resources
+import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.Job
@@ -12,54 +14,55 @@ enum class WizardStep { Sources, Format, Output }
 
 data class WizardPresetCard(
     val id: String,
-    val title: String,
-    val hint: String,
-    val badge: String? = null,
+    val title: String = "",
+    val titleRes: Int = 0,
+    val hintRes: Int,
+    val badgeRes: Int? = null,
 )
 
 val PRIMARY_PRESET_IDS = listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264")
 
 val WIZARD_PRESET_CARDS = listOf(
-    WizardPresetCard("mp4-h264", "MP4 · H.264", "几乎所有设备都能打开", "常用"),
-    WizardPresetCard("mp4-copy", "MP4 · 不重编码", "只换外壳，速度最快", "最快"),
-    WizardPresetCard("mp4-h265", "MP4 · H.265", "同样是 MP4，编码更新"),
-    WizardPresetCard("mov-h264", "MOV · H.264", "苹果设备、剪辑软件"),
-    WizardPresetCard("mkv-copy-friendly", "MKV · H.264", "适合封装保存"),
-    WizardPresetCard("mkv-h265", "MKV · H.265", "适合长期存档"),
-    WizardPresetCard("webm-vp9", "WebM · VP9", "网页常用，会比 MP4 慢一点"),
-    WizardPresetCard("avi-mpeg4", "AVI · MPEG-4", "旧电脑和投影"),
-    WizardPresetCard("gif", "GIF", "短视频转成动图"),
-    WizardPresetCard("audio-mp3", "MP3", "只导出音频"),
-    WizardPresetCard("audio-aac", "M4A · AAC", "只导出音频"),
+    WizardPresetCard("mp4-h264", title = "MP4 · H.264", hintRes = R.string.preset_mp4_h264_desc, badgeRes = R.string.preset_badge_common),
+    WizardPresetCard("mp4-copy", titleRes = R.string.preset_mp4_copy_title, hintRes = R.string.preset_mp4_copy_desc, badgeRes = R.string.preset_badge_fastest),
+    WizardPresetCard("mp4-h265", title = "MP4 · H.265", hintRes = R.string.preset_mp4_h265_desc),
+    WizardPresetCard("mov-h264", title = "MOV · H.264", hintRes = R.string.preset_mov_h264_desc),
+    WizardPresetCard("mkv-copy-friendly", title = "MKV · H.264", hintRes = R.string.preset_mkv_copy_friendly_desc),
+    WizardPresetCard("mkv-h265", title = "MKV · H.265", hintRes = R.string.preset_mkv_h265_desc),
+    WizardPresetCard("webm-vp9", title = "WebM · VP9", hintRes = R.string.preset_webm_vp9_desc),
+    WizardPresetCard("avi-mpeg4", title = "AVI · MPEG-4", hintRes = R.string.preset_avi_mpeg4_desc),
+    WizardPresetCard("gif", title = "GIF", hintRes = R.string.preset_gif_desc),
+    WizardPresetCard("audio-mp3", title = "MP3", hintRes = R.string.preset_audio_mp3_desc),
+    WizardPresetCard("audio-aac", title = "M4A · AAC", hintRes = R.string.preset_audio_aac_desc),
 )
 
 val AUDIO_PRESET_CARDS = listOf(
-    WizardPresetCard("audio-mp3", "MP3", "兼容性最好"),
-    WizardPresetCard("audio-aac", "M4A · AAC", "苹果设备和相册常用"),
-    WizardPresetCard("audio-wav", "WAV", "无损，文件更大"),
-    WizardPresetCard("audio-flac", "FLAC", "无损，比 WAV 小"),
-    WizardPresetCard("audio-ogg", "OGG · Opus", "体积更小"),
-    WizardPresetCard("audio-amr", "AMR", "通话录音常用"),
+    WizardPresetCard("audio-mp3", title = "MP3", hintRes = R.string.preset_audio_mp3_audio_desc),
+    WizardPresetCard("audio-aac", title = "M4A · AAC", hintRes = R.string.preset_audio_aac_audio_desc),
+    WizardPresetCard("audio-wav", title = "WAV", hintRes = R.string.preset_audio_wav_desc),
+    WizardPresetCard("audio-flac", title = "FLAC", hintRes = R.string.preset_audio_flac_desc),
+    WizardPresetCard("audio-ogg", title = "OGG · Opus", hintRes = R.string.preset_audio_ogg_desc),
+    WizardPresetCard("audio-amr", title = "AMR", hintRes = R.string.preset_audio_amr_desc),
 )
 
 val IMAGE_DOCUMENT_CARDS = listOf(
-    WizardPresetCard("image-jpg", "JPG", "兼容性最好"),
-    WizardPresetCard("image-png", "PNG", "无损，文件更大"),
-    WizardPresetCard("image-webp", "WebP", "同样清晰，体积更小"),
-    WizardPresetCard("image-bmp", "BMP", "无压缩"),
-    WizardPresetCard("image-gif", "GIF", "静图，只保留一帧"),
-    WizardPresetCard("image-compress", "压缩", "尽量保持格式，缩小体积"),
+    WizardPresetCard("image-jpg", title = "JPG", hintRes = R.string.preset_image_jpg_desc),
+    WizardPresetCard("image-png", title = "PNG", hintRes = R.string.preset_image_png_desc),
+    WizardPresetCard("image-webp", title = "WebP", hintRes = R.string.preset_image_webp_desc),
+    WizardPresetCard("image-bmp", title = "BMP", hintRes = R.string.preset_image_bmp_desc),
+    WizardPresetCard("image-gif", title = "GIF", hintRes = R.string.preset_image_gif_desc),
+    WizardPresetCard("image-compress", titleRes = R.string.preset_image_compress_title, hintRes = R.string.preset_image_compress_desc),
 )
 
 val PDF_DOCUMENT_CARDS = listOf(
-    WizardPresetCard("pdf-image", "转图片", "每页一张图，还要选 JPG / PNG / WebP"),
-    WizardPresetCard("pdf-txt", "转 TXT", "抽取文字；扫描件会失败"),
-    WizardPresetCard("pdf-compress", "压缩", "缩小内嵌图，不把整页拍成图"),
-    WizardPresetCard("pdf-split", "拆分", "范围内每页一个 PDF"),
+    WizardPresetCard("pdf-image", titleRes = R.string.preset_pdf_image_title, hintRes = R.string.preset_pdf_image_desc),
+    WizardPresetCard("pdf-txt", titleRes = R.string.preset_pdf_txt_title, hintRes = R.string.preset_pdf_txt_desc),
+    WizardPresetCard("pdf-compress", titleRes = R.string.preset_pdf_compress_title, hintRes = R.string.preset_pdf_compress_desc),
+    WizardPresetCard("pdf-split", titleRes = R.string.preset_pdf_split_title, hintRes = R.string.preset_pdf_split_desc),
 )
 
 val OFFICE_DOCUMENT_CARDS = listOf(
-    WizardPresetCard("office-pdf", "转 PDF", "简单文字和表格可以，复杂排版会对不齐"),
+    WizardPresetCard("office-pdf", titleRes = R.string.preset_office_pdf_title, hintRes = R.string.preset_office_pdf_desc),
 )
 
 fun documentCardsFor(kind: DocumentSourceKind): List<WizardPresetCard> = when (kind) {
@@ -71,15 +74,15 @@ fun documentCardsFor(kind: DocumentSourceKind): List<WizardPresetCard> = when (k
 fun outputChoicesForDocument(preset: String): List<OutputChoiceCard> =
     if (documentResultIsImage(preset)) {
         listOf(
-            OutputChoiceCard(OUTPUT_CHOICE_GALLERY, "相册", "在系统相册里看到"),
-            OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, "下载", "系统下载文件夹"),
-            OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
+            OutputChoiceCard(OUTPUT_CHOICE_GALLERY, R.string.output_gallery, R.string.output_gallery_hint),
+            OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, R.string.output_downloads, R.string.output_downloads_hint),
+            OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, R.string.output_custom, R.string.output_custom_hint),
         )
     } else {
         listOf(
-            OutputChoiceCard(OUTPUT_CHOICE_DOCUMENTS, "文档", "系统文档文件夹"),
-            OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, "下载", "系统下载文件夹"),
-            OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
+            OutputChoiceCard(OUTPUT_CHOICE_DOCUMENTS, R.string.output_documents, R.string.output_documents_hint),
+            OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, R.string.output_downloads, R.string.output_downloads_hint),
+            OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, R.string.output_custom, R.string.output_custom_hint),
         )
     }
 
@@ -121,10 +124,10 @@ private val CODEC_LABELS = mapOf(
     "flac" to "FLAC",
 )
 
-fun wizardScreenTitle(step: WizardStep): String = when (step) {
-    WizardStep.Sources -> "添加文件"
-    WizardStep.Format -> "选择格式"
-    WizardStep.Output -> "存放位置"
+fun wizardScreenTitleRes(step: WizardStep): Int = when (step) {
+    WizardStep.Sources -> R.string.wizard_title_sources
+    WizardStep.Format -> R.string.wizard_title_format
+    WizardStep.Output -> R.string.wizard_title_output
 }
 
 fun canEnterStep(step: WizardStep, importableCount: Int): Boolean =
@@ -159,21 +162,21 @@ const val OUTPUT_CHOICE_DOCUMENTS = "documents"
 
 data class OutputChoiceCard(
     val id: String,
-    val title: String,
-    val hint: String,
+    val titleRes: Int,
+    val hintRes: Int,
 )
 
 val OUTPUT_CHOICE_CARDS = listOf(
-    OutputChoiceCard(OUTPUT_CHOICE_GALLERY, "相册", "在系统相册里看到"),
-    OutputChoiceCard(OUTPUT_CHOICE_MOVIES, "影库", "进手机视频库"),
-    OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, "下载", "系统下载文件夹"),
-    OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
+    OutputChoiceCard(OUTPUT_CHOICE_GALLERY, R.string.output_gallery, R.string.output_gallery_hint),
+    OutputChoiceCard(OUTPUT_CHOICE_MOVIES, R.string.output_movies, R.string.output_movies_hint),
+    OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, R.string.output_downloads, R.string.output_downloads_hint),
+    OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, R.string.output_custom, R.string.output_custom_hint),
 )
 
 val AUDIO_OUTPUT_CHOICE_CARDS = listOf(
-    OutputChoiceCard(OUTPUT_CHOICE_MUSIC, "音乐", "进手机音乐库"),
-    OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, "下载", "系统下载文件夹"),
-    OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, "自定义", "自己选一个文件夹"),
+    OutputChoiceCard(OUTPUT_CHOICE_MUSIC, R.string.output_music, R.string.output_music_hint),
+    OutputChoiceCard(OUTPUT_CHOICE_DOWNLOADS, R.string.output_downloads, R.string.output_downloads_hint),
+    OutputChoiceCard(OUTPUT_CHOICE_CUSTOM, R.string.output_custom, R.string.output_custom_hint),
 )
 
 fun outputChoiceId(output: OutputTarget): String = when (output.kind) {
@@ -202,19 +205,20 @@ fun collapsedPresetCards(selectedId: String, showAll: Boolean): List<WizardPrese
     return primary.take(3) + selected
 }
 
-fun dockActionLabel(
+fun dockActionLabelRes(
     step: WizardStep,
     busy: Boolean,
     transcoding: Boolean,
-    startLabel: String = "开始转码",
-): String = when {
-    step != WizardStep.Output -> "下一步"
-    busy -> "正在加入队列…"
-    transcoding -> "正在转码…"
-    else -> startLabel
+    startLabelRes: Int = R.string.wizard_start_transcode,
+): Int = when {
+    step != WizardStep.Output -> R.string.action_next
+    busy -> R.string.wizard_joining_queue
+    transcoding -> R.string.wizard_converting
+    else -> startLabelRes
 }
 
 fun dockSummary(
+    resources: Resources,
     step: WizardStep,
     importableCount: Int,
     presetTitle: String,
@@ -230,53 +234,87 @@ fun dockSummary(
     documentMode: Boolean = false,
     pageRangeLabel: String = "",
 ): String {
-    if (documentMode && importableCount == 0) return "先添加要转换的文件"
-    if (audioMode && importableCount == 0) return "先添加音频或带声音的视频"
+    if (documentMode && importableCount == 0) return resources.getString(R.string.wizard_need_document)
+    if (audioMode && importableCount == 0) return resources.getString(R.string.wizard_need_audio)
     return when (step) {
-        WizardStep.Sources -> if (importableCount == 0) "先添加源视频" else "已选 ${importableCount} 个文件"
-        WizardStep.Format -> formatPreview.ifBlank { "先添加源视频，再选要转成的格式" }
+        WizardStep.Sources -> if (importableCount == 0) {
+            resources.getString(R.string.wizard_need_video)
+        } else {
+            resources.getString(R.string.wizard_selected_count, importableCount)
+        }
+        WizardStep.Format -> formatPreview.ifBlank { resources.getString(R.string.wizard_need_video_then_format) }
         WizardStep.Output -> {
             val qualityPart = if (losslessAudio) "" else " · $qualityLabel"
             val body = when {
-                importableCount == 0 -> "先添加源视频，再开始转码"
-                documentMode -> "将 $importableCount 个文件转为 $presetTitle$pageRangeLabel"
-                audioOnly || audioMode -> "将 $importableCount 个文件转为 $presetTitle$qualityPart$trimLabel"
-                copyOnly -> "将 $importableCount 个视频转为 $presetTitle$trimLabel"
-                else -> "将 $importableCount 个视频转为 $presetTitle · $qualityLabel · $sizeLabel$trimLabel"
+                importableCount == 0 -> resources.getString(R.string.wizard_need_video_then_start)
+                documentMode -> resources.getString(
+                    R.string.wizard_convert_files,
+                    importableCount,
+                    "$presetTitle$pageRangeLabel",
+                )
+                audioOnly || audioMode -> resources.getString(
+                    R.string.wizard_convert_files,
+                    importableCount,
+                    "$presetTitle$qualityPart$trimLabel",
+                )
+                copyOnly -> resources.getString(
+                    R.string.wizard_convert_videos,
+                    importableCount,
+                    "$presetTitle$trimLabel",
+                )
+                else -> resources.getString(
+                    R.string.wizard_convert_videos_quality,
+                    importableCount,
+                    presetTitle,
+                    qualityLabel,
+                    "$sizeLabel$trimLabel",
+                )
             }
-            if (importableCount == 0) body else "$body · 存到$outputLabel"
+            if (importableCount == 0) {
+                body
+            } else {
+                "$body · ${resources.getString(R.string.wizard_save_to, outputLabel)}"
+            }
         }
     }
 }
 
-fun conversionPreview(items: List<MediaInfo>, target: String): String {
+fun conversionPreview(resources: Resources, items: List<MediaInfo>, target: String): String {
     val importable = items.filter { it.importable }
-    if (importable.isEmpty()) return "先添加源视频，再选要转成的格式"
+    if (importable.isEmpty()) return resources.getString(R.string.wizard_need_video_then_format)
     val labels = importable.map(::sourceFromLabel).toSet()
-    val from = if (labels.size == 1) labels.first() else "${labels.size} 种源格式"
+    val from = if (labels.size == 1) labels.first() else resources.getString(R.string.wizard_source_kinds, labels.size)
     return "$from  →  $target"
 }
 
-fun presetTitle(id: String): String =
-    WIZARD_PRESET_CARDS.find { it.id == id }?.title
-        ?: AUDIO_PRESET_CARDS.find { it.id == id }?.title
-        ?: IMAGE_DOCUMENT_CARDS.find { it.id == id }?.title
-        ?: PDF_DOCUMENT_CARDS.find { it.id == id }?.title
-        ?: OFFICE_DOCUMENT_CARDS.find { it.id == id }?.title
-        ?: id
+fun presetCard(id: String): WizardPresetCard? =
+    WIZARD_PRESET_CARDS.find { it.id == id }
+        ?: AUDIO_PRESET_CARDS.find { it.id == id }
+        ?: IMAGE_DOCUMENT_CARDS.find { it.id == id }
+        ?: PDF_DOCUMENT_CARDS.find { it.id == id }
+        ?: OFFICE_DOCUMENT_CARDS.find { it.id == id }
 
-fun qualityLabel(id: String): String = when (id) {
-    "original" -> "原画"
-    "small" -> "节省体积"
-    else -> "标准"
+fun presetTitleRes(id: String): Int = presetCard(id)?.titleRes ?: 0
+
+fun presetTitle(resources: Resources, id: String): String {
+    val card = presetCard(id) ?: return id
+    return if (card.titleRes != 0) resources.getString(card.titleRes) else card.title.ifBlank { id }
 }
 
-fun sizeLabel(id: String): String = when (id) {
-    "1080p" -> "1080p"
-    "720p" -> "720p"
-    "480p" -> "480p"
-    else -> "原尺寸"
+fun qualityLabelRes(id: String): Int = when (id) {
+    "original" -> R.string.quality_original
+    "small" -> R.string.quality_small
+    "high" -> R.string.quality_high
+    else -> R.string.quality_standard
 }
+
+fun sizeLabelRes(id: String): Int = when (id) {
+    "1080p", "720p", "480p" -> 0
+    else -> R.string.size_original
+}
+
+fun sizeLabel(resources: Resources, id: String): String =
+    if (id == "1080p" || id == "720p" || id == "480p") id else resources.getString(R.string.size_original)
 
 fun isAudioPreset(preset: String): Boolean =
     preset == "audio-mp3" || preset == "audio-aac" || preset == "audio-wav" ||
@@ -314,25 +352,29 @@ fun clampTrim(start: Double, end: Double, duration: Double): Pair<Double, Double
     }
 }
 
-fun outputFileName(outputPath: String?): String {
+fun outputFileName(outputPath: String?, untitled: String): String {
     val raw = outputPath?.substringAfterLast('/')?.substringAfterLast('\\')?.substringBefore('?')
-    return raw?.takeIf { it.isNotBlank() } ?: "未命名"
+    return raw?.takeIf { it.isNotBlank() } ?: untitled
 }
 
-fun historyTitle(job: Job): String {
-    val output = outputFileName(job.outputPath)
-    return if (output != "未命名") output else job.displayName
+fun historyTitle(job: Job, untitled: String): String {
+    val output = outputFileName(job.outputPath, untitled)
+    return if (output != untitled) output else job.displayName
 }
 
-fun historyDetail(job: Job, status: String): String {
-    val preset = presetTitle(job.config.preset)
+fun historyDetail(resources: Resources, job: Job, status: String): String {
+    val preset = presetTitle(resources, job.config.preset)
     return buildString {
         append(status)
         if (preset.isNotBlank()) append(" · ").append(preset)
         if (job.outputPaths.size > 1) {
             val count = job.outputPaths.size
             append(" · ").append(
-                if (documentResultIsImage(job.config.preset)) "${count} 张图片" else "${count} 个 PDF",
+                if (documentResultIsImage(job.config.preset)) {
+                    resources.getString(R.string.wizard_result_images, count)
+                } else {
+                    resources.getString(R.string.wizard_result_pdfs, count)
+                },
             )
         }
         if (job.status == JobStatus.Failed && !job.error.isNullOrBlank()) {
@@ -342,14 +384,14 @@ fun historyDetail(job: Job, status: String): String {
 }
 
 fun sourceFromLabel(media: MediaInfo): String {
-    val container = friendlyContainer(media.container, media.displayName)
+    val container = friendlyContainerLabel(media.container, media.displayName)
     val codec = friendlyCodec(media.videoCodec).ifBlank { friendlyCodec(media.audioCodec) }
     return listOf(container, codec).filter { it.isNotBlank() }.joinToString(" · ")
 }
 
-fun sourceFormatLine(media: MediaInfo, probing: Boolean): String {
-    if (probing) return "正在读取格式…"
-    if (!media.importable) return media.error ?: "这个文件打不开"
+fun sourceFormatLine(resources: Resources, media: MediaInfo, probing: Boolean): String {
+    if (probing) return resources.getString(R.string.wizard_reading_format)
+    if (!media.importable) return media.error ?: resources.getString(R.string.wizard_file_unreadable)
     when (documentSourceKind(media.displayName)) {
         DocumentSourceKind.Pdf -> {
             val pages = media.pageCount
@@ -357,9 +399,9 @@ fun sourceFormatLine(media: MediaInfo, probing: Boolean): String {
             val end = media.pageEnd ?: pages ?: 1
             return buildString {
                 append("PDF")
-                if (pages != null) append(" · ").append(pages).append(" 页")
+                if (pages != null) append(" · ").append(resources.getString(R.string.wizard_pages, pages))
                 if (pages != null && (start != 1 || end != pages)) {
-                    append(" · 第 ").append(start).append("–").append(end).append(" 页")
+                    append(" · ").append(resources.getString(R.string.wizard_page_range, start, end))
                 }
             }
         }
@@ -367,17 +409,19 @@ fun sourceFormatLine(media: MediaInfo, probing: Boolean): String {
         DocumentSourceKind.Excel -> return "Excel"
         DocumentSourceKind.Image -> {
             val ext = media.displayName.substringAfterLast('.', "").uppercase()
-            return ext.ifBlank { "图片" }
+            return ext.ifBlank { resources.getString(R.string.wizard_image) }
         }
         null -> Unit
     }
     return listOf(
-        friendlyContainer(media.container, media.displayName),
+        friendlyContainer(resources, media.container, media.displayName).ifBlank {
+            friendlyContainerLabel(media.container, media.displayName)
+        },
         friendlyCodec(media.videoCodec).ifBlank { friendlyCodec(media.audioCodec) },
         if (media.width != null && media.height != null) "${media.width}×${media.height}" else "",
         media.frameRate?.let { "${kotlin.math.round(it).toInt()} fps" } ?: "",
-        formatDuration(media.durationSecs),
-        if (isTrimmed(media)) "已裁剪" else "",
+        formatDuration(resources, media.durationSecs),
+        if (isTrimmed(media)) resources.getString(R.string.wizard_trimmed) else "",
     ).filter { it.isNotBlank() }.joinToString(" · ")
 }
 
@@ -386,7 +430,7 @@ private fun friendlyCodec(codec: String?): String {
     return CODEC_LABELS[codec.lowercase()] ?: codec.uppercase()
 }
 
-private fun friendlyContainer(container: String?, name: String): String {
+private fun friendlyContainerLabel(container: String?, name: String): String {
     val ext = name.substringAfterLast('.', "").uppercase()
     val value = (container ?: "").lowercase()
     return when {
@@ -404,21 +448,28 @@ private fun friendlyContainer(container: String?, name: String): String {
         ext == "MOV" -> "MOV"
         "mp4" in value || "mov" in value || ext == "MP4" || ext == "M4V" -> "MP4"
         ext.isNotBlank() -> ext
-        else -> "视频"
+        else -> ""
     }
 }
 
-private fun formatDuration(seconds: Double?): String {
+private fun friendlyContainer(resources: Resources, container: String?, name: String): String =
+    friendlyContainerLabel(container, name).ifBlank { resources.getString(R.string.wizard_kind_video) }
+
+private fun formatDuration(resources: Resources, seconds: Double?): String {
     if (seconds == null || seconds.isNaN()) return ""
     val total = kotlin.math.round(seconds).toInt()
-    if (total < 60) return "$total 秒"
+    if (total < 60) return resources.getString(R.string.duration_seconds, total)
     val mins = total / 60
     val secs = total % 60
     return if (mins < 60) {
-        if (secs == 0) "$mins 分钟" else "$mins 分 $secs 秒"
+        if (secs == 0) {
+            resources.getString(R.string.duration_minutes, mins)
+        } else {
+            resources.getString(R.string.duration_min_sec, mins, secs)
+        }
     } else {
         val hours = mins / 60
         val rest = mins % 60
-        "$hours 小时 $rest 分"
+        resources.getString(R.string.duration_hour_min, hours, rest)
     }
 }

@@ -36,10 +36,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.JobStatus
@@ -55,28 +57,28 @@ private val DOCUMENT_FILE_MIMES = arrayOf(
 )
 
 private val DOCUMENT_FORMAT_CHIPS = listOf(
-    ChipOption("jpg", "JPG", "兼容性最好"),
-    ChipOption("png", "PNG", "无损"),
-    ChipOption("webp", "WebP", "体积更小"),
+    ChipOption("jpg", title = "JPG", hintRes = R.string.format_best_compat),
+    ChipOption("png", title = "PNG", hintRes = R.string.format_lossless),
+    ChipOption("webp", title = "WebP", hintRes = R.string.format_smaller),
 )
 
 private val COMPRESS_QUALITY_CHIPS = listOf(
-    ChipOption("high", "高", "尽量保留细节"),
-    ChipOption("standard", "标准", "一般观看够用"),
-    ChipOption("small", "更小", "文件更小"),
+    ChipOption("high", titleRes = R.string.quality_high, hintRes = R.string.quality_high_hint),
+    ChipOption("standard", titleRes = R.string.quality_standard, hintRes = R.string.quality_standard_hint),
+    ChipOption("small", titleRes = R.string.quality_smaller, hintRes = R.string.quality_smaller_hint),
 )
 
 private val QUALITY_CHIPS = listOf(
-    ChipOption("original", "原画", "尽量保留细节"),
-    ChipOption("standard", "标准", "一般观看够用"),
-    ChipOption("small", "节省体积", "文件更小，会糊一点"),
+    ChipOption("original", titleRes = R.string.quality_original, hintRes = R.string.quality_original_hint),
+    ChipOption("standard", titleRes = R.string.quality_standard, hintRes = R.string.quality_standard_hint),
+    ChipOption("small", titleRes = R.string.quality_small, hintRes = R.string.quality_small_hint),
 )
 
 private val SIZE_CHIPS = listOf(
-    ChipOption("original", "原尺寸", "不缩小画面"),
-    ChipOption("1080p", "1080p", "全高清"),
-    ChipOption("720p", "720p", "高清"),
-    ChipOption("480p", "480p", "更小画面"),
+    ChipOption("original", titleRes = R.string.size_original, hintRes = R.string.size_original_hint),
+    ChipOption("1080p", title = "1080p", hintRes = R.string.size_1080p_hint),
+    ChipOption("720p", title = "720p", hintRes = R.string.size_720p_hint),
+    ChipOption("480p", title = "480p", hintRes = R.string.size_480p_hint),
 )
 
 @Composable
@@ -324,7 +326,7 @@ fun AppScreen(
                     segment = historySegment,
                     onSegment = { historySegment = it },
                     jobs = historyJobs(state.jobs, historySegment),
-                    emptyLabel = historyEmptyLabel(historySegment),
+                    emptyLabel = stringResource(historyEmptyLabelRes(historySegment)),
                     onCancel = appViewModel::cancel,
                     onRetry = appViewModel::retry,
                     onOpen = { launchOutput(context, appViewModel.outputIntent(it, false)) },
@@ -361,29 +363,37 @@ fun AppScreen(
             WizardDock(
                 step = currentStep,
                 summary = dockSummary(
+                    resources = context.resources,
                     step = currentStep,
                     importableCount = currentImportable,
-                    presetTitle = presetTitle(currentSession.preset),
-                    qualityLabel = qualityLabel(currentSession.quality),
-                    sizeLabel = sizeLabel(currentSession.size),
+                    presetTitle = presetTitle(context.resources, currentSession.preset),
+                    qualityLabel = stringResource(qualityLabelRes(currentSession.quality)),
+                    sizeLabel = sizeLabel(context.resources, currentSession.size),
                     audioOnly = isAudioPreset(currentSession.preset),
                     copyOnly = isCopyPreset(currentSession.preset),
-                    trimLabel = trimLabel(currentSession.sources.map { it.media }, currentPreview),
+                    trimLabel = trimLabel(context.resources, currentSession.sources.map { it.media }, currentPreview),
                     outputLabel = outputFolderLabel(context, currentSession.output),
                     formatPreview = conversionPreview(
+                        context.resources,
                         currentSession.sources.map { it.media },
-                        presetTitle(currentSession.preset),
+                        presetTitle(context.resources, currentSession.preset),
                     ),
                     audioMode = audioMode,
                     losslessAudio = isLosslessAudioPreset(currentSession.preset),
                     documentMode = documentMode,
-                    pageRangeLabel = pageRangeLabel(currentSession.sources.map { it.media }),
+                    pageRangeLabel = pageRangeLabel(context.resources, currentSession.sources.map { it.media }),
                 ),
-                action = dockActionLabel(
-                    currentStep,
-                    busy = false,
-                    transcoding = transcoding,
-                    startLabel = if (audioMode || documentMode) "开始转换" else "开始转码",
+                action = stringResource(
+                    dockActionLabelRes(
+                        currentStep,
+                        busy = false,
+                        transcoding = transcoding,
+                        startLabelRes = if (audioMode || documentMode) {
+                            R.string.wizard_start_convert
+                        } else {
+                            R.string.wizard_start_transcode
+                        },
+                    ),
                 ),
                 actionEnabled = when (currentStep) {
                     WizardStep.Sources, WizardStep.Format -> currentImportable > 0 && !currentProbing
@@ -446,12 +456,15 @@ private fun TranscodePane(
     val documentKind = documentKindOf(session.sources) ?: DocumentSourceKind.Image
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(
-            title = wizardScreenTitle(step),
+            title = stringResource(wizardScreenTitleRes(step)),
             subtitle = when (step) {
-                WizardStep.Sources -> if (documentMode) "预览，PDF 可选择页范围" else "预览并裁切要保留的片段"
+                WizardStep.Sources -> stringResource(
+                    if (documentMode) R.string.wizard_preview_document else R.string.wizard_preview_video,
+                )
                 WizardStep.Format -> conversionPreview(
+                    LocalContext.current.resources,
                     session.sources.map { it.media },
-                    presetTitle(session.preset),
+                    presetTitle(LocalContext.current.resources, session.preset),
                 )
                 WizardStep.Output -> outputFolderLabel(LocalContext.current, session.output)
             },
@@ -499,7 +512,11 @@ private fun TranscodePane(
                             items(session.sources, key = { it.media.sourceUri }) { source ->
                                 FileRow(
                                     name = source.media.displayName,
-                                    line = sourceFormatLine(source.media, source.probing),
+                                    line = sourceFormatLine(
+                                        LocalContext.current.resources,
+                                        source.media,
+                                        source.probing,
+                                    ),
                                     selected = source.media.sourceUri == (selectedUri ?: preview?.sourceUri),
                                     importable = source.media.importable || source.probing,
                                     canRemove = state.jobs.none {
@@ -567,14 +584,22 @@ private fun TranscodePane(
     }
 }
 
-private fun trimLabel(sources: List<MediaInfo>, preview: MediaInfo?): String {
+private fun trimLabel(
+    resources: android.content.res.Resources,
+    sources: List<MediaInfo>,
+    preview: MediaInfo?,
+): String {
     val trimmed = sources.filter(::isTrimmed)
     if (trimmed.isEmpty()) return ""
     return if (trimmed.size == 1 && preview != null && isTrimmed(preview)) {
         val duration = preview.durationSecs ?: 0.0
-        " · 裁 ${formatClock(preview.trimStartSecs ?: 0.0)}–${formatClock(preview.trimEndSecs ?: duration)}"
+        resources.getString(
+            R.string.wizard_trim_clock,
+            formatClock(preview.trimStartSecs ?: 0.0),
+            formatClock(preview.trimEndSecs ?: duration),
+        )
     } else {
-        " · ${trimmed.size} 个文件已裁剪"
+        resources.getString(R.string.wizard_files_trimmed, trimmed.size)
     }
 }
 
@@ -588,7 +613,10 @@ private fun installedVersionName(context: android.content.Context): String =
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull().orEmpty().ifBlank { "0.1.0" }
 
-private fun pageRangeLabel(sources: List<MediaInfo>): String {
+private fun pageRangeLabel(
+    resources: android.content.res.Resources,
+    sources: List<MediaInfo>,
+): String {
     val pdfs = sources.filter {
         it.importable && documentSourceKind(it.displayName) == DocumentSourceKind.Pdf
     }
@@ -597,9 +625,9 @@ private fun pageRangeLabel(sources: List<MediaInfo>): String {
         val media = pdfs.first()
         val start = media.pageStart ?: 1
         val end = media.pageEnd ?: media.pageCount ?: start
-        return " · 第 $start–$end 页"
+        return " · ${resources.getString(R.string.wizard_page_range, start, end)}"
     }
-    return " · ${pdfs.size} 个文件已选页"
+    return resources.getString(R.string.wizard_files_paged, pdfs.size)
 }
 
 @Composable
@@ -623,7 +651,7 @@ private fun FormatDetailPanel(
         when {
             preset == "office-pdf" -> {
                 Text(
-                    "简单文字和表格可以，复杂排版会对不齐",
+                    stringResource(R.string.hint_office_layout),
                     color = Color(LightTokens.Muted),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -634,7 +662,7 @@ private fun FormatDetailPanel(
             }
             preset == "pdf-txt" -> {
                 Text(
-                    "扫描件抽不出字",
+                    stringResource(R.string.hint_scan_no_text),
                     color = Color(LightTokens.Muted),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -645,7 +673,7 @@ private fun FormatDetailPanel(
             }
             preset == "pdf-image" -> {
                 CompactChips(
-                    title = "图片格式",
+                    title = stringResource(R.string.format_image_title),
                     options = DOCUMENT_FORMAT_CHIPS,
                     selected = container ?: "jpg",
                     onSelect = onContainer,
@@ -653,7 +681,7 @@ private fun FormatDetailPanel(
             }
             preset == "image-compress" || preset == "pdf-compress" -> {
                 CompactChips(
-                    title = "压缩",
+                    title = stringResource(R.string.format_compress_title),
                     options = COMPRESS_QUALITY_CHIPS,
                     selected = quality,
                     onSelect = onQuality,
@@ -661,8 +689,7 @@ private fun FormatDetailPanel(
             }
             isLosslessAudioPreset(preset) -> {
                 Text(
-                    if (preset == "audio-flac") "无损压缩，比 WAV 小很多，播放器支持也广。"
-                    else "原始采样，不压缩，文件更大",
+                    stringResource(if (preset == "audio-flac") R.string.hint_flac else R.string.hint_wav),
                     color = Color(LightTokens.Muted),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -673,7 +700,7 @@ private fun FormatDetailPanel(
             }
             isCopyPreset(preset) -> {
                 Text(
-                    "不重编码只换文件外壳，画质和分辨率都保持原样。源视频编码必须能放进 MP4，不行的文件会提示改用普通转码。",
+                    stringResource(R.string.hint_copy_mp4),
                     color = Color(LightTokens.Muted),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -686,7 +713,7 @@ private fun FormatDetailPanel(
             else -> {
                 if (preset == "audio-amr") {
                     Text(
-                        "通话录音常用。会转成 8kHz 单声道，适合语音，不适合音乐。",
+                        stringResource(R.string.hint_amr),
                         color = Color(LightTokens.Muted),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -696,14 +723,16 @@ private fun FormatDetailPanel(
                     )
                 }
                 CompactChips(
-                    title = if (isAudioPreset(preset)) "音质" else "画质",
+                    title = stringResource(
+                        if (isAudioPreset(preset)) R.string.quality_audio_title else R.string.quality_video_title,
+                    ),
                     options = QUALITY_CHIPS,
                     selected = quality,
                     onSelect = onQuality,
                 )
                 if (shouldShowResolution(preset)) {
                     CompactChips(
-                        title = "分辨率",
+                        title = stringResource(R.string.resolution_title),
                         options = SIZE_CHIPS,
                         selected = size,
                         onSelect = onSize,
@@ -731,7 +760,7 @@ private fun CompactChips(
             options.forEach { option ->
                 val on = selected == option.id
                 Text(
-                    option.title,
+                    chipTitle(option),
                     color = if (on) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier

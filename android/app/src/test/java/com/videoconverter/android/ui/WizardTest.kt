@@ -1,5 +1,7 @@
 package com.videoconverter.android.ui
 
+import androidx.test.core.app.ApplicationProvider
+import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.MediaInfo
@@ -8,8 +10,15 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [29], qualifiers = "en")
 class WizardTest {
+    private val resources = ApplicationProvider.getApplicationContext<android.app.Application>().resources
+
     @Test
     fun cannotLeaveSourcesWithoutImportableFile() {
         assertFalse(canEnterStep(WizardStep.Format, 0))
@@ -22,9 +31,9 @@ class WizardTest {
         assertEquals(WizardStep.Sources, retreatStep(WizardStep.Format))
         assertEquals(WizardStep.Format, retreatStep(WizardStep.Output))
         assertNull(retreatStep(WizardStep.Sources))
-        assertEquals("添加文件", wizardScreenTitle(WizardStep.Sources))
-        assertEquals("选择格式", wizardScreenTitle(WizardStep.Format))
-        assertEquals("存放位置", wizardScreenTitle(WizardStep.Output))
+        assertEquals(R.string.wizard_title_sources, wizardScreenTitleRes(WizardStep.Sources))
+        assertEquals(R.string.wizard_title_format, wizardScreenTitleRes(WizardStep.Format))
+        assertEquals(R.string.wizard_title_output, wizardScreenTitleRes(WizardStep.Output))
     }
 
     @Test
@@ -41,10 +50,10 @@ class WizardTest {
             listOf("gallery", "movies", "downloads", "custom"),
             OUTPUT_CHOICE_CARDS.map { it.id },
         )
-        assertEquals("相册", OUTPUT_CHOICE_CARDS[0].title)
-        assertEquals("影库", OUTPUT_CHOICE_CARDS[1].title)
-        assertEquals("下载", OUTPUT_CHOICE_CARDS[2].title)
-        assertEquals("自定义", OUTPUT_CHOICE_CARDS[3].title)
+        assertEquals(R.string.output_gallery, OUTPUT_CHOICE_CARDS[0].titleRes)
+        assertEquals(R.string.output_movies, OUTPUT_CHOICE_CARDS[1].titleRes)
+        assertEquals(R.string.output_downloads, OUTPUT_CHOICE_CARDS[2].titleRes)
+        assertEquals(R.string.output_custom, OUTPUT_CHOICE_CARDS[3].titleRes)
         assertEquals(OUTPUT_CHOICE_GALLERY, outputChoiceId(OutputTarget(OutputTarget.Kind.Gallery)))
         assertEquals(OUTPUT_CHOICE_MOVIES, outputChoiceId(OutputTarget(OutputTarget.Kind.Movies)))
         assertEquals(OUTPUT_CHOICE_DOWNLOADS, outputChoiceId(OutputTarget(OutputTarget.Kind.Downloads)))
@@ -67,37 +76,46 @@ class WizardTest {
 
     @Test
     fun dockLabelsFollowStepAndBusyState() {
-        assertEquals("下一步", dockActionLabel(WizardStep.Sources, busy = false, transcoding = false))
-        assertEquals("下一步", dockActionLabel(WizardStep.Format, busy = false, transcoding = false))
-        assertEquals("开始转码", dockActionLabel(WizardStep.Output, busy = false, transcoding = false))
-        assertEquals("正在加入队列…", dockActionLabel(WizardStep.Output, busy = true, transcoding = false))
-        assertEquals("正在转码…", dockActionLabel(WizardStep.Output, busy = false, transcoding = true))
+        assertEquals(R.string.action_next, dockActionLabelRes(WizardStep.Sources, busy = false, transcoding = false))
+        assertEquals(R.string.action_next, dockActionLabelRes(WizardStep.Format, busy = false, transcoding = false))
+        assertEquals(R.string.wizard_start_transcode, dockActionLabelRes(WizardStep.Output, busy = false, transcoding = false))
+        assertEquals(R.string.wizard_joining_queue, dockActionLabelRes(WizardStep.Output, busy = true, transcoding = false))
+        assertEquals(R.string.wizard_converting, dockActionLabelRes(WizardStep.Output, busy = false, transcoding = true))
     }
 
     @Test
     fun onlyOutputStepStartsTranscode() {
-        assertEquals("下一步", dockActionLabel(WizardStep.Sources, false, false))
-        assertEquals("下一步", dockActionLabel(WizardStep.Format, false, false))
-        assertEquals("开始转码", dockActionLabel(WizardStep.Output, false, false))
+        assertEquals(R.string.action_next, dockActionLabelRes(WizardStep.Sources, false, false))
+        assertEquals(R.string.action_next, dockActionLabelRes(WizardStep.Format, false, false))
+        assertEquals(R.string.wizard_start_transcode, dockActionLabelRes(WizardStep.Output, false, false))
     }
 
     @Test
     fun dockSummaryAndConversionPreviewMatchDesktopSentences() {
-        assertEquals("先添加源视频", dockSummary(WizardStep.Sources, 0, "MP4 · H.264", "标准", "原尺寸", false, false, "", "下载/轻转码"))
-        assertEquals("已选 2 个文件", dockSummary(WizardStep.Sources, 2, "MP4 · H.264", "标准", "原尺寸", false, false, "", "下载/轻转码"))
+        assertEquals(
+            resources.getString(R.string.wizard_need_video),
+            dockSummary(resources, WizardStep.Sources, 0, "MP4 · H.264", "Standard", "Original size", false, false, "", "Download/LiteTrans"),
+        )
+        assertEquals(
+            resources.getString(R.string.wizard_selected_count, 2),
+            dockSummary(resources, WizardStep.Sources, 2, "MP4 · H.264", "Standard", "Original size", false, false, "", "Download/LiteTrans"),
+        )
         val mp4 = media("a.mp4", "H.264", importable = true)
-        assertEquals("MP4 · H.264  →  MP4 · H.265", conversionPreview(listOf(mp4), "MP4 · H.265"))
+        assertEquals("MP4 · H.264  →  MP4 · H.265", conversionPreview(resources, listOf(mp4), "MP4 · H.265"))
         assertEquals(
-            "将 2 个视频转为 MP4 · H.264 · 标准 · 1080p · 存到下载/轻转码",
-            dockSummary(WizardStep.Output, 2, "MP4 · H.264", "标准", "1080p", false, false, "", "下载/轻转码"),
+            resources.getString(R.string.wizard_convert_videos_quality, 2, "MP4 · H.264", "Standard", "1080p") +
+                " · " + resources.getString(R.string.wizard_save_to, "Download/LiteTrans"),
+            dockSummary(resources, WizardStep.Output, 2, "MP4 · H.264", "Standard", "1080p", false, false, "", "Download/LiteTrans"),
         )
         assertEquals(
-            "将 1 个视频转为 MP4 · 不重编码 · 存到下载/轻转码",
-            dockSummary(WizardStep.Output, 1, "MP4 · 不重编码", "标准", "原尺寸", false, true, "", "下载/轻转码"),
+            resources.getString(R.string.wizard_convert_videos, 1, "MP4 · Remux") +
+                " · " + resources.getString(R.string.wizard_save_to, "Download/LiteTrans"),
+            dockSummary(resources, WizardStep.Output, 1, "MP4 · Remux", "Standard", "Original size", false, true, "", "Download/LiteTrans"),
         )
         assertEquals(
-            "将 1 个文件转为 MP3 · 原画 · 存到下载/轻转码",
-            dockSummary(WizardStep.Output, 1, "MP3", "原画", "原尺寸", true, false, "", "下载/轻转码"),
+            resources.getString(R.string.wizard_convert_files, 1, "MP3 · Original") +
+                " · " + resources.getString(R.string.wizard_save_to, "Download/LiteTrans"),
+            dockSummary(resources, WizardStep.Output, 1, "MP3", "Original", "Original size", true, false, "", "Download/LiteTrans"),
         )
     }
 
@@ -107,9 +125,9 @@ class WizardTest {
             listOf("music", "downloads", "custom"),
             AUDIO_OUTPUT_CHOICE_CARDS.map { it.id },
         )
-        assertEquals("音乐", AUDIO_OUTPUT_CHOICE_CARDS[0].title)
-        assertEquals("下载", AUDIO_OUTPUT_CHOICE_CARDS[1].title)
-        assertEquals("自定义", AUDIO_OUTPUT_CHOICE_CARDS[2].title)
+        assertEquals(R.string.output_music, AUDIO_OUTPUT_CHOICE_CARDS[0].titleRes)
+        assertEquals(R.string.output_downloads, AUDIO_OUTPUT_CHOICE_CARDS[1].titleRes)
+        assertEquals(R.string.output_custom, AUDIO_OUTPUT_CHOICE_CARDS[2].titleRes)
         assertEquals(OUTPUT_CHOICE_MUSIC, outputChoiceId(OutputTarget(OutputTarget.Kind.Music)))
         assertEquals("music", OUTPUT_CHOICE_MUSIC)
         assertEquals(OutputTarget.Kind.Music, outputKindForChoice(OUTPUT_CHOICE_MUSIC))
@@ -120,56 +138,62 @@ class WizardTest {
         assertTrue(isAudioPreset("audio-flac"))
         assertTrue(isAudioPreset("audio-ogg"))
         assertTrue(isAudioPreset("audio-amr"))
-        assertEquals("开始转换", dockActionLabel(WizardStep.Output, false, false, "开始转换"))
+        assertEquals(
+            R.string.wizard_start_convert,
+            dockActionLabelRes(WizardStep.Output, false, false, R.string.wizard_start_convert),
+        )
         assertEquals(
             listOf("audio-mp3", "audio-aac", "audio-wav", "audio-flac", "audio-ogg", "audio-amr"),
             AUDIO_PRESET_CARDS.map { it.id },
         )
         assertEquals("MP3", AUDIO_PRESET_CARDS[0].title)
-        assertEquals("兼容性最好", AUDIO_PRESET_CARDS[0].hint)
+        assertEquals(R.string.preset_audio_mp3_audio_desc, AUDIO_PRESET_CARDS[0].hintRes)
         assertEquals("M4A · AAC", AUDIO_PRESET_CARDS[1].title)
-        assertEquals("苹果设备和相册常用", AUDIO_PRESET_CARDS[1].hint)
+        assertEquals(R.string.preset_audio_aac_audio_desc, AUDIO_PRESET_CARDS[1].hintRes)
         assertEquals("WAV", AUDIO_PRESET_CARDS[2].title)
-        assertEquals("无损，文件更大", AUDIO_PRESET_CARDS[2].hint)
+        assertEquals(R.string.preset_audio_wav_desc, AUDIO_PRESET_CARDS[2].hintRes)
         assertEquals("FLAC", AUDIO_PRESET_CARDS[3].title)
-        assertEquals("无损，比 WAV 小", AUDIO_PRESET_CARDS[3].hint)
+        assertEquals(R.string.preset_audio_flac_desc, AUDIO_PRESET_CARDS[3].hintRes)
         assertEquals("OGG · Opus", AUDIO_PRESET_CARDS[4].title)
-        assertEquals("体积更小", AUDIO_PRESET_CARDS[4].hint)
+        assertEquals(R.string.preset_audio_ogg_desc, AUDIO_PRESET_CARDS[4].hintRes)
         assertEquals("AMR", AUDIO_PRESET_CARDS[5].title)
-        assertEquals("通话录音常用", AUDIO_PRESET_CARDS[5].hint)
+        assertEquals(R.string.preset_audio_amr_desc, AUDIO_PRESET_CARDS[5].hintRes)
     }
 
     @Test
     fun audioModeDockSummaryUsesAudioEmptyCopyAndSkipsResolution() {
-        val empty = "先添加音频或带声音的视频"
+        val empty = resources.getString(R.string.wizard_need_audio)
         assertEquals(
             empty,
-            dockSummary(WizardStep.Sources, 0, "MP3", "标准", "原尺寸", true, false, "", "音乐", audioMode = true),
-        )
-        assertEquals(
-            empty,
-            dockSummary(WizardStep.Format, 0, "MP3", "标准", "原尺寸", true, false, "", "音乐", audioMode = true),
+            dockSummary(resources, WizardStep.Sources, 0, "MP3", "Standard", "Original size", true, false, "", "Music", audioMode = true),
         )
         assertEquals(
             empty,
-            dockSummary(WizardStep.Output, 0, "MP3", "标准", "原尺寸", true, false, "", "音乐", audioMode = true),
+            dockSummary(resources, WizardStep.Format, 0, "MP3", "Standard", "Original size", true, false, "", "Music", audioMode = true),
         )
         assertEquals(
-            "将 1 个文件转为 MP3 · 原画 · 存到音乐",
-            dockSummary(WizardStep.Output, 1, "MP3", "原画", "原尺寸", true, false, "", "音乐", audioMode = true),
+            empty,
+            dockSummary(resources, WizardStep.Output, 0, "MP3", "Standard", "Original size", true, false, "", "Music", audioMode = true),
         )
         assertEquals(
-            "将 1 个文件转为 WAV · 存到音乐",
+            resources.getString(R.string.wizard_convert_files, 1, "MP3 · Original") +
+                " · " + resources.getString(R.string.wizard_save_to, "Music"),
+            dockSummary(resources, WizardStep.Output, 1, "MP3", "Original", "Original size", true, false, "", "Music", audioMode = true),
+        )
+        assertEquals(
+            resources.getString(R.string.wizard_convert_files, 1, "WAV") +
+                " · " + resources.getString(R.string.wizard_save_to, "Music"),
             dockSummary(
+                resources,
                 WizardStep.Output,
                 1,
                 "WAV",
-                "原画",
-                "原尺寸",
+                "Original",
+                "Original size",
                 true,
                 false,
                 "",
-                "音乐",
+                "Music",
                 audioMode = true,
                 losslessAudio = true,
             ),
@@ -201,9 +225,11 @@ class WizardTest {
         assertTrue(isCopyPreset("mp4-copy"))
         assertTrue(isAudioPreset("audio-mp3"))
         assertFalse(shouldShowResolution("mp4-copy"))
-        assertEquals("MP4 · 不重编码", presetTitle("mp4-copy"))
-        assertEquals("原画", qualityLabel("original"))
-        assertEquals("原尺寸", sizeLabel("original"))
+        assertEquals(R.string.preset_mp4_copy_title, presetTitleRes("mp4-copy"))
+        assertEquals("MP4 · Remux", presetTitle(resources, "mp4-copy"))
+        assertEquals(R.string.quality_original, qualityLabelRes("original"))
+        assertEquals(R.string.size_original, sizeLabelRes("original"))
+        assertEquals("Original size", sizeLabel(resources, "original"))
     }
 
     @Test
@@ -214,8 +240,8 @@ class WizardTest {
         assertEquals(5.0, timeAt(50f, 100f, 10.0), 0.001)
         val clamped = clampTrim(9.9, 10.0, 10.0)
         assertTrue(clamped.second - clamped.first >= 0.2 - 1e-6)
-        assertEquals("out.mp4", outputFileName("content://x/out.mp4"))
-        assertEquals("未命名", outputFileName(null))
+        assertEquals("out.mp4", outputFileName("content://x/out.mp4", "Untitled"))
+        assertEquals("Untitled", outputFileName(null, "Untitled"))
     }
 
     @Test

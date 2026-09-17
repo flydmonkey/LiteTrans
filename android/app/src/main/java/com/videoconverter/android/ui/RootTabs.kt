@@ -1,5 +1,6 @@
 package com.videoconverter.android.ui
 
+import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.isDocumentPreset
@@ -9,9 +10,9 @@ enum class RootTab { Transcode, Audio, Document, History, Mine }
 
 enum class HistorySegment { Video, Audio, Document }
 
-enum class MinePage { Root, LanShare, Privacy, Terms, About }
+enum class MinePage { Root, LanShare, Language, Privacy, Terms, About }
 
-data class MineItem(val page: MinePage, val title: String)
+data class MineItem(val page: MinePage, val titleRes: Int)
 
 data class RootBack(
     val tab: RootTab,
@@ -19,38 +20,38 @@ data class RootBack(
     val wizardStep: WizardStep,
 )
 
-fun rootTabLabel(tab: RootTab): String = when (tab) {
-    RootTab.Transcode -> "视频转码"
-    RootTab.Audio -> "音频转换"
-    RootTab.Document -> "文档"
-    RootTab.History -> "历史记录"
-    RootTab.Mine -> "我的"
+fun rootTabLabelRes(tab: RootTab): Int = when (tab) {
+    RootTab.Transcode -> R.string.tab_transcode
+    RootTab.Audio -> R.string.tab_audio
+    RootTab.Document -> R.string.tab_document
+    RootTab.History -> R.string.tab_history
+    RootTab.Mine -> R.string.tab_mine
 }
 
 fun mineItems(): List<MineItem> = listOf(
-    MineItem(MinePage.LanShare, "局域网访问"),
-    MineItem(MinePage.Privacy, "隐私协议"),
-    MineItem(MinePage.Terms, "使用条款"),
-    MineItem(MinePage.About, "关于"),
+    MineItem(MinePage.LanShare, R.string.mine_lan),
+    MineItem(MinePage.Language, R.string.mine_language),
+    MineItem(MinePage.Privacy, R.string.mine_privacy),
+    MineItem(MinePage.Terms, R.string.mine_terms),
+    MineItem(MinePage.About, R.string.mine_about),
 )
 
-fun minePageTitle(page: MinePage): String = when (page) {
-    MinePage.Root -> "我的"
-    MinePage.LanShare -> "局域网访问"
-    MinePage.Privacy -> "隐私协议"
-    MinePage.Terms -> "使用条款"
-    MinePage.About -> "关于"
+fun minePageTitleRes(page: MinePage): Int = when (page) {
+    MinePage.Root -> R.string.tab_mine
+    MinePage.LanShare -> R.string.mine_lan
+    MinePage.Language -> R.string.mine_language
+    MinePage.Privacy -> R.string.mine_privacy
+    MinePage.Terms -> R.string.mine_terms
+    MinePage.About -> R.string.mine_about
 }
 
-fun minePageBody(page: MinePage): String = when (page) {
-    MinePage.Root, MinePage.LanShare -> ""
-    MinePage.Privacy -> PRIVACY_BODY
-    MinePage.Terms -> TERMS_BODY
-    MinePage.About -> aboutBody("0.1.0")
+fun minePageBodyRes(page: MinePage): Int = when (page) {
+    MinePage.Privacy -> R.string.privacy_body
+    MinePage.Terms -> R.string.terms_body
+    else -> 0
 }
 
-fun aboutBody(versionName: String): String =
-    "LiteTrans $versionName\n\n轻转码。本机转码工具。所选文件只在这台设备上处理，不上传，不要求联网。当前版本仅提供 Android 侧载安装。"
+fun aboutBodyRes(): Int = R.string.about_body
 
 fun isAudioHistoryJob(job: Job): Boolean {
     val preset = job.config.preset
@@ -75,10 +76,10 @@ fun historySegmentFor(job: Job): HistorySegment = when {
 fun historyJobs(jobs: List<Job>, segment: HistorySegment): List<Job> =
     jobs.filter { historySegmentFor(it) == segment }
 
-fun historyEmptyLabel(segment: HistorySegment): String = when (segment) {
-    HistorySegment.Video -> "还没有视频记录"
-    HistorySegment.Audio -> "还没有音频记录"
-    HistorySegment.Document -> "还没有文档记录"
+fun historyEmptyLabelRes(segment: HistorySegment): Int = when (segment) {
+    HistorySegment.Video -> R.string.history_empty_video
+    HistorySegment.Audio -> R.string.history_empty_audio
+    HistorySegment.Document -> R.string.history_empty_document
 }
 
 fun remainingJobsAfterClearFinished(jobs: List<Job>, segment: HistorySegment): List<Job> =
@@ -107,12 +108,3 @@ fun consumeRootBack(
 
 fun minePageAfterLeavingTab(nextTab: RootTab, minePage: MinePage): MinePage =
     if (nextTab == RootTab.Mine) minePage else MinePage.Root
-
-private const val PRIVACY_BODY =
-    "LiteTrans（轻转码）在这台设备上处理你选中的文件。源文件和转出的文件都留在手机或你指定的文件夹里，不会上传到任何服务器。\n\n" +
-        "应用不收集账号、不统计使用行为，也不要求联网才能转码。相册和文件访问只用于读取你选中的视频；通知权限只用于显示转码进度。\n\n" +
-        "用户主动打开局域网访问后，同一网络中持有地址（以及口令，若已设置）的设备可以查看历史并下载已完成文件；转码本身仍不要求联网。"
-
-private const val TERMS_BODY =
-    "LiteTrans（轻转码）供个人将自己有权处理的文件转成其他格式。请确保你拥有源文件的相应权利。\n\n" +
-        "转出画质取决于源文件和你选择的预设，应用不保证每台设备都能打开结果。转码在本地进行；中断、取消或失败时可能留下不完整文件，可在历史记录里重试或清理。"
