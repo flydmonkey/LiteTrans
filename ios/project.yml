@@ -42,6 +42,12 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - LiteTransTests
+      - path: LiteTransTests
+        excludes:
+          - "Domain/**"
     dependencies:
       - target: LiteTrans
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"

@@ -7,22 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		35EACD9AB0DA81183FDC5130 /* RootTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */; };
 		39A52E7998394E37F5CB556F /* Presets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D6EFB5057E109D9C167BD8A /* Presets.swift */; };
-		5EB25440D2EF26353C9E5A33 /* ProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630F1D6548D47BC27870AA3B /* ProgressTests.swift */; };
 		6820A862DE083CB36C5C7C05 /* LiteTransApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D493963E185A66CA597C9F18 /* LiteTransApp.swift */; };
-		692BE6AFC3209EEE25DF3B57 /* QueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F4E71E1E84F8ED3D49B79BC /* QueueTests.swift */; };
 		705C0BED4BDF8DB281340D29 /* Progress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD8209150E98AAD72ECE2FE /* Progress.swift */; };
 		80699DE1D9EBD82A93D0458F /* FfmpegCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3829401B1B84DEB75DADFE7 /* FfmpegCodec.swift */; };
 		8611C48001DC587F51292F54 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB6A5778D22766C5522FCC42 /* Models.swift */; };
 		923EA6576EFE61C7F2734A48 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B12DC144713D4CD33997EBBC /* Localizable.xcstrings */; };
-		97BDBDBE655AE0BE2BDEADD7 /* PresetsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 705596D829B800FBF0EA61B7 /* PresetsTests.swift */; };
 		A142A3204061E4E444A027BF /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B5527E8CED5BC0FBEAA8487 /* Theme.swift */; };
 		A1860FF6621512135945F1B6 /* ConvertNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53177D416925D7B8B98C820D /* ConvertNavigation.swift */; };
-		B7AA1BDB17FCEF2EF2E41DA2 /* NamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BEF6AD4C69211836ADFB06F /* NamingTests.swift */; };
 		CCBB825CA3723FD442728C2A /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BF55720EDB615BF022B3E03 /* AppModel.swift */; };
 		CD09D654E6F9319D38C27363 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8FBC17CC404972191A2A3347 /* Assets.xcassets */; };
 		E1F630904C8D0723EE66CDE2 /* Validate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6186922C3EF56B1844D77649 /* Validate.swift */; };
-		E71C7431E3808D06C56081B5 /* ConvertNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922854F06DE0A0A62BCAFD39 /* ConvertNavigationTests.swift */; };
 		E743AE7AFC3D412B16C06943 /* Queue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A412F7A83F94A9EE15401A /* Queue.swift */; };
 		EE8DB03E2544C5A8DAAB70EC /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1BB608CF198773DE165F6D /* RootView.swift */; };
 		F3C71A70B7D473A384BA6319 /* Naming.swift in Sources */ = {isa = PBXBuildFile; fileRef = 465D69B8A0C532097CBDD256 /* Naming.swift */; };
@@ -42,20 +38,15 @@
 /* Begin PBXFileReference section */
 		05A412F7A83F94A9EE15401A /* Queue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Queue.swift; sourceTree = "<group>"; };
 		1BF55720EDB615BF022B3E03 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
-		1F4E71E1E84F8ED3D49B79BC /* QueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueTests.swift; sourceTree = "<group>"; };
 		2B5527E8CED5BC0FBEAA8487 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		31457203F12B09B74BD7643E /* ProbeParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeParser.swift; sourceTree = "<group>"; };
 		3D6EFB5057E109D9C167BD8A /* Presets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Presets.swift; sourceTree = "<group>"; };
 		465D69B8A0C532097CBDD256 /* Naming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Naming.swift; sourceTree = "<group>"; };
 		53177D416925D7B8B98C820D /* ConvertNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertNavigation.swift; sourceTree = "<group>"; };
 		6186922C3EF56B1844D77649 /* Validate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Validate.swift; sourceTree = "<group>"; };
-		630F1D6548D47BC27870AA3B /* ProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressTests.swift; sourceTree = "<group>"; };
-		705596D829B800FBF0EA61B7 /* PresetsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetsTests.swift; sourceTree = "<group>"; };
 		7A45EB60957DFD20427030B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7BD8209150E98AAD72ECE2FE /* Progress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Progress.swift; sourceTree = "<group>"; };
 		8FBC17CC404972191A2A3347 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		922854F06DE0A0A62BCAFD39 /* ConvertNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertNavigationTests.swift; sourceTree = "<group>"; };
-		9BEF6AD4C69211836ADFB06F /* NamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NamingTests.swift; sourceTree = "<group>"; };
 		B12DC144713D4CD33997EBBC /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B3829401B1B84DEB75DADFE7 /* FfmpegCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FfmpegCodec.swift; sourceTree = "<group>"; };
 		CA7B3BDF67B7FF488FF98D81 /* LiteTransTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LiteTransTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -63,6 +54,7 @@
 		D493963E185A66CA597C9F18 /* LiteTransApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiteTransApp.swift; sourceTree = "<group>"; };
 		DE1BB608CF198773DE165F6D /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		DE3853C67BE1C51F5877CC8D /* LiteTrans.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LiteTrans.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -94,7 +86,7 @@
 		87B59E883839BBC72231C584 /* LiteTransTests */ = {
 			isa = PBXGroup;
 			children = (
-				E5CD58FC0F00377DB16E9516 /* Domain */,
+				E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */,
 			);
 			path = LiteTransTests;
 			sourceTree = "<group>";
@@ -136,18 +128,6 @@
 				5AC7E35A41BC82AF2EBD04A3 /* UI */,
 			);
 			path = LiteTrans;
-			sourceTree = "<group>";
-		};
-		E5CD58FC0F00377DB16E9516 /* Domain */ = {
-			isa = PBXGroup;
-			children = (
-				922854F06DE0A0A62BCAFD39 /* ConvertNavigationTests.swift */,
-				9BEF6AD4C69211836ADFB06F /* NamingTests.swift */,
-				705596D829B800FBF0EA61B7 /* PresetsTests.swift */,
-				630F1D6548D47BC27870AA3B /* ProgressTests.swift */,
-				1F4E71E1E84F8ED3D49B79BC /* QueueTests.swift */,
-			);
-			path = Domain;
 			sourceTree = "<group>";
 		};
 		F37A19B39626E4DF6D05E093 /* Products */ = {
@@ -267,11 +247,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E71C7431E3808D06C56081B5 /* ConvertNavigationTests.swift in Sources */,
-				B7AA1BDB17FCEF2EF2E41DA2 /* NamingTests.swift in Sources */,
-				97BDBDBE655AE0BE2BDEADD7 /* PresetsTests.swift in Sources */,
-				5EB25440D2EF26353C9E5A33 /* ProgressTests.swift in Sources */,
-				692BE6AFC3209EEE25DF3B57 /* QueueTests.swift in Sources */,
+				35EACD9AB0DA81183FDC5130 /* RootTabTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -354,6 +330,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -361,6 +338,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.LiteTransTests;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LiteTrans.app/LiteTrans";
 			};
@@ -370,6 +348,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -377,6 +356,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.LiteTransTests;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LiteTrans.app/LiteTrans";
 			};
