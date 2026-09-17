@@ -2,9 +2,9 @@ package com.videoconverter.android
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
 import com.videoconverter.android.data.JobStore
@@ -18,7 +18,7 @@ import com.videoconverter.android.ui.theme.LightTranscodeTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     private val openLanShareState = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {

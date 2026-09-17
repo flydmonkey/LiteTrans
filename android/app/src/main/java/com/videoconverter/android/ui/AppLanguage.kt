@@ -48,10 +48,28 @@ fun languageLabelRes(language: AppLanguage): Int = when (language) {
     AppLanguage.Ko -> R.string.language_ko
 }
 
+fun canonicalizeAppLanguageTag(tag: String): String? {
+    if (tag.isEmpty()) return null
+    val normalized = tag.replace('_', '-').lowercase()
+    return when {
+        normalized == "zh-hans" ||
+            normalized.startsWith("zh-hans-") ||
+            normalized == "zh-cn" ||
+            normalized == "zh-sg" -> "zh-CN"
+        normalized == "zh-hant" ||
+            normalized.startsWith("zh-hant-") ||
+            normalized == "zh-tw" ||
+            normalized == "zh-hk" ||
+            normalized == "zh-mo" -> "zh-TW"
+        normalized == "en" || normalized.startsWith("en-") -> "en"
+        normalized == "ja" || normalized.startsWith("ja-") -> "ja"
+        normalized == "ko" || normalized.startsWith("ko-") -> "ko"
+        else -> "en"
+    }
+}
+
 fun appLanguageFromLocaleTags(tags: List<String>): AppLanguage {
-    val tag = tags.firstOrNull().orEmpty()
-    if (tag.isEmpty()) return AppLanguage.System
-    return AppLanguage.fromTag(tag)
+    return AppLanguage.fromTag(canonicalizeAppLanguageTag(tags.firstOrNull().orEmpty()))
 }
 
 fun applyAppLanguage(language: AppLanguage) {

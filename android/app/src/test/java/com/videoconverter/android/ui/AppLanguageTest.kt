@@ -23,6 +23,25 @@ class AppLanguageTest {
     }
 
     @Test
+    fun currentLanguageNormalizesCommonSystemTags() {
+        assertEquals(AppLanguage.ZhCn, appLanguageFromLocaleTags(listOf("zh-Hans-CN")))
+        assertEquals(AppLanguage.ZhTw, appLanguageFromLocaleTags(listOf("zh-Hant-TW")))
+        assertEquals(AppLanguage.ZhCn, appLanguageFromLocaleTags(listOf("zh_CN")))
+        assertEquals(AppLanguage.En, appLanguageFromLocaleTags(listOf("en-US")))
+        assertEquals("zh-CN", canonicalizeAppLanguageTag("zh-Hans-CN"))
+        assertEquals("zh-TW", canonicalizeAppLanguageTag("zh-Hant-TW"))
+        assertEquals("zh-CN", canonicalizeAppLanguageTag("zh_CN"))
+        assertEquals("en", canonicalizeAppLanguageTag("en-US"))
+        assertEquals(AppLanguage.En, appLanguageFromLocaleTags(listOf("fr-FR")))
+        try {
+            AppLanguage.fromTag("zh-Hans-CN")
+            throw AssertionError("fromTag must not accept unknown exact tags")
+        } catch (error: IllegalArgumentException) {
+            assertEquals("Unknown language tag: zh-Hans-CN", error.message)
+        }
+    }
+
+    @Test
     fun unmatchedSystemFallsBackToEnglish() {
         assertEquals(AppLanguage.En, fallbackLanguageForSystemTag("fr-FR"))
         assertEquals(AppLanguage.En, fallbackLanguageForSystemTag("de"))
