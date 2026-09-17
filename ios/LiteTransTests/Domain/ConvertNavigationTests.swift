@@ -52,4 +52,52 @@ struct ConvertNavigationTests {
         #expect(AppLanguage.ja.rawValue == "ja")
         #expect(AppLanguage.ko.rawValue == "ko")
     }
+
+    @Test func runningJobRowOnlyCancels() {
+        #expect(jobRowActions(.running) == [.cancel])
+        #expect(jobRowActions(.queued) == [.cancel])
+    }
+
+    @Test func completedJobRowCanOpenShareRenameAndDelete() {
+        #expect(jobRowActions(.completed) == [.open, .share, .rename, .delete])
+    }
+
+    @Test func failedAndCancelledJobRowsRetryOrDelete() {
+        #expect(jobRowActions(.failed) == [.retry, .delete])
+        #expect(jobRowActions(.cancelled) == [.retry, .delete])
+    }
+
+    @Test func clearFinishedKeepsOnlyQueuedAndRunning() {
+        let jobs = [
+            sampleJob(id: "q", status: .queued),
+            sampleJob(id: "r", status: .running),
+            sampleJob(id: "c", status: .completed),
+            sampleJob(id: "f", status: .failed),
+            sampleJob(id: "x", status: .cancelled),
+        ]
+        #expect(remainingJobsAfterClearFinished(jobs).map(\.id) == ["q", "r"])
+    }
+
+    @Test func unsupportedLanguagesFallBackToEnglishLocale() {
+        #expect(resolvedLocaleIdentifier(.system) == nil)
+        #expect(resolvedLocaleIdentifier(.zhHans) == "zh-Hans")
+        #expect(resolvedLocaleIdentifier(.en) == "en")
+        #expect(resolvedLocaleIdentifier(.zhHant) == "en")
+        #expect(resolvedLocaleIdentifier(.ja) == "en")
+        #expect(resolvedLocaleIdentifier(.ko) == "en")
+    }
+}
+
+private func sampleJob(id: String, status: JobStatus) -> Job {
+    Job(
+        id: id,
+        sourceUri: "file:///a.mp4",
+        displayName: "a.mp4",
+        outputPath: "/tmp/\(id).mp4",
+        status: status,
+        progress: 0,
+        error: nil,
+        config: OutputConfig(),
+        media: MediaInfo(sourceUri: "file:///a.mp4", displayName: "a.mp4")
+    )
 }

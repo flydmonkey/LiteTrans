@@ -135,6 +135,90 @@ final class AppModel {
         jobStore.save(jobs)
     }
 
+    var hasFinishedJobs: Bool {
+        jobs.contains { $0.status != .queued && $0.status != .running }
+    }
+
+    func outputFileURL(for job: Job) -> URL? {
+        guard let path = job.outputPath, FileManager.default.fileExists(atPath: path) else { return nil }
+        return URL(fileURLWithPath: path)
+    }
+
+    func cancelJob(_ job: Job) {
+        guard jobRowActions(job.status).contains(.cancel) else { return }
+        if job.status == .queued {
+            var next = job
+            next.status = .cancelled
+            replaceJob(next)
+            persistJobs()
+            return
+        }
+        pump.cancelCurrentExport()
+    }
+
+    func retryJob(_ job: Job) {
+        guard jobRowActions(job.status).contains(.retry) else { return }
+        if !transcoding {
+            do {
+                _ = try resolvedOutputDir()
+            } catch {
+                message = error.localizedDescription
+                return
+            }
+        }
+        var next = job
+        next.status = .queued
+        next.progress = 0
+        next.error = nil
+        replaceJob(next)
+        persistJobs()
+        transcoding = true
+        pump.start(model: self)
+    }
+
+    func deleteJob(_ job: Job) {
+        guard jobRowActions(job.status).contains(.delete) else { return }
+        if let path = job.outputPath {
+            try? FileManager.default.removeItem(atPath: path)
+            try? FileManager.default.removeItem(atPath: partialOutputPath(path))
+        }
+        jobs.removeAll { $0.id == job.id }
+        persistJobs()
+    }
+
+    func renameJob(_ job: Job, rawName: String) {
+        guard canRenameJob(job.status), jobRowActions(job.status).contains(.rename) else { return }
+        guard let stem = sanitizeRenameStem(rawName) else {
+            message = localized("error_invalid_filename")
+            return
+        }
+        guard let currentPath = job.outputPath else { return }
+        let currentURL = URL(fileURLWithPath: currentPath)
+        let ext = currentURL.pathExtension
+        let newName = ext.isEmpty ? stem : "\(stem).\(ext)"
+        let dest = currentURL.deletingLastPathComponent().appendingPathComponent(newName)
+        do {
+            if dest.path != currentURL.path {
+                if FileManager.default.fileExists(atPath: dest.path) {
+                    throw CocoaError(.fileWriteFileExists)
+                }
+                try FileManager.default.moveItem(at: currentURL, to: dest)
+            }
+            var next = job
+            next.outputPath = dest.path
+            next.displayName = newName
+            replaceJob(next)
+            persistJobs()
+        } catch {
+            message = localized("error_cannot_rename")
+        }
+    }
+
+    func clearFinished() {
+        jobs = remainingJobsAfterClearFinished(jobs)
+        persistJobs()
+    }
+
     func releaseOutputAccess() {
         outputAccessStop?()
         outputAccessStop = nil
@@ -218,6 +302,13 @@ final class AppModel {
         guard let url = URL(string: sourceUri) else { return }
         let probed = await probeService.probe(url: url, displayName: displayName)
         replaceSource(probed)
+    }
+
+    private func localized(_ key: String.LocalizationValue) -> String {
+        if let identifier = resolvedLocaleIdentifier(language) {
+            return String(localized: key, locale: Locale(identifier: identifier))
+        }
+        return String(localized: key)
     }
 
     private func persistSession() {

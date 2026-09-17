@@ -4,6 +4,7 @@ import Foundation
 final class QueuePump {
     private let exporter: VideoExporter
     private var task: Task<Void, Never>?
+    private var exportTask: Task<Void, Error>?
 
     init(exporter: VideoExporter = VideoExporter()) {
         self.exporter = exporter
@@ -15,9 +16,14 @@ final class QueuePump {
         task = Task { await run(model: model, saveToPhotos: saveToPhotos) }
     }
 
+    func cancelCurrentExport() {
+        exportTask?.cancel()
+    }
+
     private func run(model: AppModel, saveToPhotos: Bool) async {
         defer {
             task = nil
+            exportTask = nil
             model.transcoding = false
             model.releaseOutputAccess()
         }
@@ -35,15 +41,19 @@ final class QueuePump {
                 }
                 let outputURL = URL(fileURLWithPath: path)
                 let jobID = current.id
-                try await exporter.export(
-                    job: current,
-                    outputURL: outputURL,
-                    saveToPhotos: saveToPhotos
-                ) { progress in
-                    Task { @MainActor in
-                        model.updateProgress(id: jobID, progress: progress)
+                let export = Task {
+                    try await exporter.export(
+                        job: current,
+                        outputURL: outputURL,
+                        saveToPhotos: saveToPhotos
+                    ) { progress in
+                        Task { @MainActor in
+                            model.updateProgress(id: jobID, progress: progress)
+                        }
                     }
                 }
+                exportTask = export
+                try await export.value
                 current.status = .completed
                 current.progress = 100
                 current.error = nil
@@ -53,6 +63,7 @@ final class QueuePump {
                 current.status = .failed
                 current.error = error.localizedDescription
             }
+            exportTask = nil
             model.replaceJob(current)
             model.persistJobs()
         }

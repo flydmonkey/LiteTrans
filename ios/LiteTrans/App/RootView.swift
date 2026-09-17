@@ -18,24 +18,29 @@ struct RootView: View {
             .tag(RootTab.convert)
 
             NavigationStack {
-                Text("历史")
-                    .navigationTitle("历史")
-                    .navigationBarTitleDisplayMode(.large)
+                HistoryView()
             }
             .tabItem {
                 Label(String(localized: "tab_history"), systemImage: "clock")
             }
             .tag(RootTab.history)
 
-            NavigationStack {
-                Text("我的")
-                    .navigationTitle("我的")
-                    .navigationBarTitleDisplayMode(.large)
+            NavigationStack(path: minePath) {
+                MineView()
+                    .navigationDestination(for: MinePage.self) { page in
+                        MinePageDestination(page: page)
+                    }
             }
             .tabItem {
                 Label(String(localized: "tab_mine"), systemImage: "person.crop.circle")
             }
             .tag(RootTab.mine)
+        }
+        .modifier(ResolvedLocaleModifier(language: model.language))
+        .onChange(of: model.tab) { _, tab in
+            if tab != .mine {
+                model.minePage = .root
+            }
         }
     }
 
@@ -50,5 +55,30 @@ struct RootView: View {
                 }
             }
         )
+    }
+
+    private var minePath: Binding<[MinePage]> {
+        Binding(
+            get: { model.minePage == .root ? [] : [model.minePage] },
+            set: { stack in
+                if let page = stack.last {
+                    model.minePage = page
+                } else {
+                    model.minePage = popMineBack(model.minePage) ?? .root
+                }
+            }
+        )
+    }
+}
+
+private struct ResolvedLocaleModifier: ViewModifier {
+    let language: AppLanguage
+
+    func body(content: Content) -> some View {
+        if let identifier = resolvedLocaleIdentifier(language) {
+            content.environment(\.locale, Locale(identifier: identifier))
+        } else {
+            content
+        }
     }
 }

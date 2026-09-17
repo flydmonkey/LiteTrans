@@ -3,8 +3,8 @@ import Foundation
 public enum RootTab: String, CaseIterable, Sendable { case convert, history, mine }
 public enum ConvertPage: String, Sendable, Hashable { case home, format, quality, size, output }
 public enum ConvertSetting: String, Sendable, Hashable { case format, quality, size, output }
-public enum MinePage: String, Sendable { case root, language, privacy, terms, about }
-public enum AppLanguage: String, Sendable, Codable { case system, zhHans, zhHant, en, ja, ko }
+public enum MinePage: String, Sendable, Hashable { case root, language, privacy, terms, about }
+public enum AppLanguage: String, Sendable, Codable, Hashable { case system, zhHans, zhHant, en, ja, ko }
 public enum OutputKind: String, Sendable, Codable { case photos, downloads, custom }
 
 public struct OutputTarget: Equatable, Sendable, Codable {
@@ -72,6 +72,28 @@ public func popConvertBack(_ page: ConvertPage) -> ConvertPage? {
 
 public func popMineBack(_ page: MinePage) -> MinePage? {
     page == .root ? nil : .root
+}
+
+public enum JobRowAction: Equatable { case cancel, retry, open, share, rename, delete }
+
+public func jobRowActions(_ status: JobStatus) -> [JobRowAction] {
+    switch status {
+    case .queued, .running: return [.cancel]
+    case .failed, .cancelled: return [.retry, .delete]
+    case .completed: return [.open, .share, .rename, .delete]
+    }
+}
+
+public func remainingJobsAfterClearFinished(_ jobs: [Job]) -> [Job] {
+    jobs.filter { $0.status == .queued || $0.status == .running }
+}
+
+public func resolvedLocaleIdentifier(_ language: AppLanguage) -> String? {
+    switch language {
+    case .system: return nil
+    case .zhHans: return "zh-Hans"
+    case .en, .zhHant, .ja, .ko: return "en"
+    }
 }
 
 public func resolutionBounds(_ size: String) -> (Int?, Int?) {
