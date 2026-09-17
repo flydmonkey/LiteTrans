@@ -694,9 +694,21 @@ fun JobRow(
     var sheet by remember { mutableStateOf(false) }
     val primary = jobRowPrimaryAction(job.status)
     val overflow = jobRowOverflowActions(job.status)
+    val failed = job.status == JobStatus.Failed
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = if (failed) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+            contentColor = if (failed) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = MaterialTheme.shapes.medium,
     ) {
@@ -755,7 +767,11 @@ fun JobRow(
                     Text(
                         historyTitle(job, stringResource(R.string.untitled)),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = if (failed) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -766,7 +782,11 @@ fun JobRow(
                             stringResource(statusLabelRes(job.status)),
                         ),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (failed) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
