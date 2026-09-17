@@ -359,9 +359,48 @@ class StringsResourceTest {
         assertEquals("添加文件", zh.getString(R.string.wizard_title_sources))
     }
 
-    private fun zhCn() = app.createConfigurationContext(
+    @Test
+    fun traditionalJapaneseAndKoreanLocales() {
+        val tw = locale("zh-TW")
+        val hk = locale("zh-HK")
+        val ja = locale("ja")
+        val ko = locale("ko")
+
+        val twHistory = tw.getString(R.string.tab_history)
+        assertTrue(twHistory.contains("歷") || twHistory == "歷史記錄")
+        assertEquals(twHistory, hk.getString(R.string.tab_history))
+
+        val jaMine = ja.getString(R.string.tab_mine)
+        assertTrue(jaMine.contains("マイ") || jaMine.contains("設定"))
+        assertTrue(jaMine != "Me")
+
+        val koHistory = ko.getString(R.string.tab_history)
+        assertTrue(koHistory.any { Character.UnicodeBlock.of(it) == Character.UnicodeBlock.HANGUL_SYLLABLES })
+        assertTrue(koHistory != "History")
+        assertTrue(koHistory != "历史记录")
+
+        val twFiles = tw.getString(R.string.wizard_source_files)
+        val twFolders = tw.getString(R.string.wizard_source_files_hint)
+        val twConvert = tw.getString(R.string.wizard_start_transcode)
+        assertTrue(twFiles.contains("檔案"))
+        assertTrue(twFolders.contains("資料夾"))
+        assertTrue(twConvert.contains("轉檔"))
+
+        for (ctx in listOf(tw, hk, ja, ko)) {
+            assertEquals("LiteTrans", ctx.getString(R.string.app_name))
+            assertEquals("English", ctx.getString(R.string.language_en))
+            assertEquals("简体中文", ctx.getString(R.string.language_zh_cn))
+            assertEquals("繁體中文", ctx.getString(R.string.language_zh_tw))
+            assertEquals("日本語", ctx.getString(R.string.language_ja))
+            assertEquals("한국어", ctx.getString(R.string.language_ko))
+        }
+    }
+
+    private fun zhCn() = locale("zh-CN")
+
+    private fun locale(tag: String) = app.createConfigurationContext(
         Configuration(app.resources.configuration).apply {
-            setLocale(Locale.forLanguageTag("zh-CN"))
+            setLocale(Locale.forLanguageTag(tag))
         },
     )
 }
