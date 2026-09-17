@@ -40,7 +40,9 @@
     <string name="lan_segment_video">Video</string>
     <string name="lan_segment_audio">Audio</string>
     <string name="lan_segment_document">Documents</string>
-    <string name="lan_open_warning">Anyone on this network who has the address can view history and download finished files.</string>
+    <string name="lan_open_warning">Anyone on this network who has the address can view, play or preview, and download finished files.</string>
+    <string name="lan_preview_failed">Can\'t preview. Download the file instead.</string>
+    <string name="lan_download_to_open">Download and open it on your computer.</string>
     <string name="lan_token_label">Password</string>
     <string name="lan_token_placeholder">Optional</string>
     <string name="lan_token_empty_hint">With no password, anyone on this network who has the address can open it.</string>
@@ -281,7 +283,7 @@
     <string name="error_cannot_save_jobs">Could not save job history</string>
     <string name="error_cannot_update_source_cache">Could not update the source cache</string>
     <string name="error_cannot_write_source_cache">Could not write the source cache</string>
-    <string name="privacy_body">LiteTrans processes the files you pick on this device. Source files and converted files stay on your phone or in the folder you choose, and are not uploaded to any server.\n\nThe app does not collect accounts, does not track usage, and does not require a network to convert. Photo and file access is only used to read the videos you select; notification permission is only used to show conversion progress.\n\nAfter you turn on LAN access, other devices on the same network that have the address (and the password, if you set one) can view history and download finished files. Conversion itself still does not require a network.</string>
+    <string name="privacy_body">LiteTrans processes the files you pick on this device. Source files and converted files stay on your phone or in the folder you choose, and are not uploaded to any server.\n\nThe app does not collect accounts, does not track usage, and does not require a network to convert. Photo and file access is only used to read the videos you select; notification permission is only used to show conversion progress.\n\nAfter you turn on LAN access, other devices on the same network that have the address (and the password, if you set one) can view, play or preview, and download finished files. Conversion itself still does not require a network.</string>
     <string name="terms_body">LiteTrans is for personally converting files you have the right to process. Make sure you have the necessary rights to the source files.\n\nOutput quality depends on the source file and the preset you choose. The app does not guarantee that every device can open the result. Conversion runs on this device; interrupting, cancelling, or failing may leave incomplete files, which you can retry or clean up in history.</string>
     <string name="about_body">LiteTrans %1$s\n\nLiteTrans is an on-device conversion tool. Files you pick stay on this device, are not uploaded, and do not require a network. This version is Android sideload only.</string>
 </resources>

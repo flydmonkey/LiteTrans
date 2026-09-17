@@ -40,7 +40,9 @@
     <string name="lan_segment_video">视频</string>
     <string name="lan_segment_audio">音频</string>
     <string name="lan_segment_document">文档</string>
-    <string name="lan_open_warning">同一网络中知道此地址的设备可以查看记录并下载已完成文件。</string>
+    <string name="lan_open_warning">同一网络中知道此地址的设备可以查看、播放或预览并下载已完成文件。</string>
+    <string name="lan_preview_failed">无法预览。请改为下载该文件。</string>
+    <string name="lan_download_to_open">下载后在电脑上打开。</string>
     <string name="lan_token_label">口令</string>
     <string name="lan_token_placeholder">可留空</string>
     <string name="lan_token_empty_hint">未设口令时，同一网络中知道地址即可访问。</string>
@@ -281,7 +283,7 @@
     <string name="error_cannot_save_jobs">无法保存任务记录</string>
     <string name="error_cannot_update_source_cache">无法更新源文件缓存</string>
     <string name="error_cannot_write_source_cache">无法写入源文件缓存</string>
-    <string name="privacy_body">LiteTrans（轻转码）在这台设备上处理你选中的文件。源文件和转出的文件都留在手机或你指定的文件夹里，不会上传到任何服务器。\n\n应用不收集账号、不统计使用行为，也不要求联网才能转码。相册和文件访问只用于读取你选中的视频；通知权限只用于显示转码进度。\n\n用户主动打开局域网访问后，同一网络中持有地址（以及口令，若已设置）的设备可以查看历史并下载已完成文件；转码本身仍不要求联网。</string>
+    <string name="privacy_body">LiteTrans（轻转码）在这台设备上处理你选中的文件。源文件和转出的文件都留在手机或你指定的文件夹里，不会上传到任何服务器。\n\n应用不收集账号、不统计使用行为，也不要求联网才能转码。相册和文件访问只用于读取你选中的视频；通知权限只用于显示转码进度。\n\n用户主动打开局域网访问后，同一网络中持有地址（以及口令，若已设置）的设备可以查看、播放或预览并下载已完成文件；转码本身仍不要求联网。</string>
     <string name="terms_body">LiteTrans（轻转码）供个人将自己有权处理的文件转成其他格式。请确保你拥有源文件的相应权利。\n\n转出画质取决于源文件和你选择的预设，应用不保证每台设备都能打开结果。转码在本地进行；中断、取消或失败时可能留下不完整文件，可在历史记录里重试或清理。</string>
     <string name="about_body">LiteTrans %1$s\n\n轻转码。本机转码工具。所选文件只在这台设备上处理，不上传，不要求联网。当前版本仅提供 Android 侧载安装。</string>
 </resources>

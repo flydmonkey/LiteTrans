@@ -40,7 +40,9 @@
     <string name="lan_segment_video">影片</string>
     <string name="lan_segment_audio">音訊</string>
     <string name="lan_segment_document">文件</string>
-    <string name="lan_open_warning">同一網路中知道此位址的裝置可以查看記錄並下載已完成檔案。</string>
+    <string name="lan_open_warning">同一網路中知道此位址的裝置可以查看、播放或預覽並下載已完成檔案。</string>
+    <string name="lan_preview_failed">無法預覽。請改為下載該檔案。</string>
+    <string name="lan_download_to_open">下載後在電腦上開啟。</string>
     <string name="lan_token_label">密碼</string>
     <string name="lan_token_placeholder">可留空</string>
     <string name="lan_token_empty_hint">未設密碼時，同一網路中知道位址即可存取。</string>
@@ -281,7 +283,7 @@
     <string name="error_cannot_save_jobs">無法儲存工作記錄</string>
     <string name="error_cannot_update_source_cache">無法更新來源檔案快取</string>
     <string name="error_cannot_write_source_cache">無法寫入來源檔案快取</string>
-    <string name="privacy_body">LiteTrans 會在這台裝置上處理你選取的檔案。來源檔案和轉出的檔案都留在手機或你指定的資料夾裡，不會上傳到任何伺服器。\n\n應用程式不收集帳號、不統計使用行為，也不要求連網才能轉檔。相簿和檔案存取只用於讀取你選取的影片；通知權限只用於顯示轉檔進度。\n\n使用者主動開啟區域網路存取後，同一網路中持有位址（以及密碼，若已設定）的裝置可以查看歷史並下載已完成檔案；轉檔本身仍不要求連網。</string>
+    <string name="privacy_body">LiteTrans 會在這台裝置上處理你選取的檔案。來源檔案和轉出的檔案都留在手機或你指定的資料夾裡，不會上傳到任何伺服器。\n\n應用程式不收集帳號、不統計使用行為，也不要求連網才能轉檔。相簿和檔案存取只用於讀取你選取的影片；通知權限只用於顯示轉檔進度。\n\n使用者主動開啟區域網路存取後，同一網路中持有位址（以及密碼，若已設定）的裝置可以查看、播放或預覽並下載已完成檔案；轉檔本身仍不要求連網。</string>
     <string name="terms_body">LiteTrans 供個人將自己有權處理的檔案轉成其他格式。請確保你擁有來源檔案的相應權利。\n\n轉出畫質取決於來源檔案和你選擇的預設，應用程式不保證每台裝置都能開啟結果。轉檔在本機進行；中斷、取消或失敗時可能留下不完整檔案，可在歷史記錄裡重試或清理。</string>
     <string name="about_body">LiteTrans %1$s\n\nLiteTrans 是本機轉檔工具。所選檔案只在這台裝置上處理，不上傳，不要求連網。目前版本僅提供 Android 側載安裝。</string>
 </resources>

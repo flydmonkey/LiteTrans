@@ -40,7 +40,9 @@
     <string name="lan_segment_video">動画</string>
     <string name="lan_segment_audio">音声</string>
     <string name="lan_segment_document">ドキュメント</string>
-    <string name="lan_open_warning">同じネットワークでこのアドレスを知る人は、履歴を見て完了ファイルをダウンロードできます。</string>
+    <string name="lan_open_warning">同じネットワークでこのアドレスを知る人は、閲覧、再生またはプレビューができ、完了ファイルをダウンロードできます。</string>
+    <string name="lan_preview_failed">プレビューできません。代わりにファイルをダウンロードしてください。</string>
+    <string name="lan_download_to_open">ダウンロードしてパソコンで開いてください。</string>
     <string name="lan_token_label">パスワード</string>
     <string name="lan_token_placeholder">省略可</string>
     <string name="lan_token_empty_hint">パスワード未設定の場合、同じネットワークでアドレスを知る人は開けます。</string>
@@ -281,7 +283,7 @@
     <string name="error_cannot_save_jobs">ジョブ履歴を保存できません</string>
     <string name="error_cannot_update_source_cache">元ファイルのキャッシュを更新できません</string>
     <string name="error_cannot_write_source_cache">元ファイルのキャッシュに書き込めません</string>
-    <string name="privacy_body">LiteTrans は、選んだファイルをこの端末上で処理します。元ファイルと変換後のファイルは、スマホまたは指定したフォルダに残り、どのサーバーにもアップロードされません。\n\nこのアプリはアカウントを収集せず、利用状況を追跡せず、変換にネットワークは不要です。写真とファイルへのアクセスは、選んだ動画を読むためだけに使います。通知の許可は変換の進捗表示だけに使います。\n\nLANアクセスをオンにすると、同じネットワークでアドレス（パスワードを設定した場合はそのパスワード）を知る他の端末が履歴を見て、完了ファイルをダウンロードできます。変換そのものには、今もネットワークは不要です。</string>
+    <string name="privacy_body">LiteTrans は、選んだファイルをこの端末上で処理します。元ファイルと変換後のファイルは、スマホまたは指定したフォルダに残り、どのサーバーにもアップロードされません。\n\nこのアプリはアカウントを収集せず、利用状況を追跡せず、変換にネットワークは不要です。写真とファイルへのアクセスは、選んだ動画を読むためだけに使います。通知の許可は変換の進捗表示だけに使います。\n\nLANアクセスをオンにすると、同じネットワークでアドレス（パスワードを設定した場合はそのパスワード）を知る他の端末が閲覧、再生またはプレビューができ、完了ファイルをダウンロードできます。変換そのものには、今もネットワークは不要です。</string>
     <string name="terms_body">LiteTrans は、処理する権利のあるファイルを個人で変換するためのアプリです。元ファイルに必要な権利があることを確認してください。\n\n出力の品質は元ファイルと選んだプリセットに依存します。すべての端末で結果を開けることは保証しません。変換はこの端末で行われます。中断、キャンセル、失敗では不完全なファイルが残ることがあり、履歴で再試行または削除できます。</string>
     <string name="about_body">LiteTrans %1$s\n\nLiteTrans は端末内で変換するツールです。選んだファイルはこの端末に残り、アップロードされず、ネットワークも不要です。このバージョンは Android のサイドロード専用です。</string>
 </resources>

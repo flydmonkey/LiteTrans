@@ -32,6 +32,9 @@ class StringsResourceTest {
             },
         )
         assertEquals("History", fr.getString(R.string.tab_history))
+        assertEquals("Can't preview. Download the file instead.", app.getString(R.string.lan_preview_failed))
+        assertTrue(app.getString(R.string.privacy_body).contains("play or preview"))
+        assertTrue(zhCn().getString(R.string.privacy_body).contains("播放或预览"))
     }
 
     @Test
@@ -73,8 +76,8 @@ class StringsResourceTest {
             Triple(R.string.lan_segment_document, "Documents", "文档"),
             Triple(
                 R.string.lan_open_warning,
-                "Anyone on this network who has the address can view history and download finished files.",
-                "同一网络中知道此地址的设备可以查看记录并下载已完成文件。",
+                "Anyone on this network who has the address can view, play or preview, and download finished files.",
+                "同一网络中知道此地址的设备可以查看、播放或预览并下载已完成文件。",
             ),
             Triple(R.string.notify_transcode_channel, "Conversion progress", "转码进度"),
             Triple(R.string.notify_checking_queue, "Checking the queue", "正在检查转码队列"),
@@ -222,6 +225,8 @@ class StringsResourceTest {
             R.string.history_rename_title,
             R.string.history_rename_hint,
             R.string.untitled,
+            R.string.lan_preview_failed,
+            R.string.lan_download_to_open,
             R.string.lan_token_label,
             R.string.lan_token_placeholder,
             R.string.lan_token_empty_hint,

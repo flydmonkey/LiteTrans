@@ -49,8 +49,8 @@ fun lanHistoryCopy(resources: Resources) = LanHistoryCopy(
     statusFailed = resources.getString(R.string.status_failed),
     statusCancelled = resources.getString(R.string.status_cancelled),
     needToken = resources.getString(R.string.lan_need_token),
-    previewFailed = "Can't preview. Download the file instead.",
-    downloadToOpen = "Download and open it on your computer.",
+    previewFailed = resources.getString(R.string.lan_preview_failed),
+    downloadToOpen = resources.getString(R.string.lan_download_to_open),
 )
 
 data class LanShareSettings(
