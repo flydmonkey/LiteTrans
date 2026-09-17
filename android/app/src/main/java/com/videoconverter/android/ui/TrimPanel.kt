@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -98,7 +99,7 @@ private fun TrimPanelContent(
         onDispose { player?.release() }
     }
 
-    LaunchedEffect(player, start, end) {
+    LaunchedEffect(player) {
         val exo = player ?: return@LaunchedEffect
         while (true) {
             val current = exo.currentPosition / 1000.0
@@ -257,25 +258,6 @@ private fun TrimTrack(
         modifier = Modifier
             .fillMaxWidth()
             .height(28.dp)
-            .clip(RoundedCornerShape(99.dp))
-            .background(Color(LightTokens.Chip))
-            .drawBehind {
-                val width = size.width
-                val startX = startRatio * width
-                val endX = endRatio * width
-                val playX = playRatio * width
-                drawRoundRect(
-                    color = Color(LightTokens.Ink),
-                    topLeft = Offset(startX, 6.dp.toPx()),
-                    size = Size((endX - startX).coerceAtLeast(2f), 16.dp.toPx()),
-                    cornerRadius = CornerRadius(99.dp.toPx()),
-                )
-                drawRect(
-                    color = Color(LightTokens.Accent),
-                    topLeft = Offset(playX - 1.dp.toPx(), 2.dp.toPx()),
-                    size = Size(2.dp.toPx(), 24.dp.toPx()),
-                )
-            }
             .pointerInput(duration) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
@@ -306,6 +288,29 @@ private fun TrimTrack(
                 }
             },
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(99.dp))
+                .background(Color(LightTokens.Chip))
+                .drawBehind {
+                    val width = size.width
+                    val startX = startRatio * width
+                    val endX = endRatio * width
+                    val playX = playRatio * width
+                    drawRoundRect(
+                        color = Color(LightTokens.Ink),
+                        topLeft = Offset(startX, 6.dp.toPx()),
+                        size = Size((endX - startX).coerceAtLeast(2f), 16.dp.toPx()),
+                        cornerRadius = CornerRadius(99.dp.toPx()),
+                    )
+                    drawRect(
+                        color = Color(LightTokens.Accent),
+                        topLeft = Offset(playX - 1.dp.toPx(), 2.dp.toPx()),
+                        size = Size(2.dp.toPx(), 24.dp.toPx()),
+                    )
+                },
+        )
         val widthPx = constraints.maxWidth.toFloat()
         Handle(x = startRatio * widthPx)
         Handle(x = endRatio * widthPx)

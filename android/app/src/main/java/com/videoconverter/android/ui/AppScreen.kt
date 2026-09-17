@@ -149,7 +149,7 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                         FileRow(
                             name = source.media.displayName,
                             line = sourceFormatLine(source.media, source.probing),
-                            selected = source.media.sourceUri == selectedUri,
+                            selected = source.media.sourceUri == (selectedUri ?: preview?.sourceUri),
                             importable = source.media.importable || source.probing,
                             canRemove = state.jobs.none {
                                 it.sourceUri == source.media.sourceUri && it.status == JobStatus.Running
