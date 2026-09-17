@@ -5,14 +5,32 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -20,8 +38,6 @@ import com.videoconverter.android.R
 import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
-import com.videoconverter.android.domain.documentSourceKind
-import com.videoconverter.android.ui.theme.LightTokens
 
 private val DOCUMENT_FORMAT_CHIPS = listOf(
     ChipOption("jpg", title = "JPG", hintRes = R.string.format_best_compat),
@@ -85,39 +101,29 @@ fun ConvertScreen(
     val startEnabled = importable > 0 && !transcoding && !probing && outputReadyToStart(session.output)
     Column(modifier = Modifier.fillMaxSize()) {
         if (page == ConvertPage.Home) {
-            IosLargeTitle(
-                title = stringResource(R.string.tab_convert),
-                below = {
-                    IosSegmented(
-                        options = ConvertMode.entries.map { target ->
-                            stringResource(convertModeLabelRes(target)) to (mode == target)
-                        },
-                        onSelect = { onMode(ConvertMode.entries[it]) },
-                    )
-                },
-            )
+            AppTopBar(title = stringResource(R.string.tab_convert))
+            ConvertModeTabs(selected = mode, onSelect = onMode)
         } else {
-            IosNavBar(
+            AppTopBar(
                 title = stringResource(
                     when (page) {
                         ConvertPage.Quality -> convertSettingTitleRes(ConvertSetting.Quality, displayedPreset)
                         else -> convertPageTitleRes(page)
                     },
                 ),
-                backLabel = stringResource(R.string.tab_convert),
                 onBack = { onPage(ConvertPage.Home) },
             )
         }
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
         ) {
             when (page) {
                 ConvertPage.Home -> {
                     if (preview != null) {
                         item(key = "preview-${preview.sourceUri}") {
-                            IosSection {
+                            AppCard {
                                 Box(modifier = Modifier.padding(12.dp)) {
                                     if (documentMode) {
                                         DocumentSourcePreview(preview) { appViewModel.updateTrim(it, mode) }
@@ -144,9 +150,9 @@ fun ConvertScreen(
                     }
                     item("settings") {
                         val settings = convertSettingsFor(displayedPreset)
-                        IosSection(title = stringResource(R.string.section_settings)) {
+                        AppCard {
                             settings.forEachIndexed { index, setting ->
-                                IosRow(
+                                SettingRow(
                                     title = stringResource(convertSettingTitleRes(setting, displayedPreset)),
                                     value = settingValue(
                                         setting = setting,
@@ -162,13 +168,6 @@ fun ConvertScreen(
                             }
                         }
                     }
-                    item("start") {
-                        IosPrimaryButton(
-                            label = stringResource(R.string.wizard_start_convert),
-                            enabled = startEnabled,
-                            onClick = onStart,
-                        )
-                    }
                 }
                 ConvertPage.Format -> {
                     item("formats") {
@@ -177,25 +176,26 @@ fun ConvertScreen(
                             documentMode -> documentCardsFor(documentKind)
                             else -> collapsedPresetCards(displayedPreset, showAll)
                         }
-                        IosSection {
+                        AppCard {
                             cards.forEachIndexed { index, card ->
-                                IosRow(
+                                RadioOptionRow(
                                     title = presetCardTitle(card),
                                     subtitle = presetCardHint(card),
-                                    chevron = false,
-                                    checked = displayedPreset == card.id,
+                                    selected = displayedPreset == card.id,
                                     showDivider = index < cards.lastIndex || (!audioMode && !documentMode),
                                     onClick = { appViewModel.setPreset(card.id, mode) },
                                 )
                             }
                             if (!audioMode && !documentMode) {
-                                IosRow(
-                                    title = stringResource(if (showAll) R.string.action_collapse else R.string.action_more),
-                                    subtitle = stringResource(R.string.wizard_more_formats),
-                                    chevron = false,
-                                    accentTitle = true,
-                                    showDivider = false,
-                                    onClick = onShowAll,
+                                ListItem(
+                                    headlineContent = {
+                                        Text(stringResource(if (showAll) R.string.action_collapse else R.string.action_more))
+                                    },
+                                    supportingContent = { Text(stringResource(R.string.wizard_more_formats)) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 48.dp)
+                                        .clickable(onClick = onShowAll),
                                 )
                             }
                         }
@@ -204,20 +204,19 @@ fun ConvertScreen(
                         item("hint") {
                             Text(
                                 stringResource(hint),
-                                color = Color(LightTokens.Muted),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 16.dp),
                             )
                         }
                     }
                     if (displayedPreset == "pdf-image") {
                         item("container") {
-                            IosSection(title = stringResource(R.string.format_image_title)) {
+                            AppCard {
                                 DOCUMENT_FORMAT_CHIPS.forEachIndexed { index, option ->
-                                    IosRow(
+                                    RadioOptionRow(
                                         title = chipTitle(option),
                                         subtitle = chipHint(option),
-                                        chevron = false,
-                                        checked = (session.container ?: "jpg") == option.id,
+                                        selected = (session.container ?: "jpg") == option.id,
                                         showDivider = index < DOCUMENT_FORMAT_CHIPS.lastIndex,
                                         onClick = { appViewModel.setContainer(option.id, mode) },
                                     )
@@ -229,13 +228,12 @@ fun ConvertScreen(
                 ConvertPage.Quality -> {
                     item("quality") {
                         val options = qualityOptions(displayedPreset)
-                        IosSection {
+                        AppCard {
                             options.forEachIndexed { index, option ->
-                                IosRow(
+                                RadioOptionRow(
                                     title = chipTitle(option),
                                     subtitle = chipHint(option),
-                                    chevron = false,
-                                    checked = session.quality == option.id,
+                                    selected = session.quality == option.id,
                                     showDivider = index < options.lastIndex,
                                     onClick = { appViewModel.setQuality(option.id, mode) },
                                 )
@@ -245,13 +243,12 @@ fun ConvertScreen(
                 }
                 ConvertPage.Size -> {
                     item("size") {
-                        IosSection {
+                        AppCard {
                             SIZE_CHIPS.forEachIndexed { index, option ->
-                                IosRow(
+                                RadioOptionRow(
                                     title = chipTitle(option),
                                     subtitle = chipHint(option),
-                                    chevron = false,
-                                    checked = session.size == option.id,
+                                    selected = session.size == option.id,
                                     showDivider = index < SIZE_CHIPS.lastIndex,
                                     onClick = { appViewModel.setSize(option.id, mode) },
                                 )
@@ -274,7 +271,7 @@ fun ConvertScreen(
                         } else {
                             null
                         }
-                        IosSection {
+                        AppCard {
                             cards.forEachIndexed { index, card ->
                                 val selected = selectedId == card.id
                                 val hint = when {
@@ -286,11 +283,10 @@ fun ConvertScreen(
                                         )
                                     else -> stringResource(card.hintRes)
                                 }
-                                IosRow(
+                                RadioOptionRow(
                                     title = stringResource(card.titleRes),
                                     subtitle = hint,
-                                    chevron = false,
-                                    checked = selected,
+                                    selected = selected,
                                     showDivider = index < cards.lastIndex,
                                     onClick = {
                                         if (card.id == OUTPUT_CHOICE_CUSTOM && customOutputTapOpensPicker(session.output)) {
@@ -304,6 +300,18 @@ fun ConvertScreen(
                         }
                     }
                 }
+            }
+        }
+        if (page == ConvertPage.Home) {
+            Button(
+                onClick = onStart,
+                enabled = startEnabled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(R.string.wizard_start_convert))
             }
         }
     }
@@ -322,77 +330,156 @@ private fun FilesSection(
     onFiles: () -> Unit,
     onMusic: (() -> Unit)?,
 ) {
-    val addRows = buildList {
-        if (audioMode && onMusic != null) {
-            add(Triple(stringResource(R.string.wizard_source_music), stringResource(R.string.wizard_source_music_hint), onMusic))
-        }
-        add(
-            Triple(
-                stringResource(R.string.wizard_source_gallery),
-                stringResource(
-                    if (documentMode) R.string.wizard_source_gallery_hint_image else R.string.wizard_source_gallery_hint_video,
-                ),
-                onGallery,
-            ),
-        )
-        add(
-            Triple(
-                stringResource(R.string.wizard_source_files),
-                stringResource(R.string.wizard_source_files_hint),
-                onFiles,
-            ),
-        )
-    }
-    IosSection(
-        title = stringResource(R.string.section_files),
-        footer = if (session.sources.isEmpty()) {
-            stringResource(
-                when {
-                    audioMode -> R.string.wizard_add_audio_hint
-                    documentMode -> R.string.wizard_add_document_hint
-                    else -> R.string.wizard_add_video_hint
-                },
-            )
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (session.sources.isNotEmpty()) {
+            AppCard {
+                session.sources.forEachIndexed { index, source ->
+                    val canSelect = documentMode || itemHasDuration(source.media)
+                    val failed = !source.media.importable && !source.probing
+                    val selected = source.media.sourceUri == selectedUri
+                    ListItem(
+                        headlineContent = { Text(source.media.displayName) },
+                        supportingContent = {
+                            if (source.probing) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.wizard_reading_format))
+                                }
+                            } else {
+                                Text(sourceFormatLine(LocalContext.current.resources, source.media, source.probing))
+                            }
+                        },
+                        trailingContent = if (source.media.sourceUri !in runningUris) {
+                            {
+                                IconButton(
+                                    onClick = { onRemove(source.media.sourceUri) },
+                                    modifier = Modifier.size(48.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = stringResource(R.string.action_remove),
+                                    )
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                        colors = ListItemDefaults.colors(
+                            containerColor = when {
+                                failed -> MaterialTheme.colorScheme.errorContainer
+                                selected -> MaterialTheme.colorScheme.surfaceVariant
+                                else -> MaterialTheme.colorScheme.surface
+                            },
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clickable(enabled = canSelect) {
+                                onSelectUri(source.media.sourceUri)
+                            },
+                    )
+                    if (index < session.sources.lastIndex) {
+                        HorizontalDivider()
+                    }
+                }
+            }
         } else {
-            null
+            Text(
+                stringResource(
+                    when {
+                        audioMode -> R.string.wizard_add_audio_hint
+                        documentMode -> R.string.wizard_add_document_hint
+                        else -> R.string.wizard_add_video_hint
+                    },
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilledTonalButton(
+                onClick = onGallery,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(R.string.wizard_source_gallery))
+            }
+            FilledTonalButton(
+                onClick = onFiles,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(R.string.wizard_source_files))
+            }
+            if (audioMode && onMusic != null) {
+                FilledTonalButton(
+                    onClick = onMusic,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text(stringResource(R.string.wizard_source_music))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(
+    title: String,
+    value: String,
+    showDivider: Boolean,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(value) },
+        trailingContent = {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+            )
         },
-    ) {
-        session.sources.forEachIndexed { index, source ->
-            IosRow(
-                title = source.media.displayName,
-                subtitle = sourceFormatLine(LocalContext.current.resources, source.media, source.probing),
-                chevron = false,
-                accentTitle = source.media.sourceUri == selectedUri,
-                trailing = if (source.media.sourceUri !in runningUris) {
-                    {
-                        Text(
-                            stringResource(R.string.action_remove),
-                            color = Color(LightTokens.Danger),
-                            modifier = Modifier
-                                .clickable { onRemove(source.media.sourceUri) }
-                                .padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
-                        )
-                    }
-                } else {
-                    null
-                },
-                showDivider = index < session.sources.lastIndex || addRows.isNotEmpty(),
-                onClick = {
-                    if (documentMode || itemHasDuration(source.media)) {
-                        onSelectUri(source.media.sourceUri)
-                    }
-                },
-            )
-        }
-        addRows.forEachIndexed { index, (title, hint, action) ->
-            IosRow(
-                title = title,
-                subtitle = hint,
-                accentTitle = true,
-                showDivider = index < addRows.lastIndex,
-                onClick = action,
-            )
-        }
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick),
+    )
+    if (showDivider) {
+        HorizontalDivider()
+    }
+}
+
+@Composable
+private fun RadioOptionRow(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    showDivider: Boolean,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(subtitle) },
+        trailingContent = {
+            RadioButton(selected = selected, onClick = null)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick),
+    )
+    if (showDivider) {
+        HorizontalDivider()
     }
 }
 
