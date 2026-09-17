@@ -7,23 +7,14 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,54 +23,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.videoconverter.android.R
-import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.JobStatus
-import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.documentSourceKind
-import com.videoconverter.android.ui.theme.LightTokens
 
 private val DOCUMENT_FILE_MIMES = arrayOf(
     "image/*",
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-)
-
-private val DOCUMENT_FORMAT_CHIPS = listOf(
-    ChipOption("jpg", title = "JPG", hintRes = R.string.format_best_compat),
-    ChipOption("png", title = "PNG", hintRes = R.string.format_lossless),
-    ChipOption("webp", title = "WebP", hintRes = R.string.format_smaller),
-)
-
-private val COMPRESS_QUALITY_CHIPS = listOf(
-    ChipOption("high", titleRes = R.string.quality_high, hintRes = R.string.quality_high_hint),
-    ChipOption("standard", titleRes = R.string.quality_standard, hintRes = R.string.quality_standard_hint),
-    ChipOption("small", titleRes = R.string.quality_smaller, hintRes = R.string.quality_smaller_hint),
-)
-
-private val QUALITY_CHIPS = listOf(
-    ChipOption("original", titleRes = R.string.quality_original, hintRes = R.string.quality_original_hint),
-    ChipOption("standard", titleRes = R.string.quality_standard, hintRes = R.string.quality_standard_hint),
-    ChipOption("small", titleRes = R.string.quality_small, hintRes = R.string.quality_small_hint),
-)
-
-private val SIZE_CHIPS = listOf(
-    ChipOption("original", titleRes = R.string.size_original, hintRes = R.string.size_original_hint),
-    ChipOption("1080p", title = "1080p", hintRes = R.string.size_1080p_hint),
-    ChipOption("720p", title = "720p", hintRes = R.string.size_720p_hint),
-    ChipOption("480p", title = "480p", hintRes = R.string.size_480p_hint),
 )
 
 @Composable
@@ -90,27 +47,22 @@ fun AppScreen(
 ) {
     val state by appViewModel.state.collectAsState()
     val context = LocalContext.current
-    var tab by rememberSaveable { mutableStateOf(RootTab.Transcode) }
+    var tab by rememberSaveable { mutableStateOf(RootTab.Convert) }
     var minePage by rememberSaveable { mutableStateOf(MinePage.Root) }
-    var step by remember { mutableStateOf(WizardStep.Sources) }
+    var convertMode by rememberSaveable { mutableStateOf(ConvertMode.Video) }
+    var convertPage by rememberSaveable { mutableStateOf(ConvertPage.Home) }
     var showAll by remember { mutableStateOf(false) }
     var selectedUri by remember { mutableStateOf<String?>(null) }
-    var audioStep by remember { mutableStateOf(WizardStep.Sources) }
+    var audioPage by rememberSaveable { mutableStateOf(ConvertPage.Home) }
     var audioShowAll by remember { mutableStateOf(false) }
     var audioSelectedUri by remember { mutableStateOf<String?>(null) }
-    var documentStep by remember { mutableStateOf(WizardStep.Sources) }
+    var documentPage by rememberSaveable { mutableStateOf(ConvertPage.Home) }
     var documentShowAll by remember { mutableStateOf(false) }
     var documentSelectedUri by remember { mutableStateOf<String?>(null) }
     var historySegment by remember { mutableStateOf(HistorySegment.Video) }
     var pickerMode by remember { mutableStateOf(ConvertMode.Video) }
     var pendingStartMode by remember { mutableStateOf(ConvertMode.Video) }
-    val videoImportable = state.video.sources.count { it.media.importable }
-    val audioImportable = state.audio.sources.count { it.media.importable }
-    val documentImportable = state.document.sources.count { it.media.importable }
     val transcoding = state.jobs.any { it.status == JobStatus.Queued || it.status == JobStatus.Running }
-    val videoProbing = state.video.sources.any { it.probing }
-    val audioProbing = state.audio.sources.any { it.probing }
-    val documentProbing = state.document.sources.any { it.probing }
     val videoPreview = state.video.sources.firstOrNull { it.media.sourceUri == selectedUri }?.media
         ?: state.video.sources.firstOrNull { itemHasDuration(it.media) }?.media
     val audioPreview = state.audio.sources.firstOrNull { it.media.sourceUri == audioSelectedUri }?.media
@@ -120,33 +72,21 @@ fun AppScreen(
             documentSourceKind(it.media.displayName) in setOf(DocumentSourceKind.Pdf, DocumentSourceKind.Image)
         }?.media
     val versionName = remember(context) { installedVersionName(context) }
-    val audioMode = tab == RootTab.Audio
-    val documentMode = tab == RootTab.Document
-    val currentMode = when (tab) {
-        RootTab.Audio -> ConvertMode.Audio
-        RootTab.Document -> ConvertMode.Document
-        else -> ConvertMode.Video
+    val currentMode = convertMode
+    val currentPage = when (convertMode) {
+        ConvertMode.Audio -> audioPage
+        ConvertMode.Document -> documentPage
+        ConvertMode.Video -> convertPage
     }
-    val currentStep = when (tab) {
-        RootTab.Audio -> audioStep
-        RootTab.Document -> documentStep
-        else -> step
+    val currentImportable = when (convertMode) {
+        ConvertMode.Audio -> state.audio.sources.count { it.media.importable }
+        ConvertMode.Document -> state.document.sources.count { it.media.importable }
+        ConvertMode.Video -> state.video.sources.count { it.media.importable }
     }
-    val currentSession = sessionFor(state.sessions(), currentMode)
-    val currentImportable = when (tab) {
-        RootTab.Audio -> audioImportable
-        RootTab.Document -> documentImportable
-        else -> videoImportable
-    }
-    val currentProbing = when (tab) {
-        RootTab.Audio -> audioProbing
-        RootTab.Document -> documentProbing
-        else -> videoProbing
-    }
-    val currentPreview = when (tab) {
-        RootTab.Audio -> audioPreview
-        RootTab.Document -> documentPreview
-        else -> videoPreview
+    val currentPreview = when (convertMode) {
+        ConvertMode.Audio -> audioPreview
+        ConvertMode.Document -> documentPreview
+        ConvertMode.Video -> videoPreview
     }
 
     LaunchedEffect(openLanShare) {
@@ -171,22 +111,22 @@ fun AppScreen(
         val reset = resetWizardAfterStart()
         when (mode) {
             ConvertMode.Video -> {
-                step = reset.step
+                convertPage = ConvertPage.Home
                 showAll = reset.showAll
                 selectedUri = reset.selectedUri
             }
             ConvertMode.Audio -> {
-                audioStep = reset.step
+                audioPage = ConvertPage.Home
                 audioShowAll = reset.showAll
                 audioSelectedUri = reset.selectedUri
             }
             ConvertMode.Document -> {
-                documentStep = reset.step
+                documentPage = ConvertPage.Home
                 documentShowAll = reset.showAll
                 documentSelectedUri = reset.selectedUri
             }
         }
-        appViewModel.clearSources(mode)
+        if (reset.clearSources) appViewModel.clearSources(mode)
         val preset = sessionFor(state.sessions(), mode).preset
         historySegment = historySegmentAfterEnqueue(mode, preset)
         tab = RootTab.History
@@ -210,117 +150,117 @@ fun AppScreen(
         }
     }
 
-    val backTarget = consumeRootBack(tab, minePage, currentStep)
+    val backTarget = consumeRootBack(tab, minePage, currentPage)
     BackHandler(enabled = backTarget != null) {
-        consumeRootBack(tab, minePage, currentStep)?.let { next ->
+        consumeRootBack(tab, minePage, currentPage)?.let { next ->
             tab = next.tab
             minePage = next.minePage
-            when (next.tab) {
-                RootTab.Audio -> audioStep = next.wizardStep
-                RootTab.Document -> documentStep = next.wizardStep
-                else -> step = next.wizardStep
+            if (next.tab == RootTab.Convert) {
+                when (convertMode) {
+                    ConvertMode.Audio -> audioPage = next.convertPage
+                    ConvertMode.Document -> documentPage = next.convertPage
+                    ConvertMode.Video -> convertPage = next.convertPage
+                }
             }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(LightTokens.Canvas))
-            .statusBarsPadding(),
-    ) {
-        if (tab != RootTab.Transcode && tab != RootTab.Audio && tab != RootTab.Document) {
-            state.message?.let {
-                Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                    NoticeBar(it, appViewModel::clearMessage)
-                }
-            }
-        }
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (tab) {
-                RootTab.Transcode -> TranscodePane(
-                    mode = ConvertMode.Video,
+    val snackbarHostState = remember { SnackbarHostState() }
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            RootNavigationBar(
+                selected = tab,
+                activeHistoryCount = historyActiveCount(state.jobs),
+                onSelect = { next ->
+                    minePage = minePageAfterLeavingTab(next, minePage)
+                    tab = next
+                },
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            state.message?.let { MessageBanner(it, appViewModel::clearMessage) }
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when (tab) {
+                    RootTab.Convert -> ConvertScreen(
+                    mode = convertMode,
                     state = state,
-                    step = step,
-                    showAll = showAll,
-                    selectedUri = selectedUri,
-                    preview = videoPreview,
-                    importable = videoImportable,
-                    onShowAll = { showAll = !showAll },
-                    onSelectUri = { selectedUri = it },
-                    onStep = { target -> if (canEnterStep(target, videoImportable)) step = target },
+                    page = currentPage,
+                    showAll = when (convertMode) {
+                        ConvertMode.Audio -> audioShowAll
+                        ConvertMode.Document -> documentShowAll
+                        ConvertMode.Video -> showAll
+                    },
+                    selectedUri = when (convertMode) {
+                        ConvertMode.Audio -> audioSelectedUri
+                        ConvertMode.Document -> documentSelectedUri
+                        ConvertMode.Video -> selectedUri
+                    },
+                    preview = currentPreview,
+                    importable = currentImportable,
+                    transcoding = transcoding,
+                    onShowAll = {
+                        when (convertMode) {
+                            ConvertMode.Audio -> audioShowAll = !audioShowAll
+                            ConvertMode.Document -> documentShowAll = !documentShowAll
+                            ConvertMode.Video -> showAll = !showAll
+                        }
+                    },
+                    onSelectUri = { uri ->
+                        when (convertMode) {
+                            ConvertMode.Audio -> audioSelectedUri = uri
+                            ConvertMode.Document -> documentSelectedUri = uri
+                            ConvertMode.Video -> selectedUri = uri
+                        }
+                    },
+                    onPage = { target ->
+                        when (convertMode) {
+                            ConvertMode.Audio -> audioPage = target
+                            ConvertMode.Document -> documentPage = target
+                            ConvertMode.Video -> convertPage = target
+                        }
+                    },
+                    onMode = { convertMode = it },
                     onGallery = {
-                        pickerMode = ConvertMode.Video
+                        pickerMode = convertMode
                         galleryPicker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
+                            PickVisualMediaRequest(
+                                if (convertMode == ConvertMode.Document) {
+                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                } else {
+                                    ActivityResultContracts.PickVisualMedia.VideoOnly
+                                },
+                            ),
                         )
                     },
                     onFiles = {
-                        pickerMode = ConvertMode.Video
-                        filePicker.launch(arrayOf("video/*"))
-                    },
-                    onOutput = {
-                        pickerMode = ConvertMode.Video
-                        outputPicker.launch(null)
-                    },
-                    appViewModel = appViewModel,
-                )
-                RootTab.Audio -> TranscodePane(
-                    mode = ConvertMode.Audio,
-                    state = state,
-                    step = audioStep,
-                    showAll = audioShowAll,
-                    selectedUri = audioSelectedUri,
-                    preview = audioPreview,
-                    importable = audioImportable,
-                    onShowAll = { audioShowAll = !audioShowAll },
-                    onSelectUri = { audioSelectedUri = it },
-                    onStep = { target -> if (canEnterStep(target, audioImportable)) audioStep = target },
-                    onGallery = {
-                        pickerMode = ConvertMode.Audio
-                        galleryPicker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
+                        pickerMode = convertMode
+                        filePicker.launch(
+                            when (convertMode) {
+                                ConvertMode.Audio -> arrayOf("audio/*", "video/*")
+                                ConvertMode.Document -> DOCUMENT_FILE_MIMES
+                                ConvertMode.Video -> arrayOf("video/*")
+                            },
                         )
                     },
-                    onFiles = {
-                        pickerMode = ConvertMode.Audio
-                        filePicker.launch(arrayOf("audio/*", "video/*"))
-                    },
-                    onMusic = {
-                        pickerMode = ConvertMode.Audio
-                        filePicker.launch(arrayOf("audio/*"))
-                    },
-                    onOutput = {
-                        pickerMode = ConvertMode.Audio
-                        outputPicker.launch(null)
-                    },
-                    appViewModel = appViewModel,
-                )
-                RootTab.Document -> TranscodePane(
-                    mode = ConvertMode.Document,
-                    state = state,
-                    step = documentStep,
-                    showAll = documentShowAll,
-                    selectedUri = documentSelectedUri,
-                    preview = documentPreview,
-                    importable = documentImportable,
-                    onShowAll = { documentShowAll = !documentShowAll },
-                    onSelectUri = { documentSelectedUri = it },
-                    onStep = { target -> if (canEnterStep(target, documentImportable)) documentStep = target },
-                    onGallery = {
-                        pickerMode = ConvertMode.Document
-                        galleryPicker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                        )
-                    },
-                    onFiles = {
-                        pickerMode = ConvertMode.Document
-                        filePicker.launch(DOCUMENT_FILE_MIMES)
+                    onMusic = if (convertMode == ConvertMode.Audio) {
+                        {
+                            pickerMode = ConvertMode.Audio
+                            filePicker.launch(arrayOf("audio/*"))
+                        }
+                    } else {
+                        null
                     },
                     onOutput = {
-                        pickerMode = ConvertMode.Document
+                        pickerMode = convertMode
                         outputPicker.launch(null)
                     },
+                    onStart = { startWithNotificationPermission(currentMode) },
                     appViewModel = appViewModel,
                 )
                 RootTab.History -> HistoryScreen(
@@ -334,6 +274,8 @@ fun AppScreen(
                     onShare = { launchOutput(context, appViewModel.outputIntent(it, true)) },
                     onRename = { job, name -> appViewModel.rename(job.id, name) },
                     onDelete = appViewModel::delete,
+                    onClearFinished = { appViewModel.clearFinished(historySegment) },
+                    onConvertAgain = { tab = RootTab.Convert },
                 )
                 RootTab.Mine -> when (minePage) {
                     MinePage.LanShare -> LanShareScreen(onBack = { minePage = MinePage.Root })
@@ -347,260 +289,7 @@ fun AppScreen(
                 }
             }
         }
-        if ((tab == RootTab.Transcode || tab == RootTab.Audio || tab == RootTab.Document) &&
-            currentStep == WizardStep.Format
-        ) {
-            FormatDetailPanel(
-                preset = currentSession.preset,
-                quality = currentSession.quality,
-                size = currentSession.size,
-                container = currentSession.container,
-                onQuality = { appViewModel.setQuality(it, currentMode) },
-                onSize = { appViewModel.setSize(it, currentMode) },
-                onContainer = { appViewModel.setContainer(it, currentMode) },
-            )
         }
-        if (tab == RootTab.Transcode || tab == RootTab.Audio || tab == RootTab.Document) {
-            WizardDock(
-                step = currentStep,
-                summary = dockSummary(
-                    resources = context.resources,
-                    step = currentStep,
-                    importableCount = currentImportable,
-                    presetTitle = presetTitle(context.resources, currentSession.preset),
-                    qualityLabel = stringResource(qualityLabelRes(currentSession.quality)),
-                    sizeLabel = sizeLabel(context.resources, currentSession.size),
-                    audioOnly = isAudioPreset(currentSession.preset),
-                    copyOnly = isCopyPreset(currentSession.preset),
-                    trimLabel = trimLabel(context.resources, currentSession.sources.map { it.media }, currentPreview),
-                    outputLabel = outputFolderLabel(context, currentSession.output),
-                    formatPreview = conversionPreview(
-                        context.resources,
-                        currentSession.sources.map { it.media },
-                        presetTitle(context.resources, currentSession.preset),
-                    ),
-                    audioMode = audioMode,
-                    losslessAudio = isLosslessAudioPreset(currentSession.preset),
-                    documentMode = documentMode,
-                    pageRangeLabel = pageRangeLabel(context.resources, currentSession.sources.map { it.media }),
-                ),
-                action = stringResource(
-                    dockActionLabelRes(
-                        currentStep,
-                        busy = false,
-                        transcoding = transcoding,
-                        startLabelRes = if (audioMode || documentMode) {
-                            R.string.wizard_start_convert
-                        } else {
-                            R.string.wizard_start_transcode
-                        },
-                    ),
-                ),
-                actionEnabled = when (currentStep) {
-                    WizardStep.Sources, WizardStep.Format -> currentImportable > 0 && !currentProbing
-                    WizardStep.Output -> currentImportable > 0 && !transcoding && !currentProbing &&
-                        !(currentSession.output.kind == OutputTarget.Kind.SafTree &&
-                            currentSession.output.treeUri == null)
-                },
-                onBack = {
-                    retreatStep(currentStep)?.let { next ->
-                        when {
-                            audioMode -> audioStep = next
-                            documentMode -> documentStep = next
-                            else -> step = next
-                        }
-                    }
-                },
-                onAction = {
-                    when (currentStep) {
-                        WizardStep.Sources, WizardStep.Format ->
-                            advanceStep(currentStep, currentImportable)?.let { next ->
-                                when {
-                                    audioMode -> audioStep = next
-                                    documentMode -> documentStep = next
-                                    else -> step = next
-                                }
-                            }
-                        WizardStep.Output -> startWithNotificationPermission(currentMode)
-                    }
-                },
-            )
-        }
-        RootTabBar(selected = tab) { next ->
-            minePage = minePageAfterLeavingTab(next, minePage)
-            tab = next
-        }
-    }
-}
-
-@Composable
-private fun TranscodePane(
-    mode: ConvertMode,
-    state: AppUiState,
-    step: WizardStep,
-    showAll: Boolean,
-    selectedUri: String?,
-    preview: MediaInfo?,
-    importable: Int,
-    onShowAll: () -> Unit,
-    onSelectUri: (String) -> Unit,
-    onStep: (WizardStep) -> Unit,
-    onGallery: () -> Unit,
-    onFiles: () -> Unit,
-    onOutput: () -> Unit,
-    appViewModel: AppViewModel,
-    onMusic: (() -> Unit)? = null,
-) {
-    val session = sessionFor(state.sessions(), mode)
-    val audioMode = mode == ConvertMode.Audio
-    val documentMode = mode == ConvertMode.Document
-    val documentKind = documentKindOf(session.sources) ?: DocumentSourceKind.Image
-    Column(modifier = Modifier.fillMaxSize()) {
-        PageHeader(
-            title = stringResource(wizardScreenTitleRes(step)),
-            subtitle = when (step) {
-                WizardStep.Sources -> stringResource(
-                    if (documentMode) R.string.wizard_preview_document else R.string.wizard_preview_video,
-                )
-                WizardStep.Format -> conversionPreview(
-                    LocalContext.current.resources,
-                    session.sources.map { it.media },
-                    presetTitle(LocalContext.current.resources, session.preset),
-                )
-                WizardStep.Output -> outputFolderLabel(LocalContext.current, session.output)
-            },
-            below = { StepTabs(step, importable, onStep) },
-        )
-        state.message?.let {
-            Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                NoticeBar(it, appViewModel::clearMessage)
-            }
-        }
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (step == WizardStep.Sources && session.sources.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Dropzone(
-                        onGallery = onGallery,
-                        onFiles = onFiles,
-                        onMusic = onMusic,
-                        centered = true,
-                        audioMode = audioMode,
-                        documentMode = documentMode,
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(top = 20.dp, bottom = 16.dp),
-                ) {
-                    when (step) {
-                        WizardStep.Sources -> {
-                            item {
-                                Dropzone(
-                                    onGallery = onGallery,
-                                    onFiles = onFiles,
-                                    onMusic = onMusic,
-                                    audioMode = audioMode,
-                                    documentMode = documentMode,
-                                )
-                            }
-                            items(session.sources, key = { it.media.sourceUri }) { source ->
-                                FileRow(
-                                    name = source.media.displayName,
-                                    line = sourceFormatLine(
-                                        LocalContext.current.resources,
-                                        source.media,
-                                        source.probing,
-                                    ),
-                                    selected = source.media.sourceUri == (selectedUri ?: preview?.sourceUri),
-                                    importable = source.media.importable || source.probing,
-                                    canRemove = state.jobs.none {
-                                        it.sourceUri == source.media.sourceUri && it.status == JobStatus.Running
-                                    },
-                                    onOpen = {
-                                        if (documentMode || itemHasDuration(source.media)) {
-                                            onSelectUri(source.media.sourceUri)
-                                        }
-                                    },
-                                    onRemove = { appViewModel.remove(source.media.sourceUri, mode) },
-                                )
-                            }
-                            if (documentMode && preview != null) {
-                                item(key = "document-${preview.sourceUri}") {
-                                    DocumentSourcePreview(preview) { appViewModel.updateTrim(it, mode) }
-                                }
-                            } else if (!documentMode && preview != null) {
-                                item(key = "trim-${preview.sourceUri}") {
-                                    TrimPanel(preview) { appViewModel.updateTrim(it, mode) }
-                                }
-                            }
-                        }
-                        WizardStep.Format -> {
-                            item {
-                                PresetGrid(
-                                    cards = when {
-                                        audioMode -> AUDIO_PRESET_CARDS
-                                        documentMode -> documentCardsFor(documentKind)
-                                        else -> collapsedPresetCards(session.preset, showAll)
-                                    },
-                                    selected = session.preset,
-                                    showAll = showAll,
-                                    showMore = !audioMode && !documentMode,
-                                    onSelect = { appViewModel.setPreset(it, mode) },
-                                    onToggleMore = onShowAll,
-                                )
-                            }
-                        }
-                        WizardStep.Output -> {
-                            item {
-                                OutputChoiceGrid(
-                                    cards = when {
-                                        audioMode -> AUDIO_OUTPUT_CHOICE_CARDS
-                                        documentMode -> outputChoicesForDocument(session.preset)
-                                        else -> OUTPUT_CHOICE_CARDS
-                                    },
-                                    selectedId = outputChoiceId(session.output),
-                                    customHint = if (outputChoiceId(session.output) == OUTPUT_CHOICE_CUSTOM) {
-                                        outputFolderLabel(LocalContext.current, session.output)
-                                    } else {
-                                        null
-                                    },
-                                    onSelect = { id ->
-                                        if (id == OUTPUT_CHOICE_CUSTOM) onOutput()
-                                        else appViewModel.setOutputChoice(id, mode)
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun trimLabel(
-    resources: android.content.res.Resources,
-    sources: List<MediaInfo>,
-    preview: MediaInfo?,
-): String {
-    val trimmed = sources.filter(::isTrimmed)
-    if (trimmed.isEmpty()) return ""
-    return if (trimmed.size == 1 && preview != null && isTrimmed(preview)) {
-        val duration = preview.durationSecs ?: 0.0
-        resources.getString(
-            R.string.wizard_trim_clock,
-            formatClock(preview.trimStartSecs ?: 0.0),
-            formatClock(preview.trimEndSecs ?: duration),
-        )
-    } else {
-        resources.getString(R.string.wizard_files_trimmed, trimmed.size)
     }
 }
 
@@ -613,169 +302,3 @@ private fun installedVersionName(context: android.content.Context): String =
     runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull().orEmpty().ifBlank { "0.1.0" }
-
-private fun pageRangeLabel(
-    resources: android.content.res.Resources,
-    sources: List<MediaInfo>,
-): String {
-    val pdfs = sources.filter {
-        it.importable && documentSourceKind(it.displayName) == DocumentSourceKind.Pdf
-    }
-    if (pdfs.isEmpty()) return ""
-    if (pdfs.size == 1) {
-        val media = pdfs.first()
-        val start = media.pageStart ?: 1
-        val end = media.pageEnd ?: media.pageCount ?: start
-        return " · ${resources.getString(R.string.wizard_page_range, start, end)}"
-    }
-    return resources.getString(R.string.wizard_files_paged, pdfs.size)
-}
-
-@Composable
-private fun FormatDetailPanel(
-    preset: String,
-    quality: String,
-    size: String,
-    container: String?,
-    onQuality: (String) -> Unit,
-    onSize: (String) -> Unit,
-    onContainer: (String) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(LightTokens.Canvas))
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        when {
-            preset == "office-pdf" -> {
-                Text(
-                    stringResource(R.string.hint_office_layout),
-                    color = Color(LightTokens.Muted),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(LightTokens.Card))
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                )
-            }
-            preset == "pdf-txt" -> {
-                Text(
-                    stringResource(R.string.hint_scan_no_text),
-                    color = Color(LightTokens.Muted),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(LightTokens.Card))
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                )
-            }
-            preset == "pdf-image" -> {
-                CompactChips(
-                    title = stringResource(R.string.format_image_title),
-                    options = DOCUMENT_FORMAT_CHIPS,
-                    selected = container ?: "jpg",
-                    onSelect = onContainer,
-                )
-            }
-            preset == "image-compress" || preset == "pdf-compress" -> {
-                CompactChips(
-                    title = stringResource(R.string.format_compress_title),
-                    options = COMPRESS_QUALITY_CHIPS,
-                    selected = quality,
-                    onSelect = onQuality,
-                )
-            }
-            isLosslessAudioPreset(preset) -> {
-                Text(
-                    stringResource(if (preset == "audio-flac") R.string.hint_flac else R.string.hint_wav),
-                    color = Color(LightTokens.Muted),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(LightTokens.Card))
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                )
-            }
-            isCopyPreset(preset) -> {
-                Text(
-                    stringResource(R.string.hint_copy_mp4),
-                    color = Color(LightTokens.Muted),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(LightTokens.Card))
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                )
-            }
-            preset.startsWith("image-") || preset.startsWith("pdf-") -> Unit
-            else -> {
-                if (preset == "audio-amr") {
-                    Text(
-                        stringResource(R.string.hint_amr),
-                        color = Color(LightTokens.Muted),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(LightTokens.Card))
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                    )
-                }
-                CompactChips(
-                    title = stringResource(
-                        if (isAudioPreset(preset)) R.string.quality_audio_title else R.string.quality_video_title,
-                    ),
-                    options = QUALITY_CHIPS,
-                    selected = quality,
-                    onSelect = onQuality,
-                )
-                if (shouldShowResolution(preset)) {
-                    CompactChips(
-                        title = stringResource(R.string.resolution_title),
-                        options = SIZE_CHIPS,
-                        selected = size,
-                        onSelect = onSize,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CompactChips(
-    title: String,
-    options: List<ChipOption>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, color = Color(LightTokens.Ink), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            options.forEach { option ->
-                val on = selected == option.id
-                Text(
-                    chipTitle(option),
-                    color = if (on) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (on) Color(LightTokens.Ink) else Color.White)
-                        .border(
-                            1.dp,
-                            if (on) Color(LightTokens.Ink) else Color(LightTokens.Border),
-                            RoundedCornerShape(10.dp),
-                        )
-                        .clickable { onSelect(option.id) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                )
-            }
-        }
-    }
-}

@@ -1,6 +1,5 @@
 package com.videoconverter.android.ui
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,14 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -31,13 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,92 +35,7 @@ import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.sourceStem
 import com.videoconverter.android.ui.theme.LightTokens
-
-@Composable
-fun RootTabBar(
-    selected: RootTab,
-    onSelect: (RootTab) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(LightTokens.Card))
-            .navigationBarsPadding(),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color(LightTokens.Border)),
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-        ) {
-            RootTab.entries.forEach { tab ->
-                val on = tab == selected
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable { onSelect(tab) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
-                ) {
-                    TabGlyph(tab, on)
-                    Text(
-                        stringResource(rootTabLabelRes(tab)),
-                        color = if (on) Color(LightTokens.Accent) else Color(LightTokens.Muted),
-                        fontSize = 11.sp,
-                        fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HistorySegmentTabs(
-    segment: HistorySegment,
-    onSegment: (HistorySegment) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 4.dp, bottom = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        listOf(
-            HistorySegment.Video to stringResource(R.string.lan_segment_video),
-            HistorySegment.Audio to stringResource(R.string.lan_segment_audio),
-            HistorySegment.Document to stringResource(R.string.lan_segment_document),
-        ).forEach { (target, label) ->
-            val on = segment == target
-            Column(
-                modifier = Modifier.clickable { onSegment(target) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    label,
-                    color = if (on) Color(LightTokens.Ink) else Color(LightTokens.Muted),
-                    fontSize = 15.sp,
-                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
-                    modifier = Modifier.padding(top = 10.dp, bottom = 8.dp),
-                )
-                Box(
-                    modifier = Modifier
-                        .width(20.dp)
-                        .height(2.dp)
-                        .background(if (on) Color(LightTokens.Accent) else Color.Transparent),
-                )
-            }
-        }
-    }
-}
+import com.videoconverter.android.ui.theme.ShapeTokens
 
 @Composable
 fun HistoryScreen(
@@ -145,14 +49,68 @@ fun HistoryScreen(
     onShare: (Job) -> Unit,
     onRename: (Job, String) -> Unit,
     onDelete: (String) -> Unit,
+    onClearFinished: () -> Unit,
+    onConvertAgain: () -> Unit,
 ) {
     var renaming by remember { mutableStateOf<Job?>(null) }
+    var deleting by remember { mutableStateOf<Job?>(null) }
     Column(modifier = Modifier.fillMaxSize()) {
-        PageHeader(
+        IosLargeTitle(
             title = stringResource(R.string.tab_history),
-            subtitle = stringResource(R.string.history_subtitle),
+            trailing = if (hasFinishedJobs(jobs)) {
+                {
+                    Text(
+                        stringResource(R.string.action_clear_finished),
+                        color = Color(LightTokens.Accent),
+                        fontSize = 17.sp,
+                        modifier = Modifier
+                            .heightIn(min = 44.dp)
+                            .clickable(onClick = onClearFinished)
+                            .padding(horizontal = 4.dp, vertical = 10.dp),
+                    )
+                }
+            } else {
+                null
+            },
+            below = {
+                IosSegmented(
+                    options = listOf(
+                        HistorySegment.Video,
+                        HistorySegment.Audio,
+                        HistorySegment.Document,
+                    ).map { target ->
+                        stringResource(
+                            when (target) {
+                                HistorySegment.Video -> R.string.lan_segment_video
+                                HistorySegment.Audio -> R.string.lan_segment_audio
+                                HistorySegment.Document -> R.string.lan_segment_document
+                            },
+                        ) to (segment == target)
+                    },
+                    onSelect = { index ->
+                        onSegment(
+                            listOf(
+                                HistorySegment.Video,
+                                HistorySegment.Audio,
+                                HistorySegment.Document,
+                            )[index],
+                        )
+                    },
+                )
+            },
         )
-        HistorySegmentTabs(segment, onSegment)
+        if (hasActiveJobs(jobs)) {
+            Text(
+                stringResource(R.string.history_running_banner, historyActiveCount(jobs)),
+                color = Color(LightTokens.Muted),
+                fontSize = 13.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp)
+                    .padding(top = 4.dp, bottom = 8.dp)
+                    .clickable(onClick = onConvertAgain),
+            )
+        }
         if (jobs.isEmpty()) {
             Box(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp),
@@ -160,37 +118,17 @@ fun HistoryScreen(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(LightTokens.Card)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(LightTokens.Accent)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text("▶", color = Color.White, fontSize = 16.sp)
-                        }
-                    }
-                    Text(emptyLabel, color = Color(LightTokens.Ink), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(R.string.history_empty_hint), color = Color(LightTokens.Muted), fontSize = 13.sp)
+                    Text(emptyLabel, color = Color(LightTokens.Ink), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.history_empty_hint), color = Color(LightTokens.Muted), fontSize = 15.sp)
                 }
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
             ) {
                 items(jobs.asReversed(), key = { it.id }) { job ->
                     JobRow(
@@ -200,7 +138,7 @@ fun HistoryScreen(
                         onOpen = { onOpen(job) },
                         onShare = { onShare(job) },
                         onRename = { renaming = job },
-                        onDelete = { onDelete(job.id) },
+                        onDelete = { deleting = job },
                     )
                 }
             }
@@ -216,6 +154,18 @@ fun HistoryScreen(
             onDismiss = { renaming = null },
         )
     }
+    deleting?.let { job ->
+        ConfirmDialog(
+            title = stringResource(R.string.history_delete_title),
+            body = stringResource(R.string.history_delete_body),
+            confirm = stringResource(R.string.action_delete),
+            onConfirm = {
+                onDelete(job.id)
+                deleting = null
+            },
+            onDismiss = { deleting = null },
+        )
+    }
 }
 
 @Composable
@@ -227,49 +177,45 @@ fun MineScreen(
 ) {
     if (page == MinePage.Root) {
         Column(modifier = Modifier.fillMaxSize()) {
-            PageHeader(title = stringResource(R.string.tab_mine))
+            IosLargeTitle(title = stringResource(R.string.tab_mine))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 20.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(LightTokens.Card)),
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                mineItems().forEachIndexed { index, item ->
-                    if (index > 0) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(Color(LightTokens.Border)),
-                        )
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpen(item.page) }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(stringResource(item.titleRes), color = Color(LightTokens.Ink), fontSize = 16.sp)
-                        Text("›", color = Color(LightTokens.Muted), fontSize = 20.sp)
+                mineItemGroups().forEach { group ->
+                    IosSection {
+                        group.forEachIndexed { index, item ->
+                            IosRow(
+                                title = stringResource(item.titleRes),
+                                showDivider = index < group.lastIndex,
+                                onClick = { onOpen(item.page) },
+                            )
+                        }
                     }
                 }
+                Text(
+                    stringResource(R.string.mine_version, versionName),
+                    color = Color(LightTokens.Muted),
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+                Text(
+                    stringResource(R.string.mine_local_promise),
+                    color = Color(LightTokens.Muted),
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
             }
         }
     } else {
         Column(modifier = Modifier.fillMaxSize()) {
-            PageHeader(
+            IosNavBar(
                 title = stringResource(minePageTitleRes(page)),
-                leading = {
-                    Text(
-                        stringResource(R.string.action_back),
-                        color = Color(LightTokens.Accent),
-                        modifier = Modifier.clickable(onClick = onBack),
-                    )
-                },
+                backLabel = stringResource(R.string.tab_mine),
+                onBack = onBack,
             )
             Text(
                 if (page == MinePage.About) {
@@ -278,13 +224,13 @@ fun MineScreen(
                     val bodyRes = minePageBodyRes(page)
                     if (bodyRes != 0) stringResource(bodyRes) else ""
                 },
-                color = Color(LightTokens.Muted),
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
+                color = Color(LightTokens.Ink),
+                fontSize = 17.sp,
+                lineHeight = 24.sp,
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 20.dp, bottom = 24.dp),
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 12.dp, bottom = 24.dp),
             )
         }
     }
@@ -308,7 +254,7 @@ private fun RenameDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 28.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(ShapeTokens.Dialog))
                 .background(Color(LightTokens.Card))
                 .clickable(enabled = false, onClick = {})
                 .padding(20.dp),
@@ -330,16 +276,18 @@ private fun RenameDialog(
                     stringResource(R.string.action_cancel),
                     color = Color(LightTokens.Muted),
                     modifier = Modifier
+                        .heightIn(min = 48.dp)
                         .clickable(onClick = onDismiss)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
                 )
                 Text(
                     stringResource(R.string.action_save),
                     color = Color(LightTokens.Accent),
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
+                        .heightIn(min = 48.dp)
                         .clickable(onClick = { onConfirm(value) })
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
                 )
             }
         }
@@ -347,126 +295,52 @@ private fun RenameDialog(
 }
 
 @Composable
-private fun TabGlyph(tab: RootTab, selected: Boolean) {
-    val color = if (selected) Color(LightTokens.Accent) else Color(LightTokens.Muted)
-    Canvas(Modifier.size(22.dp)) {
-        val stroke = Stroke(width = 1.7.dp.toPx())
-        when (tab) {
-            RootTab.Transcode -> {
-                val left = 2.dp.toPx()
-                val top = 4.5.dp.toPx()
-                val width = 18.dp.toPx()
-                val height = 13.dp.toPx()
-                drawRoundRect(
-                    color = color,
-                    topLeft = Offset(left, top),
-                    size = Size(width, height),
-                    cornerRadius = CornerRadius(3.dp.toPx()),
-                    style = stroke,
+private fun ConfirmDialog(
+    title: String,
+    body: String,
+    confirm: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x66000000))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp)
+                .clip(RoundedCornerShape(ShapeTokens.Dialog))
+                .background(Color(LightTokens.Card))
+                .clickable(enabled = false, onClick = {})
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(title, color = Color(LightTokens.Ink), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(body, color = Color(LightTokens.Muted), fontSize = 13.sp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Text(
+                    stringResource(R.string.action_cancel),
+                    color = Color(LightTokens.Muted),
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable(onClick = onDismiss)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
                 )
-                val play = Path().apply {
-                    val cx = left + width * 0.40f
-                    val cy = top + height / 2f
-                    val h = height * 0.32f
-                    moveTo(cx - h * 0.3f, cy - h)
-                    lineTo(cx - h * 0.3f, cy + h)
-                    lineTo(cx + h, cy)
-                    close()
-                }
-                drawPath(play, color, style = Fill)
-            }
-            RootTab.Document -> {
-                val left = 5.dp.toPx()
-                val top = 3.dp.toPx()
-                val width = 12.dp.toPx()
-                val height = 16.dp.toPx()
-                val fold = 4.5.dp.toPx()
-                val page = Path().apply {
-                    moveTo(left, top)
-                    lineTo(left + width - fold, top)
-                    lineTo(left + width, top + fold)
-                    lineTo(left + width, top + height)
-                    lineTo(left, top + height)
-                    close()
-                }
-                drawPath(page, color, style = stroke)
-                drawLine(
-                    color = color,
-                    start = Offset(left + width - fold, top),
-                    end = Offset(left + width - fold, top + fold),
-                    strokeWidth = 1.7.dp.toPx(),
-                )
-                drawLine(
-                    color = color,
-                    start = Offset(left + width - fold, top + fold),
-                    end = Offset(left + width, top + fold),
-                    strokeWidth = 1.7.dp.toPx(),
-                )
-            }
-            RootTab.Audio -> {
-                val head = Offset(center.x - 4.dp.toPx(), center.y + 5.dp.toPx())
-                val stemX = head.x + 3.2.dp.toPx()
-                val stemTop = Offset(stemX, center.y - 6.dp.toPx())
-                drawCircle(
-                    color = color,
-                    radius = 3.2.dp.toPx(),
-                    center = head,
-                    style = stroke,
-                )
-                drawLine(
-                    color = color,
-                    start = Offset(stemX, head.y),
-                    end = stemTop,
-                    strokeWidth = 1.7.dp.toPx(),
-                )
-                val flag = Path().apply {
-                    moveTo(stemTop.x, stemTop.y)
-                    quadraticTo(
-                        stemTop.x + 8.dp.toPx(),
-                        stemTop.y + 2.dp.toPx(),
-                        stemTop.x + 5.dp.toPx(),
-                        stemTop.y + 7.dp.toPx(),
-                    )
-                    quadraticTo(
-                        stemTop.x + 3.dp.toPx(),
-                        stemTop.y + 4.dp.toPx(),
-                        stemTop.x,
-                        stemTop.y + 3.dp.toPx(),
-                    )
-                    close()
-                }
-                drawPath(flag, color, style = Fill)
-            }
-            RootTab.History -> {
-                drawCircle(color = color, radius = 8.dp.toPx(), center = center, style = stroke)
-                drawLine(
-                    color = color,
-                    start = center,
-                    end = Offset(center.x, center.y - 5.dp.toPx()),
-                    strokeWidth = 1.7.dp.toPx(),
-                )
-                drawLine(
-                    color = color,
-                    start = center,
-                    end = Offset(center.x + 5.dp.toPx(), center.y + 2.dp.toPx()),
-                    strokeWidth = 1.7.dp.toPx(),
-                )
-            }
-            RootTab.Mine -> {
-                drawCircle(
-                    color = color,
-                    radius = 3.5.dp.toPx(),
-                    center = Offset(center.x, 7.dp.toPx()),
-                    style = stroke,
-                )
-                drawArc(
-                    color = color,
-                    startAngle = 200f,
-                    sweepAngle = 140f,
-                    useCenter = false,
-                    topLeft = Offset(4.dp.toPx(), 10.dp.toPx()),
-                    size = Size(14.dp.toPx(), 12.dp.toPx()),
-                    style = stroke,
+                Text(
+                    confirm,
+                    color = Color(LightTokens.Accent),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable(onClick = onConfirm)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
                 )
             }
         }
