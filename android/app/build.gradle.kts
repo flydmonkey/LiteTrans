@@ -29,9 +29,6 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     packaging { jniLibs { useLegacyPackaging = true } }
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
     sourceSets.getByName("test") {
         resources.srcDir(layout.buildDirectory.dir("generated/pdfboxTestResources"))
     }
