@@ -35,6 +35,7 @@ class LanShareService : Service() {
     @Volatile
     private var running = false
     private var serverThread: Thread? = null
+    @Volatile
     private var serverSocket: ServerSocket? = null
 
     override fun onCreate() {
@@ -192,11 +193,18 @@ class LanShareService : Service() {
             Intent(this, MainActivity::class.java).putExtra(EXTRA_OPEN_LAN_SHARE, true),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        val stopShare = PendingIntent.getForegroundService(
+            this,
+            STOP_REQUEST_CODE,
+            Intent(this, LanShareService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
             .setContentTitle(getString(R.string.app_name))
             .setContentText("局域网访问已开启")
             .setContentIntent(openApp)
+            .addAction(Notification.Action.Builder(null, "关闭", stopShare).build())
             .setOngoing(true)
             .build()
         startForeground(
@@ -244,6 +252,7 @@ class LanShareService : Service() {
         const val EXTRA_OPEN_LAN_SHARE = "openLanShare"
         private const val CHANNEL_ID = "lan-share"
         private const val NOTIFICATION_ID = 1002
+        private const val STOP_REQUEST_CODE = 1003
         private const val RETRY_MS = 2_000L
         private const val CLIENT_TIMEOUT_MS = 15_000
         private const val JOIN_TIMEOUT_MS = 1_000L
