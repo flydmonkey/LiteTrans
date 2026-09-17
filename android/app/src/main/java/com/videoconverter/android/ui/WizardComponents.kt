@@ -62,7 +62,6 @@ import com.videoconverter.android.R
 import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
-import com.videoconverter.android.ui.theme.LightTokens
 import com.videoconverter.android.ui.theme.ShapeTokens
 import java.util.Locale
 
@@ -126,7 +125,7 @@ fun PageHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(LightTokens.Canvas)),
+            .background(MaterialTheme.colorScheme.background),
     ) {
         Column(
             modifier = Modifier
@@ -147,14 +146,14 @@ fun PageHeader(
                 ) {
                     Text(
                         title,
-                        color = Color(LightTokens.Ink),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
                     )
                     if (!subtitle.isNullOrBlank()) {
                         Text(
                             subtitle,
-                            color = Color(LightTokens.Muted),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp,
                         )
                     }
@@ -167,7 +166,7 @@ fun PageHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(Color(LightTokens.Border)),
+                .background(MaterialTheme.colorScheme.outline),
         )
     }
 }
@@ -201,7 +200,7 @@ fun StepTabs(
                     .weight(2f)
                     .height(2.dp)
                     .background(
-                        if (step.ordinal >= 1) Color(LightTokens.Accent) else Color(LightTokens.Chip),
+                        if (step.ordinal >= 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                     ),
             )
             Box(
@@ -209,7 +208,7 @@ fun StepTabs(
                     .weight(2f)
                     .height(2.dp)
                     .background(
-                        if (step.ordinal >= 2) Color(LightTokens.Accent) else Color(LightTokens.Chip),
+                        if (step.ordinal >= 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                     ),
             )
             Spacer(Modifier.weight(1f))
@@ -233,9 +232,9 @@ fun StepTabs(
                     Text(
                         label,
                         color = if (status == StepStatus.Upcoming) {
-                            Color(LightTokens.Muted)
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         } else {
-                            Color(LightTokens.Ink)
+                            MaterialTheme.colorScheme.onSurface
                         },
                         fontSize = 12.sp,
                         fontWeight = if (status == StepStatus.Current) {
@@ -256,13 +255,13 @@ private enum class StepStatus { Done, Current, Upcoming }
 @Composable
 private fun StepDot(number: Int, status: StepStatus) {
     val background = when (status) {
-        StepStatus.Done -> Color(LightTokens.Accent)
-        StepStatus.Current -> Color(LightTokens.Ink)
-        StepStatus.Upcoming -> Color(LightTokens.Chip)
+        StepStatus.Done -> MaterialTheme.colorScheme.primary
+        StepStatus.Current -> MaterialTheme.colorScheme.onSurface
+        StepStatus.Upcoming -> MaterialTheme.colorScheme.surfaceVariant
     }
     val foreground = when (status) {
-        StepStatus.Upcoming -> Color(LightTokens.Ink)
-        else -> Color(LightTokens.OnDark)
+        StepStatus.Upcoming -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onPrimary
     }
     Box(
         modifier = Modifier
@@ -276,33 +275,6 @@ private fun StepDot(number: Int, status: StepStatus) {
             color = foreground,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
-fun NoticeBar(message: String, onDismiss: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(ShapeTokens.Panel))
-            .background(Color(LightTokens.Notice))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            message,
-            color = Color(LightTokens.Ink),
-            modifier = Modifier.weight(1f).padding(end = 12.dp),
-        )
-        Text(
-            stringResource(R.string.action_got_it),
-            color = Color(LightTokens.Accent),
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .clickable(onClick = onDismiss)
-                .padding(horizontal = 8.dp),
         )
     }
 }
@@ -379,7 +351,7 @@ fun Dropzone(
                             else -> R.string.wizard_add_video
                         },
                     ),
-                    color = Color(LightTokens.Ink),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -391,7 +363,7 @@ fun Dropzone(
                             else -> R.string.wizard_add_video_hint
                         },
                     ),
-                    color = Color(LightTokens.Muted),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp,
@@ -418,10 +390,10 @@ private fun SourceChoiceCard(
         modifier = modifier
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(ShapeTokens.Dialog))
-            .background(if (emphasized) Color(LightTokens.Ink) else Color(LightTokens.Card))
+            .background(if (emphasized) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surface)
             .border(
                 1.dp,
-                if (emphasized) Color(LightTokens.Ink) else Color(LightTokens.Border),
+                if (emphasized) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
                 RoundedCornerShape(ShapeTokens.Dialog),
             )
             .clickable(onClick = onClick)
@@ -432,7 +404,7 @@ private fun SourceChoiceCard(
         GlyphBadge(kind = glyph, emphasized = emphasized, size = if (compact) 28.dp else 36.dp)
         Text(
             title,
-            color = if (emphasized) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
+            color = if (emphasized) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
             fontSize = if (compact) 13.sp else 16.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -441,7 +413,7 @@ private fun SourceChoiceCard(
         if (!compact) {
             Text(
                 hint,
-                color = if (emphasized) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
+                color = if (emphasized) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
             )
         }
@@ -454,8 +426,8 @@ private fun MusicMark() {
         modifier = Modifier
             .size(72.dp)
             .clip(RoundedCornerShape(ShapeTokens.Glyph))
-            .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(ShapeTokens.Glyph)),
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Glyph)),
         contentAlignment = Alignment.Center,
     ) {
         GlyphBadge(AppGlyph.Audio, emphasized = true)
@@ -468,8 +440,8 @@ private fun DocumentMark() {
         modifier = Modifier
             .size(72.dp)
             .clip(RoundedCornerShape(ShapeTokens.Glyph))
-            .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(ShapeTokens.Glyph)),
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Glyph)),
         contentAlignment = Alignment.Center,
     ) {
         GlyphBadge(AppGlyph.Document, emphasized = true)
@@ -482,8 +454,8 @@ private fun VideoMark() {
         modifier = Modifier
             .size(72.dp)
             .clip(RoundedCornerShape(ShapeTokens.Glyph))
-            .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(ShapeTokens.Glyph)),
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Glyph)),
         contentAlignment = Alignment.Center,
     ) {
         GlyphBadge(AppGlyph.Video, emphasized = true)
@@ -501,14 +473,14 @@ fun FileRow(
     onRemove: () -> Unit,
 ) {
     val background = when {
-        !importable -> Color(LightTokens.Bad)
-        selected -> Color(LightTokens.Card)
-        else -> Color(LightTokens.Card)
+        !importable -> MaterialTheme.colorScheme.errorContainer
+        selected -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.surface
     }
     val border = when {
-        !importable -> Color(LightTokens.BadBorder)
-        selected -> Color(LightTokens.Ink)
-        else -> Color(LightTokens.Border)
+        !importable -> MaterialTheme.colorScheme.error
+        selected -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.outline
     }
     Row(
         modifier = Modifier
@@ -522,13 +494,13 @@ fun FileRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(name, color = Color(LightTokens.Ink), fontWeight = FontWeight.SemiBold)
-            Text(line, color = Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            Text(line, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         }
         if (canRemove) {
             Text(
                 stringResource(R.string.action_remove),
-                color = Color(LightTokens.Accent),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .clickable(onClick = onRemove)
@@ -582,8 +554,8 @@ fun OptionChips(
     onSelect: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, color = Color(LightTokens.Ink), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        Text(description, color = Color(LightTokens.Muted), fontSize = 13.sp)
+        Text(title, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -593,10 +565,10 @@ fun OptionChips(
                 Column(
                     modifier = Modifier
                         .clip(RoundedCornerShape(ShapeTokens.Chip))
-                        .background(if (on) Color(LightTokens.Ink) else Color(LightTokens.Card))
+                        .background(if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surface)
                         .border(
                             1.dp,
-                            if (on) Color(LightTokens.Ink) else Color(LightTokens.Border),
+                            if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
                             RoundedCornerShape(ShapeTokens.Chip),
                         )
                         .clickable { onSelect(option.id) }
@@ -605,12 +577,12 @@ fun OptionChips(
                 ) {
                     Text(
                         chipTitle(option),
-                        color = if (on) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
+                        color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
                         chipHint(option),
-                        color = if (on) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
+                        color = if (on) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                     )
                 }
@@ -667,10 +639,10 @@ private fun OutputChoiceCardView(
         modifier = modifier
             .height(92.dp)
             .clip(RoundedCornerShape(ShapeTokens.Panel))
-            .background(if (selected) Color(LightTokens.Ink) else Color(LightTokens.Card))
+            .background(if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surface)
             .border(
                 1.dp,
-                if (selected) Color(LightTokens.Ink) else Color(LightTokens.Border),
+                if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
                 RoundedCornerShape(ShapeTokens.Panel),
             )
             .clickable(onClick = onSelect)
@@ -679,13 +651,13 @@ private fun OutputChoiceCardView(
     ) {
         Text(
             title,
-            color = if (selected) Color(LightTokens.OnDark) else Color(LightTokens.Ink),
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
             fontSize = 16.sp,
         )
         Text(
             hint,
-            color = if (selected) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted),
+            color = if (selected) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -880,57 +852,22 @@ private fun jobRowActionClick(
 }
 
 @Composable
-fun WizardDock(
-    step: WizardStep,
-    summary: String,
-    action: String,
-    actionEnabled: Boolean,
-    onBack: () -> Unit,
-    onAction: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(LightTokens.Ink)),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-        Text(summary, color = Color(LightTokens.OnDarkMuted), fontSize = 13.sp)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (step != WizardStep.Sources) {
-                ActionButton(stringResource(R.string.action_previous), onBack, Modifier.weight(1f), filled = false)
-                ActionButton(action, onAction, Modifier.weight(2f), filled = true, enabled = actionEnabled)
-            } else {
-                ActionButton(action, onAction, Modifier.fillMaxWidth(), filled = true, enabled = actionEnabled)
-            }
-        }
-        }
-    }
-}
-
-@Composable
 private fun PresetCard(
     card: WizardPresetCard,
     selected: Boolean,
     onSelect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val titleColor = if (selected) Color(LightTokens.OnDark) else Color(LightTokens.Ink)
-    val hintColor = if (selected) Color(LightTokens.OnDarkMuted) else Color(LightTokens.Muted)
+    val titleColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val hintColor = if (selected) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant
     Box(
         modifier = modifier
             .height(92.dp)
             .clip(RoundedCornerShape(ShapeTokens.Panel))
-            .background(if (selected) Color(LightTokens.Ink) else Color(LightTokens.Card))
+            .background(if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surface)
             .border(
                 1.dp,
-                if (selected) Color(LightTokens.Ink) else Color(LightTokens.Border),
+                if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
                 RoundedCornerShape(ShapeTokens.Panel),
             )
             .clickable(onClick = onSelect)
@@ -960,12 +897,12 @@ private fun PresetCard(
         card.badgeRes?.let { badgeRes ->
             Text(
                 stringResource(badgeRes),
-                color = if (selected) Color(LightTokens.Ink) else Color(LightTokens.OnDark),
+                color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary,
                 fontSize = 11.sp,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .clip(RoundedCornerShape(ShapeTokens.Stamp))
-                    .background(if (selected) Color(LightTokens.OnDark) else Color(LightTokens.Accent))
+                    .background(if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
                     .padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
@@ -977,118 +914,33 @@ private fun MorePresetCard(showAll: Boolean, onClick: () -> Unit, modifier: Modi
     Column(
         modifier = modifier
             .height(92.dp)
-            .dashedBorder(ShapeTokens.Panel)
+            .dashedBorder(ShapeTokens.Panel, MaterialTheme.colorScheme.outline)
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
             stringResource(if (showAll) R.string.action_collapse else R.string.action_more),
-            color = Color(LightTokens.Ink),
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
             stringResource(if (showAll) R.string.wizard_less_formats else R.string.wizard_more_formats),
-            color = Color(LightTokens.Muted),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp,
             modifier = Modifier.padding(top = 6.dp),
         )
     }
 }
 
-@Composable
-private fun InkButton(label: String, onClick: () -> Unit) {
-    ActionButton(label, onClick, filled = true)
-}
-
-@Composable
-private fun ActionButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    filled: Boolean,
-    enabled: Boolean = true,
-) {
-    val background = when {
-        !enabled -> Color(LightTokens.Accent).copy(alpha = 0.4f)
-        filled -> Color(LightTokens.Accent)
-        else -> Color.Transparent
-    }
-    val foreground = when {
-        filled -> Color(LightTokens.OnDark)
-        else -> Color(LightTokens.OnDark)
-    }
-    Box(
-        modifier = modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(ShapeTokens.Panel))
-            .background(background)
-            .then(
-                if (filled) Modifier else Modifier.border(
-                    1.dp,
-                    Color(LightTokens.OnDarkMuted),
-                    RoundedCornerShape(ShapeTokens.Panel),
-                ),
-            )
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            color = foreground,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun AccentText(
-    label: String,
-    onClick: () -> Unit,
-    filled: Boolean = false,
-    muted: Boolean = false,
-) {
-    if (filled) {
-        Box(
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .clip(RoundedCornerShape(ShapeTokens.Chip))
-                .background(Color(LightTokens.Accent))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(label, color = Color(LightTokens.OnDark), fontWeight = FontWeight.SemiBold)
-        }
-    } else {
-        Box(
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                label,
-                color = if (muted) Color(LightTokens.Muted) else Color(LightTokens.Accent),
-                fontWeight = if (muted) FontWeight.Medium else FontWeight.SemiBold,
-            )
-        }
-    }
-}
-
-private fun Modifier.dashedBorder(corner: Dp): Modifier = drawWithContent {
+private fun Modifier.dashedBorder(corner: Dp, color: Color): Modifier = drawWithContent {
     drawContent()
     val stroke = Stroke(
         width = 1.dp.toPx(),
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f),
     )
     drawRoundRect(
-        color = Color(LightTokens.Border),
+        color = color,
         style = stroke,
         cornerRadius = CornerRadius(corner.toPx()),
     )

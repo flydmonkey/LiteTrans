@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,7 +53,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.videoconverter.android.R
 import com.videoconverter.android.domain.MediaInfo
-import com.videoconverter.android.ui.theme.LightTokens
+import com.videoconverter.android.ui.theme.ShapeTokens
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -136,9 +137,9 @@ private fun TrimPanelContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(LightTokens.Card))
-            .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Panel))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -148,16 +149,16 @@ private fun TrimPanelContent(
             verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                Text(stringResource(R.string.trim_title), color = Color(LightTokens.Ink), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.trim_title), color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Text(
                     stringResource(R.string.trim_hint),
-                    color = Color(LightTokens.Muted),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                 )
             }
             Text(
                 stringResource(R.string.trim_reset),
-                color = Color(LightTokens.Accent),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable {
                     onChange(media.copy(trimStartSecs = null, trimEndSecs = null))
                     seekPlayhead(0.0)
@@ -177,18 +178,18 @@ private fun TrimPanelContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(ShapeTokens.Panel))
                     .background(Color.White),
             )
         } else if (!playPreview) {
             Text(
                 stringResource(R.string.trim_no_preview),
-                color = Color(LightTokens.Muted),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(ShapeTokens.Panel))
                     .background(Color.White)
-                    .border(1.dp, Color(LightTokens.Border), RoundedCornerShape(12.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Panel))
                     .padding(horizontal = 16.dp, vertical = 28.dp),
             )
         }
@@ -231,10 +232,10 @@ private fun TrimPanelContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(stringResource(R.string.trim_start, formatClock(start)), color = Color(LightTokens.Muted), fontSize = 13.sp)
-            Text(stringResource(R.string.trim_current, formatClock(playhead)), color = Color(LightTokens.Muted), fontSize = 13.sp)
-            Text(stringResource(R.string.trim_end, formatClock(end)), color = Color(LightTokens.Muted), fontSize = 13.sp)
-            Text(stringResource(R.string.trim_keep, formatDurationLabel(end - start, LocalContext.current.resources)), color = Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(stringResource(R.string.trim_start, formatClock(start)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            Text(stringResource(R.string.trim_current, formatClock(playhead)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            Text(stringResource(R.string.trim_end, formatClock(end)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            Text(stringResource(R.string.trim_keep, formatDurationLabel(end - start, LocalContext.current.resources)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         }
     }
 }
@@ -257,17 +258,19 @@ private fun TrimTrack(
     val onDragStartState = rememberUpdatedState(onDragStart)
     val onDragEndState = rememberUpdatedState(onDragEnd)
     val onPlayheadState = rememberUpdatedState(onPlayhead)
+    val rangeColor = MaterialTheme.colorScheme.onSurface
+    val playheadColor = MaterialTheme.colorScheme.primary
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(28.dp)
+            .height(36.dp)
             .pointerInput(duration) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     val width = size.width.toFloat()
                     val startX = ((startState.value / duration) * width).toFloat()
                     val endX = ((endState.value / duration) * width).toFloat()
-                    val hit = 18.dp.toPx()
+                    val hit = 28.dp.toPx()
                     val kind = when {
                         abs(down.position.x - startX) <= hit -> TrimDrag.Start
                         abs(down.position.x - endX) <= hit -> TrimDrag.End
@@ -294,23 +297,23 @@ private fun TrimTrack(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(99.dp))
-                .background(Color(LightTokens.Chip))
+                .clip(RoundedCornerShape(ShapeTokens.Chip))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .drawBehind {
                     val width = size.width
                     val startX = startRatio * width
                     val endX = endRatio * width
                     val playX = playRatio * width
                     drawRoundRect(
-                        color = Color(LightTokens.Ink),
-                        topLeft = Offset(startX, 6.dp.toPx()),
-                        size = Size((endX - startX).coerceAtLeast(2f), 16.dp.toPx()),
+                        color = rangeColor,
+                        topLeft = Offset(startX, 8.dp.toPx()),
+                        size = Size((endX - startX).coerceAtLeast(2f), 20.dp.toPx()),
                         cornerRadius = CornerRadius(99.dp.toPx()),
                     )
                     drawRect(
-                        color = Color(LightTokens.Accent),
+                        color = playheadColor,
                         topLeft = Offset(playX - 1.dp.toPx(), 2.dp.toPx()),
-                        size = Size(2.dp.toPx(), 24.dp.toPx()),
+                        size = Size(2.dp.toPx(), 32.dp.toPx()),
                     )
                 },
         )
@@ -326,14 +329,14 @@ private fun Handle(x: Float) {
         modifier = Modifier
             .offset {
                 IntOffset(
-                    (x - 9.dp.toPx()).roundToInt(),
-                    ((28.dp.toPx() - 18.dp.toPx()) / 2f).roundToInt(),
+                    (x - 14.dp.toPx()).roundToInt(),
+                    ((36.dp.toPx() - 28.dp.toPx()) / 2f).roundToInt(),
                 )
             }
-            .size(18.dp)
+            .size(28.dp)
             .border(2.dp, Color.White, CircleShape)
             .clip(CircleShape)
-            .background(Color(LightTokens.Accent)),
+            .background(MaterialTheme.colorScheme.primary),
     )
 }
 
@@ -341,10 +344,10 @@ private fun Handle(x: Float) {
 private fun InkChip(label: String, onClick: () -> Unit) {
     Text(
         label,
-        color = Color(LightTokens.Ink),
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(LightTokens.Chip))
+            .clip(RoundedCornerShape(ShapeTokens.Chip))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         fontWeight = FontWeight.SemiBold,

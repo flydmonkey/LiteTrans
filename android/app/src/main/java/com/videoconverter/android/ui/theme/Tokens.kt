@@ -83,20 +83,3 @@ object ShapeTokens {
     val Glyph = Small
     val Dialog = ExtraLarge
 }
-
-@Deprecated("Use MaterialTheme.colorScheme")
-object LightTokens {
-    const val Canvas = SeedColors.LightBackground
-    const val Ink = SeedColors.LightOnSurface
-    const val Muted = SeedColors.LightOnSurfaceVariant
-    const val Card = SeedColors.LightSurface
-    const val Border = SeedColors.LightOutline
-    const val Accent = SeedColors.LightPrimary
-    const val Chip = SeedColors.LightSurfaceVariant
-    const val Notice = SeedColors.LightPrimaryContainer
-    const val Bad = SeedColors.LightErrorContainer
-    const val Danger = SeedColors.LightError
-    const val BadBorder = SeedColors.LightError
-    const val OnDark = SeedColors.LightOnPrimary
-    const val OnDarkMuted = SeedColors.LightOnSurfaceVariant
-}

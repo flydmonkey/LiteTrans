@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,8 +16,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,7 +43,8 @@ import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.clampPageRange
 import com.videoconverter.android.domain.documentSourceKind
-import com.videoconverter.android.ui.theme.LightTokens
+import com.videoconverter.android.domain.stepPage
+import com.videoconverter.android.ui.theme.ShapeTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -52,6 +56,7 @@ fun DocumentSourcePreview(
     when (documentSourceKind(media.displayName)) {
         DocumentSourceKind.Pdf -> PdfPagePanel(media, onChange)
         DocumentSourceKind.Image -> ImageSourcePreview(media)
+        DocumentSourceKind.Word, DocumentSourceKind.Excel -> OfficeSourcePreview(media)
         else -> Unit
     }
 }
@@ -68,31 +73,41 @@ private fun PdfPagePanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(androidx.compose.ui.graphics.Color(LightTokens.Card))
-            .border(1.dp, androidx.compose.ui.graphics.Color(LightTokens.Border), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Panel))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stringResource(R.string.document_page_range), color = androidx.compose.ui.graphics.Color(LightTokens.Ink), fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.document_page_range), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
         SourceBitmap(media.sourceUri, previewPage)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PageField(stringResource(R.string.document_start_page), start, Modifier.weight(1f)) { value ->
+            PageStepper(
+                label = stringResource(R.string.document_start_page),
+                value = start,
+                pages = pages,
+                modifier = Modifier.weight(1f),
+            ) { value ->
                 val (lo, hi) = clampPageRange(value, end, pages)
                 onChange(media.copy(pageStart = lo, pageEnd = hi))
             }
-            PageField(stringResource(R.string.document_end_page), end, Modifier.weight(1f)) { value ->
+            PageStepper(
+                label = stringResource(R.string.document_end_page),
+                value = end,
+                pages = pages,
+                modifier = Modifier.weight(1f),
+            ) { value ->
                 val (lo, hi) = clampPageRange(start, value, pages)
                 onChange(media.copy(pageStart = lo, pageEnd = hi))
             }
         }
         Text(
             stringResource(R.string.document_total_pages, pages),
-            color = androidx.compose.ui.graphics.Color(LightTokens.Muted),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp,
         )
     }
@@ -103,33 +118,84 @@ private fun ImageSourcePreview(media: MediaInfo) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(androidx.compose.ui.graphics.Color(LightTokens.Card))
-            .border(1.dp, androidx.compose.ui.graphics.Color(LightTokens.Border), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Panel))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stringResource(R.string.document_preview), color = androidx.compose.ui.graphics.Color(LightTokens.Ink), fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.document_preview), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
         SourceBitmap(media.sourceUri, page = null)
     }
 }
 
 @Composable
-private fun PageField(
+private fun OfficeSourcePreview(media: MediaInfo) {
+    val kind = documentSourceKind(media.displayName) ?: return
+    val titleRes = officePreviewTitleRes(kind)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(ShapeTokens.Panel))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(ShapeTokens.Panel))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            if (titleRes != 0) stringResource(titleRes) else media.displayName,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            media.displayName,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+        )
+        Text(
+            stringResource(R.string.document_office_preview),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+        )
+    }
+}
+
+@Composable
+private fun PageStepper(
     label: String,
     value: Int,
+    pages: Int,
     modifier: Modifier = Modifier,
     onValue: (Int) -> Unit,
 ) {
-    OutlinedTextField(
-        value = value.toString(),
-        onValueChange = { raw ->
-            raw.filter(Char::isDigit).toIntOrNull()?.let(onValue)
-        },
-        label = { Text(label) },
-        singleLine = true,
-        modifier = modifier,
-    )
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StepperButton("−") { onValue(stepPage(value, pages, -1)) }
+            Text(
+                value.toString(),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.widthIn(min = 32.dp),
+            )
+            StepperButton("+") { onValue(stepPage(value, pages, 1)) }
+        }
+    }
+}
+
+@Composable
+private fun StepperButton(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(ShapeTokens.Chip))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+    }
 }
 
 @Composable
@@ -151,8 +217,8 @@ private fun SourceBitmap(uri: String, page: Int?) {
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 160.dp, max = 280.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(androidx.compose.ui.graphics.Color(LightTokens.Chip)),
+            .clip(RoundedCornerShape(ShapeTokens.Chip))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         val image = bitmap
@@ -164,7 +230,7 @@ private fun SourceBitmap(uri: String, page: Int?) {
                 contentScale = ContentScale.Fit,
             )
         } else {
-            Text(stringResource(R.string.document_preview_failed), color = androidx.compose.ui.graphics.Color(LightTokens.Muted), fontSize = 13.sp)
+            Text(stringResource(R.string.document_preview_failed), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         }
     }
 }
