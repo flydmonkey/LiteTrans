@@ -12,7 +12,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [29])
+@Config(sdk = [29], qualifiers = "en")
 class StringsResourceTest {
     private val app = ApplicationProvider.getApplicationContext<android.app.Application>()
 
@@ -121,6 +121,7 @@ class StringsResourceTest {
             R.string.action_delete,
             R.string.action_retry,
             R.string.action_back,
+            R.string.action_previous,
             R.string.action_next,
             R.string.action_save,
             R.string.action_copy,
