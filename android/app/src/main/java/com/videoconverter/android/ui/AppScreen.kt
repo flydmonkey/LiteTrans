@@ -2,36 +2,25 @@ package com.videoconverter.android.ui
 
 import android.Manifest
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,27 +28,41 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.documentfile.provider.DocumentFile
-import com.videoconverter.android.data.OutputTarget
-import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
-import com.videoconverter.android.domain.PresetInfo
-import com.videoconverter.android.domain.listPresets
-import java.util.Locale
+import com.videoconverter.android.ui.theme.LightTokens
 
-private val primaryPresetIds = listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264")
+private val QUALITY_CHIPS = listOf(
+    ChipOption("original", "原画", "尽量保留细节"),
+    ChipOption("standard", "标准", "一般观看够用"),
+    ChipOption("small", "节省体积", "文件更小，会糊一点"),
+)
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val SIZE_CHIPS = listOf(
+    ChipOption("original", "原尺寸", "不缩小画面"),
+    ChipOption("1080p", "1080p", "全高清"),
+    ChipOption("720p", "720p", "高清"),
+    ChipOption("480p", "480p", "更小画面"),
+)
+
 @Composable
 fun AppScreen(appViewModel: AppViewModel = viewModel()) {
     val state by appViewModel.state.collectAsState()
     val context = LocalContext.current
-    var trimMedia by remember { mutableStateOf<MediaInfo?>(null) }
-    var showMore by remember { mutableStateOf(false) }
+    var step by remember { mutableStateOf(WizardStep.Sources) }
+    var showAll by remember { mutableStateOf(false) }
+    var selectedUri by remember { mutableStateOf<String?>(null) }
+    val importable = state.sources.count { it.media.importable }
+    val transcoding = state.jobs.any { it.status == JobStatus.Queued || it.status == JobStatus.Running }
+    val probing = state.sources.any { it.probing }
+    val preview = state.sources.firstOrNull { it.media.sourceUri == selectedUri }?.media
+        ?: state.sources.firstOrNull { itemHasDuration(it.media) }?.media
 
     val galleryPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(),
@@ -76,15 +79,6 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
         ActivityResultContracts.RequestPermission(),
     ) { appViewModel.start() }
 
-    trimMedia?.let { media ->
-        TrimScreen(
-            media = media,
-            onBack = { trimMedia = null },
-            onSave = appViewModel::updateTrim,
-        )
-        return
-    }
-
     fun startWithNotificationPermission() {
         val preferences = context.getSharedPreferences("ui", 0)
         val firstRequest = !preferences.getBoolean("notificationAsked", false)
@@ -96,122 +90,162 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("轻转码")
-                        Text(
-                            "不上传 · 不联网",
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                },
-            )
-        },
-        bottomBar = {
-            Button(
-                onClick = ::startWithNotificationPermission,
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-            ) { Text("开始转码") }
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    BackHandler(enabled = step != WizardStep.Sources) {
+        retreatStep(step)?.let { step = it }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(LightTokens.Canvas))
+            .statusBarsPadding(),
+    ) {
+        Column(
+            modifier = Modifier.padding(start = 20.dp, top = 12.dp, end = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                StepCard(number = "1", title = "添加视频") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(
-                            onClick = {
+            WizardHeader()
+            StepTabs(step, importable) { target ->
+                if (canEnterStep(target, importable)) step = target
+            }
+            state.message?.let { NoticeBar(it, appViewModel::clearMessage) }
+        }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
+        ) {
+            when (step) {
+                WizardStep.Sources -> {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                "添加文件",
+                                color = Color(LightTokens.Ink),
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                "预览并裁切要保留的片段",
+                                color = Color(LightTokens.Muted),
+                            )
+                        }
+                    }
+                    item {
+                        Dropzone(
+                            onGallery = {
                                 galleryPicker.launch(
                                     PickVisualMediaRequest(
                                         ActivityResultContracts.PickVisualMedia.VideoOnly,
                                     ),
                                 )
                             },
-                        ) { Text("从相册添加") }
-                        OutlinedButton(onClick = { filePicker.launch(arrayOf("video/*")) }) {
-                            Text("从文件添加")
-                        }
+                            onFiles = { filePicker.launch(arrayOf("video/*")) },
+                        )
                     }
-                    state.sources.forEach { source ->
-                        SourceCard(
-                            item = source,
+                    items(state.sources, key = { it.media.sourceUri }) { source ->
+                        FileRow(
+                            name = source.media.displayName,
+                            line = sourceFormatLine(source.media, source.probing),
+                            selected = source.media.sourceUri == selectedUri,
+                            importable = source.media.importable || source.probing,
                             canRemove = state.jobs.none {
-                                it.sourceUri == source.media.sourceUri &&
-                                    it.status == JobStatus.Running
+                                it.sourceUri == source.media.sourceUri && it.status == JobStatus.Running
                             },
-                            onOpen = { trimMedia = source.media.takeUnless { source.probing } },
+                            onOpen = {
+                                if (itemHasDuration(source.media)) selectedUri = source.media.sourceUri
+                            },
                             onRemove = { appViewModel.remove(source.media.sourceUri) },
                         )
                     }
-                }
-            }
-            item {
-                StepCard(number = "2", title = "选择格式与画质") {
-                    val presets = listPresets()
-                    PresetList(
-                        presets = presets.filter { it.id in primaryPresetIds }
-                            .sortedBy { primaryPresetIds.indexOf(it.id) },
-                        selected = state.preset,
-                        onSelect = appViewModel::setPreset,
-                    )
-                    if (showMore) {
-                        PresetList(
-                            presets = presets.filterNot { it.id in primaryPresetIds },
-                            selected = state.preset,
-                            onSelect = appViewModel::setPreset,
-                        )
-                    }
-                    TextButton(onClick = { showMore = !showMore }) {
-                        Text(if (showMore) "收起" else "更多")
-                    }
-                    OptionRow(
-                        title = if (state.preset.startsWith("audio-")) "音质" else "画质",
-                        options = listOf(
-                            "original" to "原画",
-                            "standard" to "标准",
-                            "small" to "节省体积",
-                        ),
-                        selected = state.quality,
-                        onSelect = appViewModel::setQuality,
-                    )
-                    if (shouldShowResolution(state.preset)) {
-                        OptionRow(
-                            title = "分辨率",
-                            options = listOf(
-                                "original" to "原尺寸",
-                                "1080p" to "1080p",
-                                "720p" to "720p",
-                                "480p" to "480p",
-                            ),
-                            selected = state.size,
-                            onSelect = appViewModel::setSize,
-                        )
-                    }
-                }
-            }
-            item {
-                StepCard(number = "3", title = "输出与任务") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column {
-                            Text("输出到", style = MaterialTheme.typography.labelLarge)
-                            Text(outputLabel(context, state.output))
+                    if (preview != null) {
+                        item(key = "trim-${preview.sourceUri}") {
+                            TrimPanel(preview, appViewModel::updateTrim)
                         }
-                        TextButton(onClick = { outputPicker.launch(null) }) { Text("更改") }
+                    }
+                }
+                WizardStep.Format -> {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                "转成",
+                                color = Color(LightTokens.Ink),
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                conversionPreview(state.sources.map { it.media }, presetTitle(state.preset)),
+                                color = Color(LightTokens.Muted),
+                            )
+                        }
+                    }
+                    item {
+                        PresetGrid(
+                            cards = collapsedPresetCards(state.preset, showAll),
+                            selected = state.preset,
+                            showAll = showAll,
+                            onSelect = appViewModel::setPreset,
+                            onToggleMore = { showAll = !showAll },
+                        )
+                    }
+                    if (isCopyPreset(state.preset)) {
+                        item {
+                            Text(
+                                "不重编码只换文件外壳，画质和分辨率都保持原样。源视频编码必须能放进 MP4，不行的文件会提示改用普通转码。",
+                                color = Color(LightTokens.Muted),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(LightTokens.Card), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                            )
+                        }
+                    } else {
+                        item {
+                            OptionChips(
+                                title = if (isAudioPreset(state.preset)) "音质" else "画质",
+                                description = if (isAudioPreset(state.preset)) {
+                                    "声音保留多少，和画面大小无关"
+                                } else {
+                                    "画质管「压得紧不紧」，分辨率管「画面有多大」。可以原画 + 1080p：画面缩小，细节尽量留着。"
+                                },
+                                options = QUALITY_CHIPS,
+                                selected = state.quality,
+                                onSelect = appViewModel::setQuality,
+                            )
+                        }
+                        if (shouldShowResolution(state.preset)) {
+                            item {
+                                OptionChips(
+                                    title = "分辨率",
+                                    description = "画面有多少像素。原尺寸就是不缩小。",
+                                    options = SIZE_CHIPS,
+                                    selected = state.size,
+                                    onSelect = appViewModel::setSize,
+                                )
+                            }
+                        }
+                    }
+                }
+                WizardStep.Output -> {
+                    item {
+                        OutputBar(
+                            label = outputFolderLabel(context, state.output),
+                            onChange = { outputPicker.launch(null) },
+                        )
                     }
                     if (state.jobs.any { it.status !in setOf(JobStatus.Queued, JobStatus.Running) }) {
-                        TextButton(onClick = appViewModel::clearFinished) { Text("清除已结束") }
+                        item {
+                            Text(
+                                "清空已完成",
+                                color = Color(LightTokens.Accent),
+                                modifier = Modifier.clickable(onClick = appViewModel::clearFinished),
+                            )
+                        }
                     }
-                    state.jobs.forEach { job ->
-                        JobCard(
+                    items(state.jobs, key = { it.id }) { job ->
+                        JobRow(
                             job = job,
                             onCancel = { appViewModel.cancel(job.id) },
                             onRetry = { appViewModel.retry(job.id) },
@@ -221,160 +255,56 @@ fun AppScreen(appViewModel: AppViewModel = viewModel()) {
                     }
                 }
             }
-            state.message?.let { message ->
-                item {
-                    Card {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(message, modifier = Modifier.weight(1f))
-                            TextButton(onClick = appViewModel::clearMessage) { Text("知道了") }
-                        }
-                    }
-                }
-            }
-            item { Spacer(Modifier.height(8.dp)) }
         }
-    }
-}
-
-@Composable
-private fun StepCard(number: String, title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 10.dp),
         ) {
-            Text("$number. $title", style = MaterialTheme.typography.titleLarge)
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SourceCard(
-    item: SourceItem,
-    canRemove: Boolean,
-    onOpen: () -> Unit,
-    onRemove: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = !item.probing, onClick = onOpen),
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(item.media.displayName, style = MaterialTheme.typography.titleSmall)
-            Text(
-                when {
-                    item.probing -> "正在读取格式…"
-                    item.media.error != null -> item.media.error
-                    else -> mediaSummary(item.media)
+            WizardDock(
+                step = step,
+                summary = dockSummary(
+                    step = step,
+                    importableCount = importable,
+                    presetTitle = presetTitle(state.preset),
+                    qualityLabel = qualityLabel(state.quality),
+                    sizeLabel = sizeLabel(state.size),
+                    audioOnly = isAudioPreset(state.preset),
+                    copyOnly = isCopyPreset(state.preset),
+                    trimLabel = trimLabel(state.sources.map { it.media }, preview),
+                    outputLabel = outputFolderLabel(context, state.output),
+                    formatPreview = conversionPreview(
+                        state.sources.map { it.media },
+                        presetTitle(state.preset),
+                    ),
+                ),
+                action = dockActionLabel(step, busy = false, transcoding = transcoding),
+                actionEnabled = when (step) {
+                    WizardStep.Sources, WizardStep.Format -> importable > 0 && !probing
+                    WizardStep.Output -> importable > 0 && !transcoding && !probing
                 },
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (canRemove) {
-                TextButton(onClick = onRemove) { Text("移除") }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PresetList(
-    presets: List<PresetInfo>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    presets.forEach { preset ->
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { onSelect(preset.id) },
-        ) {
-            Column(Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(preset.label, style = MaterialTheme.typography.titleSmall)
-                    if (selected == preset.id) Text("已选择")
-                }
-                Text(preset.description, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-}
-
-@Composable
-private fun OptionRow(
-    title: String,
-    options: List<Pair<String, String>>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    Text(title, style = MaterialTheme.typography.labelLarge)
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(options) { option ->
-            FilterChip(
-                selected = selected == option.first,
-                onClick = { onSelect(option.first) },
-                label = { Text(option.second) },
+                onBack = { retreatStep(step)?.let { step = it } },
+                onAction = {
+                    when (step) {
+                        WizardStep.Sources, WizardStep.Format ->
+                            advanceStep(step, importable)?.let { step = it }
+                        WizardStep.Output -> startWithNotificationPermission()
+                    }
+                },
             )
         }
     }
 }
 
-@Composable
-private fun JobCard(
-    job: Job,
-    onCancel: () -> Unit,
-    onRetry: () -> Unit,
-    onOpen: () -> Unit,
-    onShare: () -> Unit,
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(job.displayName, style = MaterialTheme.typography.titleSmall)
-            Text(statusLabel(job.status))
-            if (job.status == JobStatus.Queued || job.status == JobStatus.Running) {
-                LinearProgressIndicator(
-                    progress = { (job.progress / 100.0).toFloat().coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                TextButton(onClick = onCancel) { Text("取消") }
-            }
-            if (job.status == JobStatus.Failed || job.status == JobStatus.Cancelled) {
-                job.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = onRetry) { Text("重试") }
-            }
-            if (job.status == JobStatus.Completed) {
-                Row {
-                    TextButton(onClick = onOpen) { Text("打开") }
-                    TextButton(onClick = onShare) { Text("分享") }
-                }
-            }
-        }
-    }
-}
-
-private fun mediaSummary(media: MediaInfo): String {
-    val resolution = if (media.width != null && media.height != null) {
-        "${media.width}×${media.height}"
+private fun trimLabel(sources: List<MediaInfo>, preview: MediaInfo?): String {
+    val trimmed = sources.filter(::isTrimmed)
+    if (trimmed.isEmpty()) return ""
+    return if (trimmed.size == 1 && preview != null && isTrimmed(preview)) {
+        val duration = preview.durationSecs ?: 0.0
+        " · 裁 ${formatClock(preview.trimStartSecs ?: 0.0)}–${formatClock(preview.trimEndSecs ?: duration)}"
     } else {
-        "未知尺寸"
+        " · ${trimmed.size} 个文件已裁剪"
     }
-    val fps = media.frameRate?.let { String.format(Locale.US, "%.2f fps", it) } ?: "未知 fps"
-    val duration = media.durationSecs?.let { "${it.toInt()} 秒" } ?: "未知时长"
-    return listOf(media.container, media.videoCodec, resolution, fps, duration)
-        .filterNotNull()
-        .joinToString(" · ")
-}
-
-private fun outputLabel(context: android.content.Context, output: OutputTarget): String = when (output.kind) {
-    OutputTarget.Kind.Downloads -> "下载/轻转码"
-    OutputTarget.Kind.SafTree -> output.treeUri
-        ?.let(Uri::parse)
-        ?.let { DocumentFile.fromTreeUri(context, it)?.name }
-        ?: "所选文件夹"
-    OutputTarget.Kind.AppExternal -> "应用输出目录"
 }
 
 private fun launchOutput(context: android.content.Context, intent: Intent?) {

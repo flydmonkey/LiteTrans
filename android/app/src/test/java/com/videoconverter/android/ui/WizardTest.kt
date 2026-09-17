@@ -41,6 +41,13 @@ class WizardTest {
     }
 
     @Test
+    fun onlyOutputStepStartsTranscode() {
+        assertEquals("下一步", dockActionLabel(WizardStep.Sources, false, false))
+        assertEquals("下一步", dockActionLabel(WizardStep.Format, false, false))
+        assertEquals("开始转码", dockActionLabel(WizardStep.Output, false, false))
+    }
+
+    @Test
     fun dockSummaryAndConversionPreviewMatchDesktopSentences() {
         assertEquals("先添加源视频", dockSummary(WizardStep.Sources, 0, "MP4 · H.264", "标准", "原尺寸", false, false, "", "下载/轻转码"))
         assertEquals("已选 2 个文件", dockSummary(WizardStep.Sources, 2, "MP4 · H.264", "标准", "原尺寸", false, false, "", "下载/轻转码"))
