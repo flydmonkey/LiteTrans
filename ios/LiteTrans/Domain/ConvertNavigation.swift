@@ -35,6 +35,12 @@ public func collapsedPrimaryPresets() -> [PresetCard] {
 
 public func isCopyPreset(_ preset: String) -> Bool { preset == "mp4-copy" }
 
+public func allowsTrim(preset: String) -> Bool { !isCopyPreset(preset) }
+
+public func usesPersistentSandboxOutput(_ kind: OutputKind) -> Bool {
+    kind == .photos || kind == .downloads
+}
+
 public func shouldShowQualityRow(_ preset: String) -> Bool { !isCopyPreset(preset) && !preset.hasPrefix("audio-") }
 
 public func shouldShowResolution(_ preset: String) -> Bool { !preset.hasPrefix("audio-") && preset != "mp4-copy" }

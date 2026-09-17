@@ -15,11 +15,43 @@ public func splitImportable(_ sources: [MediaInfo], cannotTranscode: String = "C
 
 public func configForSource(_ config: OutputConfig, media: MediaInfo) -> OutputConfig {
     var next = config
-    if media.trimStartSecs != nil || media.trimEndSecs != nil {
+    if allowsTrim(preset: config.preset), media.trimStartSecs != nil || media.trimEndSecs != nil {
         next.trimStartSecs = media.trimStartSecs
         next.trimEndSecs = media.trimEndSecs
     }
     return next
+}
+
+public func occupiedOutputPaths(_ jobs: [Job]) -> Set<String> {
+    var paths = Set<String>()
+    for job in jobs {
+        guard let path = job.outputPath else { continue }
+        paths.insert(path)
+        paths.insert(partialOutputPath(path))
+    }
+    return paths
+}
+
+public func outputFileDeletionPaths(job: Job, remainingJobs: [Job]) -> [String] {
+    guard let path = job.outputPath else { return [] }
+    if remainingJobs.contains(where: { $0.outputPath == path }) {
+        return []
+    }
+    switch job.status {
+    case .completed:
+        return [path, partialOutputPath(path)]
+    case .queued, .running, .failed, .cancelled:
+        return []
+    }
+}
+
+public func shouldDeleteImportedSource(
+    sourceUri: String,
+    remainingJobs: [Job],
+    sessionSources: [MediaInfo]
+) -> Bool {
+    remainingJobs.allSatisfy { $0.sourceUri != sourceUri }
+        && sessionSources.allSatisfy { $0.sourceUri != sourceUri }
 }
 
 public func enqueueJobs(
@@ -27,7 +59,8 @@ public func enqueueJobs(
     config: OutputConfig,
     outputDir: String,
     nextId: () -> String,
-    exists: (String) -> Bool
+    exists: (String) -> Bool,
+    existingJobs: [Job] = []
 ) throws -> EnqueueReport {
     if outputDir.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         throw LiteTransError.blankOutputDir
@@ -36,12 +69,12 @@ public func enqueueJobs(
     let (accepted, initialSkipped) = splitImportable(sources)
     var skipped = initialSkipped
     var jobs: [Job] = []
-    var allocated: Set<String> = []
+    var allocated = occupiedOutputPaths(existingJobs)
     for media in accepted {
         do {
             try validate(resolved, media: media)
         } catch {
-            skipped.append(.init(sourceUri: media.sourceUri, displayName: media.displayName, reason: String(describing: error)))
+            skipped.append(.init(sourceUri: media.sourceUri, displayName: media.displayName, reason: error.localizedDescription))
             continue
         }
         let outputPath = allocateOutputPath(outputDir: outputDir, stem: sourceStem(media.displayName), ext: resolved.extension) { candidate in

@@ -22,6 +22,7 @@ struct ConvertSettingDestination: View {
 
 struct FormatSettingsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.locale) private var locale
 
     var body: some View {
         List {
@@ -38,15 +39,20 @@ struct FormatSettingsView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(String(localized: "wizard_step_format"))
+        .navigationTitle(text("wizard_step_format"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func text(_ key: String.LocalizationValue) -> String {
+        String(localized: key, locale: locale)
     }
 }
 
 struct QualitySettingsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.locale) private var locale
 
-    private let options: [(id: String, title: LocalizedStringResource, hint: LocalizedStringResource)] = [
+    private let options: [(id: String, title: String.LocalizationValue, hint: String.LocalizationValue)] = [
         ("original", "quality_original", "quality_original_hint"),
         ("standard", "quality_standard", "quality_standard_hint"),
         ("small", "quality_small", "quality_small_hint"),
@@ -59,23 +65,28 @@ struct QualitySettingsView: View {
                     model.quality = option.id
                 } label: {
                     settingChoice(
-                        title: String(localized: option.title),
-                        hint: String(localized: option.hint),
+                        title: text(option.title),
+                        hint: text(option.hint),
                         selected: model.quality == option.id
                     )
                 }
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(String(localized: "quality_video_title"))
+        .navigationTitle(text("quality_video_title"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func text(_ key: String.LocalizationValue) -> String {
+        String(localized: key, locale: locale)
     }
 }
 
 struct SizeSettingsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.locale) private var locale
 
-    private let options: [(id: String, title: LocalizedStringResource, hint: LocalizedStringResource)] = [
+    private let options: [(id: String, title: String.LocalizationValue, hint: String.LocalizationValue)] = [
         ("original", "size_original", "size_original_hint"),
         ("1080p", "size_1080p", "size_1080p_hint"),
         ("720p", "size_720p", "size_720p_hint"),
@@ -89,39 +100,44 @@ struct SizeSettingsView: View {
                     model.size = option.id
                 } label: {
                     settingChoice(
-                        title: String(localized: option.title),
-                        hint: String(localized: option.hint),
+                        title: text(option.title),
+                        hint: text(option.hint),
                         selected: model.size == option.id
                     )
                 }
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(String(localized: "resolution_title"))
+        .navigationTitle(text("resolution_title"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func text(_ key: String.LocalizationValue) -> String {
+        String(localized: key, locale: locale)
     }
 }
 
 struct OutputSettingsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.locale) private var locale
     @State private var pickingFolder = false
 
     var body: some View {
         List {
-            outputRow(kind: .photos, title: String(localized: "output_photos"), hint: String(localized: "output_gallery_hint"))
-            outputRow(kind: .downloads, title: String(localized: "output_downloads"), hint: String(localized: "output_downloads_hint"))
+            outputRow(kind: .photos, title: text("output_photos"), hint: text("output_gallery_hint"))
+            outputRow(kind: .downloads, title: text("output_downloads"), hint: text("output_downloads_hint"))
             Button {
                 pickingFolder = true
             } label: {
                 settingChoice(
-                    title: String(localized: "output_custom"),
-                    hint: String(localized: "output_custom_hint"),
+                    title: text("output_custom"),
+                    hint: text("output_custom_hint"),
                     selected: model.output.kind == .custom
                 )
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(String(localized: "wizard_step_output"))
+        .navigationTitle(text("wizard_step_output"))
         .navigationBarTitleDisplayMode(.inline)
         .fileImporter(
             isPresented: $pickingFolder,
@@ -145,6 +161,10 @@ struct OutputSettingsView: View {
         } label: {
             settingChoice(title: title, hint: hint, selected: model.output.kind == kind)
         }
+    }
+
+    private func text(_ key: String.LocalizationValue) -> String {
+        String(localized: key, locale: locale)
     }
 }
 

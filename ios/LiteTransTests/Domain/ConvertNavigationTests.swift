@@ -98,6 +98,19 @@ struct ConvertNavigationTests {
         #expect(historyOutputAccess(kind: .custom, alreadyAccessing: false) == .startThenStop)
         #expect(historyOutputAccess(kind: .custom, alreadyAccessing: true) == .reuseExisting)
     }
+
+    @Test func copyPresetDisallowsTrim() {
+        #expect(!allowsTrim(preset: "mp4-copy"))
+        #expect(allowsTrim(preset: "mp4-h264"))
+        #expect(allowsTrim(preset: "mp4-h265"))
+        #expect(allowsTrim(preset: "mov-h264"))
+    }
+
+    @Test func photosDestinationUsesPersistentSandboxOutput() {
+        #expect(usesPersistentSandboxOutput(.photos))
+        #expect(usesPersistentSandboxOutput(.downloads))
+        #expect(!usesPersistentSandboxOutput(.custom))
+    }
 }
 
 private func sampleJob(id: String, status: JobStatus) -> Job {

@@ -29,4 +29,12 @@ struct PresetsTests {
         #expect(resolved.videoEncoder == "copy")
         #expect(resolved.audioEncoder == "copy")
     }
+
+    @Test func liteTransErrorUsesHumanLocalizedDescription() {
+        #expect(LiteTransError.noVideoForCopy.localizedDescription != String(describing: LiteTransError.noVideoForCopy))
+        #expect(LiteTransError.copyCannotChangeVideo.localizedDescription != String(describing: LiteTransError.copyCannotChangeVideo))
+        #expect(LiteTransError.blankOutputDir.localizedDescription != String(describing: LiteTransError.blankOutputDir))
+        #expect(LiteTransError.cannotTranscode.localizedDescription != String(describing: LiteTransError.cannotTranscode))
+        #expect(!(LiteTransError.unknownPreset("xyz").localizedDescription.contains("unknownPreset")))
+    }
 }

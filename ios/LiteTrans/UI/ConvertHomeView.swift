@@ -1,3 +1,4 @@
+import AVFoundation
 import AVKit
 import PhotosUI
 import SwiftUI
@@ -5,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct ConvertHomeView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.locale) private var locale
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var showFileImporter = false
 
@@ -32,13 +34,13 @@ struct ConvertHomeView: View {
                                 .frame(minWidth: 44, minHeight: 44)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(String(localized: "action_dismiss"))
+                        .accessibilityLabel(text("action_dismiss"))
                     }
                     .accessibilityElement(children: .combine)
                 }
             }
 
-            if let selected, selected.importable, selected.durationSecs != nil {
+            if let selected, selected.importable, selected.durationSecs != nil, allowsTrim(preset: model.preset) {
                 Section {
                     ConvertTrimCard(source: selected)
                         .id(selected.sourceUri)
@@ -47,16 +49,16 @@ struct ConvertHomeView: View {
 
             Section {
                 PhotosPicker(selection: $photoItems, matching: .videos) {
-                    Label(String(localized: "wizard_source_gallery"), systemImage: "photo.on.rectangle")
+                    Label(text("wizard_source_gallery"), systemImage: "photo.on.rectangle")
                 }
-                .accessibilityHint(String(localized: "wizard_source_gallery_hint_video"))
+                .accessibilityHint(text("wizard_source_gallery_hint_video"))
 
                 Button {
                     showFileImporter = true
                 } label: {
-                    Label(String(localized: "wizard_source_files"), systemImage: "folder")
+                    Label(text("wizard_source_files"), systemImage: "folder")
                 }
-                .accessibilityHint(String(localized: "wizard_source_files_hint"))
+                .accessibilityHint(text("wizard_source_files_hint"))
 
                 ForEach(model.sources, id: \.sourceUri) { source in
                     ConvertSourceRow(source: source, selected: model.selectedUri == source.sourceUri)
@@ -69,20 +71,20 @@ struct ConvertHomeView: View {
                                 Button(role: .destructive) {
                                     model.removeSource(source)
                                 } label: {
-                                    Text(String(localized: "action_remove"))
+                                    Text(text("action_remove"))
                                 }
                             }
                         }
                 }
             } header: {
-                Text(String(localized: "section_files"))
+                Text(text("section_files"))
             } footer: {
                 if model.sources.isEmpty {
-                    Text(String(localized: "wizard_add_video"))
+                    Text(text("wizard_add_video"))
                 }
             }
 
-            Section(String(localized: "section_settings")) {
+            Section(text("section_settings")) {
                 ForEach(convertSettingsFor(preset: model.preset), id: \.self) { setting in
                     NavigationLink(value: convertPage(for: setting)) {
                         LabeledContent(settingTitle(setting), value: settingValue(setting))
@@ -91,11 +93,11 @@ struct ConvertHomeView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(String(localized: "tab_convert"))
+        .navigationTitle(text("tab_convert"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(String(localized: "action_convert")) {
+                Button(text("action_convert")) {
                     model.startConversion()
                 }
                 .disabled(!model.startEnabled)
@@ -105,7 +107,7 @@ struct ConvertHomeView: View {
             Button {
                 model.startConversion()
             } label: {
-                Text(String(localized: "wizard_start_convert"))
+                Text(text("wizard_start_convert"))
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 44)
@@ -170,10 +172,10 @@ struct ConvertHomeView: View {
 
     private func settingTitle(_ setting: ConvertSetting) -> String {
         switch setting {
-        case .format: String(localized: "wizard_step_format")
-        case .quality: String(localized: "quality_video_title")
-        case .size: String(localized: "resolution_title")
-        case .output: String(localized: "wizard_step_output")
+        case .format: text("wizard_step_format")
+        case .quality: text("quality_video_title")
+        case .size: text("resolution_title")
+        case .output: text("wizard_step_output")
         }
     }
 
@@ -185,28 +187,34 @@ struct ConvertHomeView: View {
                 ?? model.preset
         case .quality:
             switch model.quality {
-            case "original", "high": String(localized: "quality_original")
-            case "small": String(localized: "quality_small")
-            default: String(localized: "quality_standard")
+            case "original", "high": text("quality_original")
+            case "small": text("quality_small")
+            default: text("quality_standard")
             }
         case .size:
             switch model.size {
             case "1080p": "1080p"
             case "720p": "720p"
             case "480p": "480p"
-            default: String(localized: "size_original")
+            default: text("size_original")
             }
         case .output:
             switch model.output.kind {
-            case .photos: String(localized: "output_photos")
-            case .downloads: String(localized: "output_downloads")
-            case .custom: String(localized: "output_custom")
+            case .photos: text("output_photos")
+            case .downloads: text("output_downloads")
+            case .custom: text("output_custom")
             }
         }
+    }
+
+    private func text(_ key: String.LocalizationValue) -> String {
+        String(localized: key, locale: locale)
     }
 }
 
 private struct ConvertSourceRow: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.locale) private var locale
     let source: MediaInfo
     let selected: Bool
 
@@ -242,7 +250,7 @@ private struct ConvertSourceRow: View {
 
     private var subtitle: String {
         if readingFormat {
-            return String(localized: "wizard_reading_format")
+            return text("wizard_reading_format")
         }
         var parts: [String] = []
         if let container = source.container { parts.append(container) }
@@ -251,15 +259,19 @@ private struct ConvertSourceRow: View {
             parts.append("\(width)×\(height)")
         }
         if let frameRate = source.frameRate {
-            parts.append(String(format: "%.0f fps", frameRate))
+            parts.append(String(format: "%.0f fps", locale: locale, frameRate))
         }
         if let duration = source.durationSecs {
             parts.append(formatDuration(duration))
         }
-        if source.trimStartSecs != nil || source.trimEndSecs != nil {
-            parts.append(String(localized: "wizard_trimmed"))
+        if allowsTrim(preset: model.preset), source.trimStartSecs != nil || source.trimEndSecs != nil {
+            parts.append(text("wizard_trimmed"))
         }
-        return parts.isEmpty ? String(localized: "wizard_kind_video") : parts.joined(separator: " · ")
+        return parts.isEmpty ? text("wizard_kind_video") : parts.joined(separator: " · ")
+    }
+
+    private func text(_ key: String.LocalizationValue) -> String {
+        String(localized: key, locale: locale)
     }
 
     private func formatDuration(_ seconds: Double) -> String {
@@ -276,36 +288,54 @@ private struct ConvertSourceRow: View {
 
 private struct ConvertTrimCard: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.locale) private var locale
     let source: MediaInfo
     @State private var playhead = 0.0
     @State private var player: AVPlayer?
+    @State private var isSeeking = false
+    @State private var timeObserver: Any?
 
     private var duration: Double { max(source.durationSecs ?? 0, 0.001) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             preview
-            Slider(value: $playhead, in: 0...duration)
+            Slider(
+                value: Binding(
+                    get: { playhead },
+                    set: { newValue in
+                        playhead = newValue
+                        seekPlayer(to: newValue)
+                    }
+                ),
+                in: 0...duration,
+                onEditingChanged: { editing in
+                    isSeeking = editing
+                    if !editing {
+                        seekPlayer(to: playhead)
+                    }
+                }
+            )
                 .frame(minHeight: 44)
-                .accessibilityLabel(String(localized: "trim_title"))
+                .accessibilityLabel(text("trim_title"))
                 .accessibilityValue(formatClock(playhead))
             HStack {
-                Button(String(localized: "trim_set_start")) { setStart() }
+                Button(text("trim_set_start")) { setStart() }
                     .frame(minHeight: 44)
-                Button(String(localized: "trim_set_end")) { setEnd() }
+                Button(text("trim_set_end")) { setEnd() }
                     .frame(minHeight: 44)
-                Button(String(localized: "trim_reset")) { resetTrim() }
+                Button(text("trim_reset")) { resetTrim() }
                     .frame(minHeight: 44)
             }
             .buttonStyle(.bordered)
             if source.trimStartSecs != nil || source.trimEndSecs != nil {
-                Text(String(localized: "wizard_trimmed"))
+                Text(text("wizard_trimmed"))
                     .font(.footnote)
                     .foregroundStyle(Color(uiColor: .secondaryLabel))
             }
         }
         .onAppear { setupPlayer() }
-        .onDisappear { player?.pause() }
+        .onDisappear { teardownPlayer() }
     }
 
     @ViewBuilder
@@ -313,20 +343,49 @@ private struct ConvertTrimCard: View {
         if let player {
             VideoPlayer(player: player)
                 .frame(minHeight: 180)
-                .accessibilityLabel(String(localized: "wizard_preview_video"))
+                .accessibilityLabel(text("wizard_preview_video"))
         } else {
-            Text(String(localized: "trim_no_preview"))
+            Text(text("trim_no_preview"))
                 .font(.footnote)
                 .foregroundStyle(Color(uiColor: .secondaryLabel))
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         }
     }
 
+    private func text(_ key: String.LocalizationValue) -> String {
+        String(localized: key, locale: locale)
+    }
+
     private func setupPlayer() {
+        teardownPlayer()
         guard let url = URL(string: source.sourceUri), url.isFileURL,
               FileManager.default.fileExists(atPath: url.path)
         else { return }
-        player = AVPlayer(url: url)
+        let player = AVPlayer(url: url)
+        let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
+        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+            guard !isSeeking else { return }
+            let seconds = CMTimeGetSeconds(time)
+            guard seconds.isFinite else { return }
+            playhead = min(max(seconds, 0), duration)
+        }
+        self.player = player
+    }
+
+    private func teardownPlayer() {
+        if let player, let timeObserver {
+            player.removeTimeObserver(timeObserver)
+        }
+        timeObserver = nil
+        player?.pause()
+        player = nil
+    }
+
+    private func seekPlayer(to seconds: Double) {
+        guard let player else { return }
+        let clamped = min(max(seconds, 0), duration)
+        let time = CMTime(seconds: clamped, preferredTimescale: 600)
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
     }
 
     private func setStart() {

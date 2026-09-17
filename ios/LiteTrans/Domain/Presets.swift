@@ -1,6 +1,8 @@
+import Foundation
+
 public let defaultPreset = "mp4-h264"
 
-public enum LiteTransError: Error, Equatable {
+public enum LiteTransError: Error, Equatable, LocalizedError {
     case unknownPreset(String)
     case unsupportedContainer(String)
     case unsupportedVideoEncoder(String)
@@ -13,6 +15,35 @@ public enum LiteTransError: Error, Equatable {
     case containerAudioCodec
     case blankOutputDir
     case cannotTranscode
+
+    public var errorDescription: String? {
+        switch self {
+        case .unknownPreset(let preset):
+            return "Unknown format: \(preset)"
+        case .unsupportedContainer(let container):
+            return "Unsupported container: \(container)"
+        case .unsupportedVideoEncoder(let encoder):
+            return "Unsupported video encoder: \(encoder)"
+        case .unsupportedAudioEncoder(let encoder):
+            return "Unsupported audio encoder: \(encoder)"
+        case .noAudioForExport:
+            return "This file has no audio to export"
+        case .noVideoForGif:
+            return "This file has no video for GIF"
+        case .noVideoForCopy:
+            return "This file has no video to remux"
+        case .containerVideoCodec:
+            return "This video codec cannot stay in that container"
+        case .copyCannotChangeVideo:
+            return "Remux cannot change resolution or frame rate"
+        case .containerAudioCodec:
+            return "This audio codec cannot stay in that container"
+        case .blankOutputDir:
+            return "Choose an output folder"
+        case .cannotTranscode:
+            return "Could not convert this file"
+        }
+    }
 }
 
 public func listPresets() -> [PresetInfo] {

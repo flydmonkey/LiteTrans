@@ -80,7 +80,8 @@ final class AppModel {
                 ),
                 outputDir: dir,
                 nextId: { UUID().uuidString },
-                exists: { FileManager.default.fileExists(atPath: $0) }
+                exists: { FileManager.default.fileExists(atPath: $0) },
+                existingJobs: jobs
             )
             if report.jobs.isEmpty {
                 message = skippedSourcesMessage(report.skipped)
@@ -113,6 +114,7 @@ final class AppModel {
         if selectedUri == source.sourceUri {
             selectedUri = sources.first?.sourceUri
         }
+        deleteOrphanedImport(sourceUri: source.sourceUri)
     }
 
     func replaceSource(_ source: MediaInfo) {
@@ -184,12 +186,13 @@ final class AppModel {
         guard jobRowActions(job.status).contains(.delete) else { return }
         let started = beginHistoryOutputAccess()
         defer { endHistoryOutputAccess(started) }
-        if let path = job.outputPath {
+        let remaining = jobs.filter { $0.id != job.id }
+        for path in outputFileDeletionPaths(job: job, remainingJobs: remaining) {
             try? FileManager.default.removeItem(atPath: path)
-            try? FileManager.default.removeItem(atPath: partialOutputPath(path))
         }
         jobs.removeAll { $0.id == job.id }
         persistJobs()
+        deleteOrphanedImport(sourceUri: job.sourceUri)
     }
 
     func renameJob(_ job: Job, rawName: String) {
@@ -223,8 +226,12 @@ final class AppModel {
     }
 
     func clearFinished() {
+        let removed = jobs.filter { $0.status != .queued && $0.status != .running }
         jobs = remainingJobsAfterClearFinished(jobs)
         persistJobs()
+        for job in removed {
+            deleteOrphanedImport(sourceUri: job.sourceUri)
+        }
     }
 
     func releaseOutputAccess() {
@@ -283,18 +290,14 @@ final class AppModel {
 
     func resolvedOutputDir() throws -> String {
         releaseOutputAccess()
-        switch output.kind {
-        case .photos:
-            return FileManager.default.temporaryDirectory.path
-        case .downloads:
+        if usesPersistentSandboxOutput(output.kind) {
             let directory = documentsDownloadsDirectory()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             return directory.path
-        case .custom:
-            let url = try resolveCustomOutputURL()
-            beginAccessing(url)
-            return url.path
         }
+        let url = try resolveCustomOutputURL()
+        beginAccessing(url)
+        return url.path
     }
 
     @discardableResult
@@ -372,9 +375,7 @@ final class AppModel {
     }
 
     private func copyIntoImports(_ url: URL, preferredName: String) throws -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        let directory = base.appendingPathComponent("Imports", isDirectory: true)
+        let directory = importsDirectory()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let name = preferredName.isEmpty ? "video.mov" : preferredName
         var dest = directory.appendingPathComponent(name)
@@ -383,5 +384,22 @@ final class AppModel {
         }
         try FileManager.default.copyItem(at: url, to: dest)
         return dest
+    }
+
+    private func deleteOrphanedImport(sourceUri: String) {
+        guard shouldDeleteImportedSource(sourceUri: sourceUri, remainingJobs: jobs, sessionSources: sources) else {
+            return
+        }
+        guard let url = URL(string: sourceUri), url.isFileURL else { return }
+        let importsPath = importsDirectory().standardizedFileURL.path
+        let filePath = url.standardizedFileURL.path
+        guard filePath == importsPath || filePath.hasPrefix(importsPath + "/") else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    private func importsDirectory() -> URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent("Imports", isDirectory: true)
     }
 }
