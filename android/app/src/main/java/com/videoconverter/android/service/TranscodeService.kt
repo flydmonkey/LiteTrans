@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import com.videoconverter.android.MainActivity
 import com.videoconverter.android.R
+import com.videoconverter.android.withAppLocales
 import com.videoconverter.android.data.JobStore
 import com.videoconverter.android.data.SessionStore
 import com.videoconverter.android.data.outputTargetForJob
@@ -158,7 +159,7 @@ class TranscodeService : Service() {
                                     jobs.recoverInterruptedPump(
                                         jobId,
                                         cancelled,
-                                        getString(R.string.error_interrupted),
+                                        withAppLocales().getString(R.string.error_interrupted),
                                     )
                                 }
                             } finally {
@@ -221,8 +222,8 @@ class TranscodeService : Service() {
     private fun showForegroundPlaceholder() {
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(getString(R.string.notify_checking_queue))
+            .setContentTitle(withAppLocales().getString(R.string.app_name))
+            .setContentText(withAppLocales().getString(R.string.notify_checking_queue))
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .build()
@@ -247,7 +248,7 @@ class TranscodeService : Service() {
         )
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle(getString(R.string.app_name))
+            .setContentTitle(withAppLocales().getString(R.string.app_name))
             .setContentText("${job.displayName} · ${job.progress.toInt()}%")
             .setContentIntent(openApp)
             .setOnlyAlertOnce(true)
@@ -259,7 +260,7 @@ class TranscodeService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            getString(R.string.notify_transcode_channel),
+            withAppLocales().getString(R.string.notify_transcode_channel),
             NotificationManager.IMPORTANCE_LOW,
         )
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)

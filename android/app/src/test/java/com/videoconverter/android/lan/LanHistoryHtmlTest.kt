@@ -4,6 +4,7 @@ import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.OutputConfig
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -55,6 +56,37 @@ class LanHistoryHtmlTest {
         assertTrue(html.contains("href=\"/d/d\""))
         assertTrue(html.contains(">Download</a>"))
         assertFalse(html.contains("Download a.pdf"))
+    }
+
+    @Test
+    fun koreanNamedDownloadPutsFilenameFirst() {
+        val copy = englishLanHistoryCopy().copy(
+            download = "다운로드",
+            downloadNamed = "%1\$s 다운로드",
+            downloadIndex = "#%1\$d 다운로드",
+        )
+        val html = renderLanHistoryHtml(
+            listOf(job("d", JobStatus.Completed, "/tmp/a.pdf", listOf("/tmp/a.pdf", "/tmp/b.pdf"), "scan.pdf", "pdf-split")),
+            "",
+            copy,
+        ) { true }
+        assertTrue(html.contains("a.pdf 다운로드"))
+        assertTrue(html.contains("b.pdf 다운로드"))
+        assertFalse(html.contains("다운로드 a.pdf"))
+        assertFalse(html.contains("다운로드 b.pdf"))
+    }
+
+    @Test
+    fun koreanIndexFormatWhenFileNameBlank() {
+        assertEquals(
+            "#3 다운로드",
+            lanHistoryDownloadLabel(
+                "",
+                3,
+                true,
+                englishLanHistoryCopy().copy(downloadIndex = "#%1\$d 다운로드"),
+            ),
+        )
     }
 
     @Test

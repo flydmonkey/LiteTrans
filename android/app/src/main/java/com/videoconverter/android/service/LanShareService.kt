@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.os.IBinder
 import com.videoconverter.android.MainActivity
 import com.videoconverter.android.R
+import com.videoconverter.android.withAppLocales
 import com.videoconverter.android.data.JobStore
 import com.videoconverter.android.data.LanShareStore
 import com.videoconverter.android.lan.LAN_SHARE_PORT_ATTEMPTS
@@ -91,7 +92,7 @@ class LanShareService : Service() {
             }
             val server = bindLanServer(ipv4)
             if (server == null) {
-                setUnbound(error = getString(R.string.lan_ports_busy))
+                setUnbound(error = withAppLocales().getString(R.string.lan_ports_busy))
                 sleepInterruptibly(RETRY_MS)
                 continue
             }
@@ -144,7 +145,7 @@ class LanShareService : Service() {
             }
             val token = lanShareStore.load().token
             val jobs = jobStore.load()
-            val response = handleLanRequest(request, jobs, token, ::lanFileIsRegular, lanHistoryCopy(resources))
+            val response = handleLanRequest(request, jobs, token, ::lanFileIsRegular, lanHistoryCopy(withAppLocales().resources))
             writeResponse(socket, response)
         } catch (_: Exception) {
             // Close the client socket without logging request contents (token lives in query).
@@ -219,10 +220,10 @@ class LanShareService : Service() {
         )
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(getString(R.string.lan_notify_on))
+            .setContentTitle(withAppLocales().getString(R.string.app_name))
+            .setContentText(withAppLocales().getString(R.string.lan_notify_on))
             .setContentIntent(openApp)
-            .addAction(Notification.Action.Builder(null, getString(R.string.lan_notify_stop), stopShare).build())
+            .addAction(Notification.Action.Builder(null, withAppLocales().getString(R.string.lan_notify_stop), stopShare).build())
             .setOngoing(true)
             .build()
         startForeground(
@@ -235,7 +236,7 @@ class LanShareService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            getString(R.string.lan_notify_channel),
+            withAppLocales().getString(R.string.lan_notify_channel),
             NotificationManager.IMPORTANCE_LOW,
         )
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)

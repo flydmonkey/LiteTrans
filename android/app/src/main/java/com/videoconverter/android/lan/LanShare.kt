@@ -12,6 +12,7 @@ import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.nio.file.Files
 import java.nio.file.LinkOption
+import java.util.Locale
 
 data class LanHistoryCopy(
     val warning: String,
@@ -22,6 +23,8 @@ data class LanHistoryCopy(
     val emptyAudio: String,
     val emptyDocument: String,
     val download: String,
+    val downloadNamed: String,
+    val downloadIndex: String,
     val statusQueued: String,
     val statusRunning: String,
     val statusCompleted: String,
@@ -39,6 +42,8 @@ fun lanHistoryCopy(resources: Resources) = LanHistoryCopy(
     emptyAudio = resources.getString(R.string.history_empty_audio),
     emptyDocument = resources.getString(R.string.history_empty_document),
     download = resources.getString(R.string.lan_download),
+    downloadNamed = resources.getString(R.string.lan_download_named),
+    downloadIndex = resources.getString(R.string.lan_download_index),
     statusQueued = resources.getString(R.string.status_queued),
     statusRunning = resources.getString(R.string.status_running),
     statusCompleted = resources.getString(R.string.status_completed),
@@ -235,7 +240,7 @@ fun renderLanHistoryHtml(
                             append(" <a href=\"")
                             append(lanHistoryDownloadHref(job.id, index, multi, token))
                             append("\">")
-                            append(escapeHtml(lanHistoryDownloadLabel(path, index, multi, copy.download)))
+                            append(escapeHtml(lanHistoryDownloadLabel(path, index, multi, copy)))
                             append("</a>")
                         }
                     }
@@ -268,10 +273,14 @@ fun escapeHtml(raw: String): String = raw
     .replace(">", "&gt;")
     .replace("\"", "&quot;")
 
-internal fun lanHistoryDownloadLabel(path: String, index: Int, multi: Boolean, download: String): String {
-    if (!multi) return download
+internal fun lanHistoryDownloadLabel(path: String, index: Int, multi: Boolean, copy: LanHistoryCopy): String {
+    if (!multi) return copy.download
     val base = java.io.File(path).name
-    return if (base.isNotBlank()) "$download $base" else "$download #$index"
+    return if (base.isNotBlank()) {
+        String.format(Locale.ROOT, copy.downloadNamed, base)
+    } else {
+        String.format(Locale.ROOT, copy.downloadIndex, index)
+    }
 }
 
 private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, token: String): String {
