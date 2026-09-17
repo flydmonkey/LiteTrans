@@ -84,6 +84,34 @@ class JobStoreTest {
         assertNull(parsed.outputTreeUri)
     }
 
+    @Test
+    fun jobJsonRoundTripKeepsPagesAndOutputPaths() {
+        val job = sampleJob().copy(
+            outputPath = "content://first",
+            outputPaths = listOf("content://first", "content://second"),
+            media = sampleJob().media.copy(pageCount = 12, pageStart = 2, pageEnd = 5),
+            config = OutputConfig(preset = "pdf-image", container = "jpg"),
+        )
+        val parsed = jobsFromJson(jobsToJson(listOf(job))).single()
+        assertEquals(listOf("content://first", "content://second"), parsed.outputPaths)
+        assertEquals(12, parsed.media.pageCount)
+        assertEquals(2, parsed.media.pageStart)
+        assertEquals(5, parsed.media.pageEnd)
+    }
+
+    @Test
+    fun missingPageAndOutputPathsLoadAsEmpty() {
+        val oldJson = """
+            [{"id":"j1","sourceUri":"content://a","displayName":"a.mp4","outputPath":null,
+              "status":"Queued","progress":0,"error":null,
+              "config":{"preset":"mp4-h264"},
+              "media":{"sourceUri":"content://a","displayName":"a.mp4","importable":true}}]
+        """.trimIndent()
+        val parsed = jobsFromJson(oldJson).single()
+        assertEquals(emptyList<String>(), parsed.outputPaths)
+        assertNull(parsed.media.pageCount)
+    }
+
     private fun sampleJob(
         outputKind: String? = null,
         outputTreeUri: String? = null,

@@ -93,6 +93,7 @@ private fun Job.toJson(): JSONObject = JSONObject()
     .put("media", media.toJson())
     .putNullable("outputKind", outputKind)
     .putNullable("outputTreeUri", outputTreeUri)
+    .put("outputPaths", JSONArray(outputPaths))
 
 private fun JSONObject.toJob(): Job = Job(
     id = getString("id"),
@@ -106,6 +107,7 @@ private fun JSONObject.toJob(): Job = Job(
     media = getJSONObject("media").toMediaInfo(),
     outputKind = nullableString("outputKind"),
     outputTreeUri = nullableString("outputTreeUri"),
+    outputPaths = stringList("outputPaths"),
 )
 
 private fun OutputConfig.toJson(): JSONObject = JSONObject()
@@ -154,6 +156,9 @@ private fun MediaInfo.toJson(): JSONObject = JSONObject()
     .putNullable("error", error)
     .putNullable("trimStartSecs", trimStartSecs)
     .putNullable("trimEndSecs", trimEndSecs)
+    .putNullable("pageCount", pageCount)
+    .putNullable("pageStart", pageStart)
+    .putNullable("pageEnd", pageEnd)
 
 private fun JSONObject.toMediaInfo(): MediaInfo = MediaInfo(
     sourceUri = getString("sourceUri"),
@@ -170,6 +175,9 @@ private fun JSONObject.toMediaInfo(): MediaInfo = MediaInfo(
     error = nullableString("error"),
     trimStartSecs = nullableDouble("trimStartSecs"),
     trimEndSecs = nullableDouble("trimEndSecs"),
+    pageCount = nullableInt("pageCount"),
+    pageStart = nullableInt("pageStart"),
+    pageEnd = nullableInt("pageEnd"),
 )
 
 private fun JSONObject.putNullable(name: String, value: Any?): JSONObject =
@@ -186,3 +194,13 @@ private fun JSONObject.nullableDouble(name: String): Double? =
 
 private fun JSONObject.nullableBoolean(name: String): Boolean? =
     if (isNull(name)) null else getBoolean(name)
+
+private fun JSONObject.stringList(name: String): List<String> {
+    if (isNull(name)) return emptyList()
+    val array = getJSONArray(name)
+    return buildList {
+        for (index in 0 until array.length()) {
+            add(array.getString(index))
+        }
+    }
+}
