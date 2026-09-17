@@ -184,3 +184,71 @@ private fun lanHistoryDownloadHref(jobId: String, index: Int, multi: Boolean, to
     val encoded = java.net.URLEncoder.encode(token, Charsets.UTF_8)
     return "$path?k=$encoded"
 }
+
+data class LanHttpRequest(val method: String, val path: String, val query: Map<String, String>)
+
+data class LanHttpResponse(
+    val status: Int,
+    val contentType: String,
+    val body: ByteArray,
+    val headers: Map<String, String> = emptyMap(),
+    val filePath: String? = null,
+)
+
+fun parseLanQuery(rawQuery: String?): Map<String, String> {
+    if (rawQuery.isNullOrEmpty()) return emptyMap()
+    return rawQuery.split('&').mapNotNull { part ->
+        if (part.isEmpty()) return@mapNotNull null
+        val eq = part.indexOf('=')
+        val rawKey = if (eq < 0) part else part.substring(0, eq)
+        val rawVal = if (eq < 0) "" else part.substring(eq + 1)
+        val key = java.net.URLDecoder.decode(rawKey, Charsets.UTF_8)
+        val value = java.net.URLDecoder.decode(rawVal, Charsets.UTF_8)
+        if (key.isEmpty()) null else key to value
+    }.toMap()
+}
+
+fun handleLanRequest(
+    request: LanHttpRequest,
+    jobs: List<Job>,
+    token: String,
+    exists: (String) -> Boolean,
+): LanHttpResponse {
+    if (request.method != "GET") {
+        return lanPlainText(405, "Method Not Allowed")
+    }
+    if (!lanTokenAllows(token, request.query["k"])) {
+        return lanPlainText(401, "需要正确口令")
+    }
+    return when (val route = parseLanRoute(request.path)) {
+        is LanRoute.Home -> {
+            val html = renderLanHistoryHtml(jobs, token, exists)
+            LanHttpResponse(
+                status = 200,
+                contentType = "text/html; charset=utf-8",
+                body = html.toByteArray(Charsets.UTF_8),
+            )
+        }
+        is LanRoute.Download -> {
+            val target = resolveLanDownload(jobs, route.jobId, route.index, exists)
+                ?: return lanPlainText(404, "Not Found")
+            LanHttpResponse(
+                status = 200,
+                contentType = target.contentType,
+                body = ByteArray(0),
+                headers = mapOf(
+                    "Content-Type" to target.contentType,
+                    "Content-Disposition" to lanContentDisposition(target.downloadName),
+                ),
+                filePath = target.path,
+            )
+        }
+        is LanRoute.NotFound -> lanPlainText(404, "Not Found")
+    }
+}
+
+private fun lanPlainText(status: Int, body: String): LanHttpResponse = LanHttpResponse(
+    status = status,
+    contentType = "text/plain; charset=utf-8",
+    body = body.toByteArray(Charsets.UTF_8),
+)
