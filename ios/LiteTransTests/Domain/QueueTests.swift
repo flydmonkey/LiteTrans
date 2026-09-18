@@ -309,4 +309,80 @@ struct QueueTests {
         #expect(report.jobs.isEmpty)
         #expect(report.skipped[0].reason != String(describing: LiteTransError.officeNotAvailable))
     }
+
+    private func clip(_ uri: String, name: String, importable: Bool = true) -> MediaInfo {
+        MediaInfo(
+            sourceUri: uri,
+            displayName: name,
+            durationSecs: 2,
+            videoCodec: "h264",
+            width: 1280,
+            height: 720,
+            audioCodec: "aac",
+            importable: importable
+        )
+    }
+
+    @Test func concatEnqueuesOneMergedJob() throws {
+        let a = clip("file:///a.mp4", name: "a.mp4")
+        let b = clip("file:///b.mp4", name: "b.mp4")
+        let report = try enqueueJobs(
+            sources: [a, b],
+            config: OutputConfig(preset: "video-concat"),
+            outputDir: "/tmp",
+            nextId: { "job-1" },
+            exists: { _ in false }
+        )
+        #expect(report.jobs.count == 1)
+        #expect(report.skipped.isEmpty)
+        #expect(report.jobs[0].sourceUri == "file:///a.mp4")
+        #expect(report.jobs[0].config.concatSourceUris == ["file:///a.mp4", "file:///b.mp4"])
+        #expect(report.jobs[0].concatMedias.map(\.sourceUri) == ["file:///a.mp4", "file:///b.mp4"])
+        #expect(report.jobs[0].outputPath == "/tmp/a-merged.mp4")
+    }
+
+    @Test func concatRejectsMixedUnimportable() throws {
+        let report = try enqueueJobs(
+            sources: [clip("file:///a.mp4", name: "a.mp4"), clip("file:///bad.mp4", name: "bad.mp4", importable: false)],
+            config: OutputConfig(preset: "video-concat"),
+            outputDir: "/tmp",
+            nextId: { "1" },
+            exists: { _ in false }
+        )
+        #expect(report.jobs.isEmpty)
+        #expect(report.skipped.contains { $0.sourceUri == "file:///bad.mp4" })
+    }
+
+    @Test func concatRejectsOneClip() throws {
+        let report = try enqueueJobs(
+            sources: [clip("file:///a.mp4", name: "a.mp4")],
+            config: OutputConfig(preset: "video-concat"),
+            outputDir: "/tmp",
+            nextId: { "1" },
+            exists: { _ in false }
+        )
+        #expect(report.jobs.isEmpty)
+        #expect(report.skipped[0].reason == LiteTransError.concatNeedsTwo.localizedDescription)
+    }
+
+    @Test func concatKeepsImportedSourcesUntilJobGone() {
+        let a = clip("file:///imports/a.mp4", name: "a.mp4")
+        let b = clip("file:///imports/b.mp4", name: "b.mp4")
+        var config = OutputConfig(preset: "video-concat")
+        config.concatSourceUris = [a.sourceUri, b.sourceUri]
+        let job = Job(
+            id: "1",
+            sourceUri: a.sourceUri,
+            displayName: a.displayName,
+            outputPath: "/tmp/a-merged.mp4",
+            status: .queued,
+            progress: 0,
+            error: nil,
+            config: config,
+            media: a,
+            concatMedias: [a, b]
+        )
+        #expect(!shouldDeleteImportedSource(sourceUri: b.sourceUri, remainingJobs: [job], sessionSources: []))
+        #expect(shouldDeleteImportedSource(sourceUri: b.sourceUri, remainingJobs: [], sessionSources: []))
+    }
 }

@@ -48,12 +48,17 @@ private func resolvedOutputPaths(_ job: Job) -> [String] {
     job.outputPaths.isEmpty ? [job.outputPath].compactMap { $0 } : job.outputPaths
 }
 
+public func jobSourceURIs(_ job: Job) -> [String] {
+    if !job.config.concatSourceUris.isEmpty { return job.config.concatSourceUris }
+    return [job.sourceUri]
+}
+
 public func shouldDeleteImportedSource(
     sourceUri: String,
     remainingJobs: [Job],
     sessionSources: [MediaInfo]
 ) -> Bool {
-    remainingJobs.allSatisfy { $0.sourceUri != sourceUri }
+    remainingJobs.allSatisfy { !jobSourceURIs($0).contains(sourceUri) }
         && sessionSources.allSatisfy { $0.sourceUri != sourceUri }
 }
 
@@ -71,6 +76,19 @@ public func enqueueJobs(
         throw LiteTransError.blankOutputDir
     }
     let resolved = try resolveConfig(config)
+    if isVideoConcatPreset(config.preset) {
+        return try enqueueConcatJobs(
+            sources: sources,
+            config: config,
+            resolved: resolved,
+            outputDir: outputDir,
+            nextId: nextId,
+            exists: exists,
+            existingJobs: existingJobs,
+            outputKind: outputKind,
+            nowMs: nowMs
+        )
+    }
     let (accepted, initialSkipped) = splitImportable(sources)
     var skipped = initialSkipped
     var jobs: [Job] = []
@@ -129,6 +147,89 @@ public func enqueueJobs(
     return EnqueueReport(jobs: jobs, skipped: skipped)
 }
 
+private func enqueueConcatJobs(
+    sources: [MediaInfo],
+    config: OutputConfig,
+    resolved: ResolvedConfig,
+    outputDir: String,
+    nextId: () -> String,
+    exists: (String) -> Bool,
+    existingJobs: [Job],
+    outputKind: OutputKind,
+    nowMs: () -> Int64
+) throws -> EnqueueReport {
+    let (accepted, skipped) = splitImportable(sources)
+    if !skipped.isEmpty {
+        return EnqueueReport(jobs: [], skipped: skipped)
+    }
+    if accepted.count < 2 {
+        return EnqueueReport(
+            jobs: [],
+            skipped: accepted.map {
+                .init(
+                    sourceUri: $0.sourceUri,
+                    displayName: $0.displayName,
+                    reason: LiteTransError.concatNeedsTwo.localizedDescription
+                )
+            }
+        )
+    }
+    if accepted.count > videoConcatMaxSources {
+        return EnqueueReport(
+            jobs: [],
+            skipped: accepted.map {
+                .init(
+                    sourceUri: $0.sourceUri,
+                    displayName: $0.displayName,
+                    reason: LiteTransError.concatTooMany.localizedDescription
+                )
+            }
+        )
+    }
+    var invalid: [SkippedSource] = []
+    for media in accepted {
+        do {
+            _ = try concatTarget(from: media)
+            if media.videoCodec == nil {
+                throw LiteTransError.concatMissingVideo
+            }
+            try validate(resolved, media: media)
+        } catch {
+            invalid.append(.init(sourceUri: media.sourceUri, displayName: media.displayName, reason: error.localizedDescription))
+        }
+    }
+    if !invalid.isEmpty {
+        return EnqueueReport(jobs: [], skipped: invalid)
+    }
+
+    let allocated = occupiedOutputPaths(existingJobs)
+    let isTaken: (String) -> Bool = { candidate in
+        let partial = partialOutputPath(candidate)
+        return exists(candidate) || exists(partial) || allocated.contains(candidate) || allocated.contains(partial)
+    }
+    let stem = concatOutputStem(accepted[0].displayName)
+    let path = allocateOutputPath(outputDir: outputDir, stem: stem, ext: resolved.extension, exists: isTaken)
+    var next = config
+    next.concatSourceUris = accepted.map(\.sourceUri)
+    let first = accepted[0]
+    let job = Job(
+        id: nextId(),
+        sourceUri: first.sourceUri,
+        displayName: first.displayName,
+        outputPath: path,
+        status: .queued,
+        progress: 0,
+        error: nil,
+        config: next,
+        media: first,
+        outputPaths: [path],
+        outputKind: outputKind,
+        createdAtEpochMs: nowMs(),
+        concatMedias: accepted
+    )
+    return EnqueueReport(jobs: [job], skipped: [])
+}
+
 public func markInterrupted(_ jobs: [Job], interrupted: String = "Conversion was interrupted") -> [Job] {
     jobs.map { job in
         job.status == .running
@@ -144,7 +245,8 @@ public func markInterrupted(_ jobs: [Job], interrupted: String = "Conversion was
                 media: job.media,
                 outputPaths: job.outputPaths,
                 outputKind: job.outputKind,
-                createdAtEpochMs: job.createdAtEpochMs
+                createdAtEpochMs: job.createdAtEpochMs,
+                concatMedias: job.concatMedias
             )
             : job
     }

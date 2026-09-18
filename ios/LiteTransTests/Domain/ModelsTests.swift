@@ -79,4 +79,13 @@ struct ModelsTests {
         let decoded = try JSONDecoder().decode(Job.self, from: data)
         #expect(decoded.createdAtEpochMs == 1_779_160_980_000)
     }
+
+    @Test func concatFieldsDecodeMissingAsEmpty() throws {
+        let json = Data(#"""
+        {"id":"1","sourceUri":"a","displayName":"a","status":"queued","progress":0,"config":{"preset":"mp4-h264"},"media":{"sourceUri":"a","displayName":"a","importable":false}}
+        """#.utf8)
+        let job = try JSONDecoder().decode(Job.self, from: json)
+        #expect(job.config.concatSourceUris.isEmpty)
+        #expect(job.concatMedias.isEmpty)
+    }
 }
