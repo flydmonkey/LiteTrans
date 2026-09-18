@@ -32,6 +32,7 @@
 		878A7B2117F314EE86BC0E25 /* ffmpegkit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C070567FA01DE13AD0B66242 /* ffmpegkit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		87AF12E43DAB2C26A085CBEB /* ConvertHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98630E3AD2AE3D908BAFC718 /* ConvertHomeView.swift */; };
 		923EA6576EFE61C7F2734A48 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B12DC144713D4CD33997EBBC /* Localizable.xcstrings */; };
+		95507C759724AADED508BF4A /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B9D7EFA792D618E6AF0F72 /* SessionStoreTests.swift */; };
 		99AEBFEF60DAB3B6CC322FE5 /* libavutil.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E19011C027DBA528DF8CD7F /* libavutil.xcframework */; };
 		A142A3204061E4E444A027BF /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B5527E8CED5BC0FBEAA8487 /* Theme.swift */; };
 		A1860FF6621512135945F1B6 /* ConvertNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53177D416925D7B8B98C820D /* ConvertNavigation.swift */; };
@@ -105,6 +106,7 @@
 		5AA268E9E522EC298CD843AC /* DocumentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentEngine.swift; sourceTree = "<group>"; };
 		6186922C3EF56B1844D77649 /* Validate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Validate.swift; sourceTree = "<group>"; };
 		649853812F4A7AFB103E5865 /* QueuePump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuePump.swift; sourceTree = "<group>"; };
+		69B9D7EFA792D618E6AF0F72 /* SessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStoreTests.swift; sourceTree = "<group>"; };
 		6CFC99B15435DF9AA8824ACE /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		6E76AF098843FC66F3169DEA /* libswscale.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libswscale.xcframework; path = Vendor/FFmpeg/libswscale.xcframework; sourceTree = "<group>"; };
 		72DD3198570CA635500454EA /* ProbeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeService.swift; sourceTree = "<group>"; };
@@ -200,6 +202,7 @@
 			isa = PBXGroup;
 			children = (
 				E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */,
+				69B9D7EFA792D618E6AF0F72 /* SessionStoreTests.swift */,
 			);
 			path = LiteTransTests;
 			sourceTree = "<group>";
@@ -405,6 +408,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				35EACD9AB0DA81183FDC5130 /* RootTabTests.swift in Sources */,
+				95507C759724AADED508BF4A /* SessionStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

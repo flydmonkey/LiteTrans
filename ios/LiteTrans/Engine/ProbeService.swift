@@ -1,48 +1,155 @@
 import AVFoundation
 import CoreMedia
 import Foundation
+import ImageIO
+import PDFKit
 
 struct ProbeService {
-    func probe(url: URL, displayName: String) async -> MediaInfo {
-        let asset = AVURLAsset(url: url)
-        do {
-            async let durationLoad = asset.load(.duration)
-            async let videoLoad = asset.loadTracks(withMediaType: .video)
-            async let audioLoad = asset.loadTracks(withMediaType: .audio)
-            let duration = try await durationLoad
-            let videoTracks = try await videoLoad
-            let audioTracks = try await audioLoad
-
-            var width: Int?
-            var height: Int?
-            var frameRate: Double?
-            var videoCodec: String?
-            if let track = videoTracks.first {
-                let size = try await track.load(.naturalSize)
-                let transform = try await track.load(.preferredTransform)
-                let rendered = size.applying(transform)
-                width = Int(abs(rendered.width).rounded())
-                height = Int(abs(rendered.height).rounded())
-                let rate = try await track.load(.nominalFrameRate)
-                if rate > 0 {
-                    frameRate = Double(rate)
-                }
-                if let format = try await track.load(.formatDescriptions).first {
-                    videoCodec = videoCodecName(format)
-                }
+    func probe(
+        url: URL,
+        displayName: String,
+        mode: ConvertMode = .video,
+        preset: String = defaultPreset,
+        language: AppLanguage = .system
+    ) async -> MediaInfo {
+        let name = displayName.isEmpty ? url.lastPathComponent : displayName
+        if let kind = documentSourceKind(name) {
+            switch kind {
+            case .word, .excel:
+                return blocked(
+                    url: url,
+                    displayName: name,
+                    container: url.pathExtension.lowercased(),
+                    error: localized("error_office_later", language: language)
+                )
+            case .pdf:
+                return probePDF(url: url, displayName: name, language: language)
+            case .image:
+                return probeImage(url: url, displayName: name, language: language)
             }
+        }
 
-            var audioCodec: String?
-            var channels: Int?
-            if let track = audioTracks.first {
-                if let format = try await track.load(.formatDescriptions).first {
-                    audioCodec = audioCodecName(format)
-                    channels = channelCount(format)
-                }
+        if mode == .document {
+            return blocked(
+                url: url,
+                displayName: name,
+                container: containerName(url),
+                error: localized("error_unsupported_document", language: language)
+            )
+        }
+
+        return await probeAV(
+            url: url,
+            displayName: name,
+            mode: mode,
+            preset: preset,
+            language: language
+        )
+    }
+}
+
+private func probePDF(url: URL, displayName: String, language: AppLanguage) -> MediaInfo {
+    guard let document = PDFDocument(url: url) else {
+        return blocked(
+            url: url,
+            displayName: displayName,
+            container: "pdf",
+            error: localized("error_unsupported_document", language: language)
+        )
+    }
+    if document.isEncrypted || document.isLocked {
+        return blocked(
+            url: url,
+            displayName: displayName,
+            container: "pdf",
+            error: localized("error_encrypted_pdf", language: language)
+        )
+    }
+    let pageCount = max(document.pageCount, 1)
+    return MediaInfo(
+        sourceUri: url.absoluteString,
+        displayName: displayName,
+        container: "pdf",
+        importable: true,
+        probing: false,
+        pageCount: pageCount,
+        pageStart: 1,
+        pageEnd: pageCount
+    )
+}
+
+private func probeImage(url: URL, displayName: String, language: AppLanguage) -> MediaInfo {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+          CGImageSourceGetCount(source) > 0,
+          let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+    else {
+        return blocked(
+            url: url,
+            displayName: displayName,
+            container: containerName(url),
+            error: localized("error_unsupported_document", language: language)
+        )
+    }
+    let width = intProperty(props[kCGImagePropertyPixelWidth])
+    let height = intProperty(props[kCGImagePropertyPixelHeight])
+    return MediaInfo(
+        sourceUri: url.absoluteString,
+        displayName: displayName,
+        container: containerName(url),
+        width: width == 0 ? nil : width,
+        height: height == 0 ? nil : height,
+        importable: true,
+        probing: false
+    )
+}
+
+private func probeAV(
+    url: URL,
+    displayName: String,
+    mode: ConvertMode,
+    preset: String,
+    language: AppLanguage
+) async -> MediaInfo {
+    let asset = AVURLAsset(url: url)
+    do {
+        async let durationLoad = asset.load(.duration)
+        async let videoLoad = asset.loadTracks(withMediaType: .video)
+        async let audioLoad = asset.loadTracks(withMediaType: .audio)
+        let duration = try await durationLoad
+        let videoTracks = try await videoLoad
+        let audioTracks = try await audioLoad
+
+        var width: Int?
+        var height: Int?
+        var frameRate: Double?
+        var videoCodec: String?
+        if let track = videoTracks.first {
+            let size = try await track.load(.naturalSize)
+            let transform = try await track.load(.preferredTransform)
+            let rendered = size.applying(transform)
+            width = Int(abs(rendered.width).rounded())
+            height = Int(abs(rendered.height).rounded())
+            let rate = try await track.load(.nominalFrameRate)
+            if rate > 0 {
+                frameRate = Double(rate)
             }
+            if let format = try await track.load(.formatDescriptions).first {
+                videoCodec = videoCodecName(format)
+            }
+        }
 
-            let seconds = CMTimeGetSeconds(duration)
-            let hasAV = videoTracks.isEmpty == false || audioTracks.isEmpty == false
+        var audioCodec: String?
+        var channels: Int?
+        if let track = audioTracks.first {
+            if let format = try await track.load(.formatDescriptions).first {
+                audioCodec = audioCodecName(format)
+                channels = channelCount(format)
+            }
+        }
+
+        let seconds = CMTimeGetSeconds(duration)
+        let audioOnlyTarget = mode == .audio || preset.hasPrefix("audio-")
+        if audioOnlyTarget && audioTracks.isEmpty {
             return MediaInfo(
                 sourceUri: url.absoluteString,
                 displayName: displayName,
@@ -52,21 +159,62 @@ struct ProbeService {
                 width: width == 0 ? nil : width,
                 height: height == 0 ? nil : height,
                 frameRate: frameRate,
-                audioCodec: audioCodec,
-                channels: channels,
-                importable: hasAV,
-                error: hasAV ? nil : "No convertible video or audio stream",
-                probing: false
-            )
-        } catch {
-            return MediaInfo(
-                sourceUri: url.absoluteString,
-                displayName: displayName,
                 importable: false,
-                error: error.localizedDescription,
+                error: localized("error_no_audio", language: language),
                 probing: false
             )
         }
+
+        let hasAV = videoTracks.isEmpty == false || audioTracks.isEmpty == false
+        return MediaInfo(
+            sourceUri: url.absoluteString,
+            displayName: displayName,
+            durationSecs: seconds.isFinite && seconds > 0 ? seconds : nil,
+            container: containerName(url),
+            videoCodec: videoCodec,
+            width: width == 0 ? nil : width,
+            height: height == 0 ? nil : height,
+            frameRate: frameRate,
+            audioCodec: audioCodec,
+            channels: channels,
+            importable: hasAV,
+            error: hasAV ? nil : "No convertible video or audio stream",
+            probing: false
+        )
+    } catch {
+        return MediaInfo(
+            sourceUri: url.absoluteString,
+            displayName: displayName,
+            importable: false,
+            error: error.localizedDescription,
+            probing: false
+        )
+    }
+}
+
+private func blocked(url: URL, displayName: String, container: String?, error: String) -> MediaInfo {
+    MediaInfo(
+        sourceUri: url.absoluteString,
+        displayName: displayName,
+        container: container,
+        importable: false,
+        error: error,
+        probing: false
+    )
+}
+
+private func localized(_ key: String.LocalizationValue, language: AppLanguage) -> String {
+    if let identifier = resolvedLocaleIdentifier(language) {
+        return String(localized: key, locale: Locale(identifier: identifier))
+    }
+    return String(localized: key)
+}
+
+private func intProperty(_ value: Any?) -> Int? {
+    switch value {
+    case let number as NSNumber: return number.intValue
+    case let int as Int: return int
+    default: return nil
     }
 }
 

@@ -26,7 +26,7 @@ struct FormatSettingsView: View {
 
     var body: some View {
         List {
-            ForEach(collapsedPrimaryPresets(), id: \.id) { card in
+            ForEach(formatCards, id: \.id) { card in
                 Button {
                     model.preset = card.id
                 } label: {
@@ -37,10 +37,52 @@ struct FormatSettingsView: View {
                     )
                 }
             }
+            if model.convertMode == .video {
+                Button {
+                    model.showAllFormats.toggle()
+                } label: {
+                    Text(model.showAllFormats ? text("format_less") : text("format_more"))
+                        .font(.body)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+                .accessibilityLabel(model.showAllFormats ? text("format_less") : text("format_more"))
+            }
+            if model.convertMode == .document && model.preset == "pdf-image" {
+                ForEach(imageFormats, id: \.id) { format in
+                    Button {
+                        model.imageFormat = format.id
+                    } label: {
+                        settingChoice(
+                            title: format.title,
+                            hint: format.hint,
+                            selected: model.imageFormat == format.id
+                        )
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle(text("wizard_step_format"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var formatCards: [PresetCard] {
+        switch model.convertMode {
+        case .video:
+            collapsedPresetCards(selectedId: model.preset, showAll: model.showAllFormats)
+        case .audio:
+            audioPresetCards()
+        case .document:
+            documentCards(for: model.documentKind)
+        }
+    }
+
+    private var imageFormats: [(id: String, title: String, hint: String)] {
+        [
+            ("jpg", "JPG", "JPEG"),
+            ("png", "PNG", "PNG"),
+            ("webp", "WebP", "WebP"),
+        ]
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
@@ -124,16 +166,25 @@ struct OutputSettingsView: View {
 
     var body: some View {
         List {
-            outputRow(kind: .photos, title: text("output_photos"), hint: text("output_gallery_hint"))
-            outputRow(kind: .downloads, title: text("output_downloads"), hint: text("output_downloads_hint"))
-            Button {
-                pickingFolder = true
-            } label: {
-                settingChoice(
-                    title: text("output_custom"),
-                    hint: text("output_custom_hint"),
-                    selected: model.output.kind == .custom
-                )
+            ForEach(outputChoices(mode: model.convertMode, preset: model.preset), id: \.self) { kind in
+                switch kind {
+                case .photos:
+                    outputRow(kind: .photos, title: text("output_photos"), hint: text("output_gallery_hint"))
+                case .downloads:
+                    outputRow(kind: .downloads, title: text("output_downloads"), hint: text("output_downloads_hint"))
+                case .documents:
+                    outputRow(kind: .documents, title: text("output_documents"), hint: text("output_documents_hint"))
+                case .custom:
+                    Button {
+                        pickingFolder = true
+                    } label: {
+                        settingChoice(
+                            title: text("output_custom"),
+                            hint: text("output_custom_hint"),
+                            selected: model.output.kind == .custom
+                        )
+                    }
+                }
             }
         }
         .listStyle(.insetGrouped)

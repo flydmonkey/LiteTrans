@@ -8,7 +8,7 @@ public enum AppLanguage: String, Sendable, Codable, Hashable { case system, zhHa
 public enum ConvertMode: String, CaseIterable, Sendable, Codable { case video, audio, document }
 public enum HistorySegment: String, CaseIterable, Sendable, Codable { case video, audio, document }
 public enum EngineKind: String, Sendable { case avFoundation, ffmpeg, document }
-public enum OutputKind: String, Sendable, Codable { case photos, downloads, custom, documents }
+public enum OutputKind: String, Sendable, Codable, Hashable { case photos, downloads, custom, documents }
 
 public struct WizardSession: Equatable, Sendable, Codable {
     public var sources: [MediaInfo]

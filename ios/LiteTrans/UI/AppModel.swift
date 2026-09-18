@@ -7,25 +7,67 @@ final class AppModel {
     var tab: RootTab = .convert
     var convertPage: ConvertPage = .home
     var minePage: MinePage = .root
-    var sources: [MediaInfo] = []
-    var selectedUri: String?
-    var preset: String = defaultPreset {
+    var convertMode: ConvertMode = .video {
+        didSet {
+            if convertMode != oldValue {
+                var session = session(for: convertMode)
+                session.output = coerceOutput(session.output, mode: convertMode, preset: session.preset)
+                write(session, to: convertMode, persist: false)
+            }
+            persistSession()
+        }
+    }
+    var historySegment: HistorySegment = .video {
         didSet { persistSession() }
     }
-    var quality: String = "standard" {
-        didSet { persistSession() }
+    var video: WizardSession = defaultSession(.video)
+    var audio: WizardSession = defaultSession(.audio)
+    var document: WizardSession = defaultSession(.document)
+    var sources: [MediaInfo] {
+        get { current.sources }
+        set { mutateCurrent { $0.sources = newValue } }
     }
-    var size: String = "original" {
-        didSet { persistSession() }
+    var selectedUri: String? {
+        get { current.selectedUri }
+        set { mutateCurrent { $0.selectedUri = newValue } }
     }
-    var output: OutputTarget = .init(kind: .downloads) {
-        didSet { persistSession() }
+    var preset: String {
+        get { current.preset }
+        set {
+            mutateCurrent { session in
+                session.preset = newValue
+                session.output = coerceOutput(session.output, mode: convertMode, preset: newValue)
+            }
+        }
+    }
+    var quality: String {
+        get { current.quality }
+        set { mutateCurrent { $0.quality = newValue } }
+    }
+    var size: String {
+        get { current.size }
+        set { mutateCurrent { $0.size = newValue } }
+    }
+    var output: OutputTarget {
+        get { current.output }
+        set { mutateCurrent { $0.output = newValue } }
+    }
+    var showAllFormats: Bool {
+        get { current.showAllFormats }
+        set { mutateCurrent { $0.showAllFormats = newValue } }
+    }
+    var imageFormat: String {
+        get { current.imageFormat }
+        set { mutateCurrent { $0.imageFormat = newValue } }
     }
     var jobs: [Job] = []
     var transcoding: Bool = false
     var message: String?
     var language: AppLanguage = .system {
         didSet { persistSession() }
+    }
+    var documentKind: DocumentSourceKind? {
+        sources.lazy.compactMap { documentSourceKind($0.displayName) }.first
     }
 
     var importableCount: Int { sources.filter(\.importable).count }
@@ -52,13 +94,48 @@ final class AppModel {
         jobs = markInterrupted(jobStore.load())
         jobStore.save(jobs)
         if let session = sessionStore.load() {
-            preset = session.preset
-            quality = session.quality
-            size = session.size
-            output = session.output
             language = session.language
+            video = session.video
+            audio = session.audio
+            document = session.document
+            historySegment = session.historySegment
+            convertMode = session.convertMode
         }
         hydrating = false
+    }
+
+    private var current: WizardSession { session(for: convertMode) }
+
+    private func session(for mode: ConvertMode) -> WizardSession {
+        switch mode {
+        case .video: video
+        case .audio: audio
+        case .document: document
+        }
+    }
+
+    private func write(_ session: WizardSession, to mode: ConvertMode, persist: Bool = true) {
+        switch mode {
+        case .video: video = session
+        case .audio: audio = session
+        case .document: document = session
+        }
+        if persist { persistSession() }
+    }
+
+    private func mutateCurrent(_ update: (inout WizardSession) -> Void) {
+        var session = current
+        update(&session)
+        write(session, to: convertMode)
+    }
+
+    private func syncDocumentSessionToSources() {
+        guard convertMode == .document else { return }
+        let cards = documentCards(for: documentKind)
+        guard !cards.contains(where: { $0.id == preset }) else { return }
+        let nextPreset = documentKind.map(defaultDocumentPreset) ?? defaultSession(.document).preset
+        preset = nextPreset
+        output = OutputTarget(kind: defaultOutputKind(mode: .document, preset: nextPreset))
     }
 
     func startConversion() {
@@ -67,22 +144,28 @@ final class AppModel {
 
     func start() {
         guard startEnabled else { return }
+        let mode = convertMode
+        let session = current
         do {
             let dir = try resolvedOutputDir()
-            let bounds = shouldShowResolution(preset) ? resolutionBounds(size) : (nil, nil)
+            let bounds = shouldShowResolution(session.preset) ? resolutionBounds(session.size) : (nil, nil)
+            var config = OutputConfig(
+                preset: session.preset,
+                maxWidth: bounds.0,
+                maxHeight: bounds.1,
+                quality: session.quality
+            )
+            if session.preset == "pdf-image" || session.preset == "image-compress" {
+                config.container = session.imageFormat
+            }
             let report = try enqueueJobs(
-                sources: sources,
-                config: OutputConfig(
-                    preset: preset,
-                    maxWidth: bounds.0,
-                    maxHeight: bounds.1,
-                    quality: quality
-                ),
+                sources: session.sources,
+                config: config,
                 outputDir: dir,
                 nextId: { UUID().uuidString },
                 exists: { FileManager.default.fileExists(atPath: $0) },
                 existingJobs: jobs,
-                outputKind: output.kind
+                outputKind: session.output.kind
             )
             if report.jobs.isEmpty {
                 message = skippedSourcesMessage(report.skipped)
@@ -92,10 +175,10 @@ final class AppModel {
             jobs.insert(contentsOf: report.jobs, at: 0)
             transcoding = true
             message = skippedSourcesMessage(report.skipped)
-            sources = []
-            selectedUri = nil
+            write(defaultSession(mode), to: mode, persist: false)
             convertPage = .home
             tab = .history
+            historySegment = historySegmentAfterEnqueue(mode: mode, preset: session.preset)
             persistJobs()
             persistSession()
             pump.start(model: self)
@@ -115,6 +198,7 @@ final class AppModel {
         if selectedUri == source.sourceUri {
             selectedUri = sources.first?.sourceUri
         }
+        syncDocumentSessionToSources()
         deleteOrphanedImport(sourceUri: source.sourceUri)
     }
 
@@ -256,6 +340,11 @@ final class AppModel {
     }
 
     func addImportedURL(_ url: URL, displayName: String) {
+        if convertMode == .document,
+           !sameDocumentKind(existing: sources.map(\.displayName), incoming: displayName) {
+            message = localized("error_mixed_documents")
+            return
+        }
         do {
             let dest = try copyIntoImports(url, preferredName: displayName)
             let info = MediaInfo(
@@ -267,7 +356,10 @@ final class AppModel {
             if selectedUri == nil {
                 selectedUri = info.sourceUri
             }
-            Task { await self.finishProbe(sourceUri: info.sourceUri, displayName: displayName) }
+            syncDocumentSessionToSources()
+            let mode = convertMode
+            let currentPreset = preset
+            Task { await self.finishProbe(sourceUri: info.sourceUri, displayName: displayName, mode: mode, preset: currentPreset) }
         } catch {
             sources.append(
                 MediaInfo(
@@ -343,10 +435,17 @@ final class AppModel {
         }
     }
 
-    private func finishProbe(sourceUri: String, displayName: String) async {
+    private func finishProbe(sourceUri: String, displayName: String, mode: ConvertMode, preset: String) async {
         guard let url = URL(string: sourceUri) else { return }
-        let probed = await probeService.probe(url: url, displayName: displayName)
+        let probed = await probeService.probe(
+            url: url,
+            displayName: displayName,
+            mode: mode,
+            preset: preset,
+            language: language
+        )
         replaceSource(probed)
+        syncDocumentSessionToSources()
     }
 
     private func localized(_ key: String.LocalizationValue) -> String {
@@ -360,11 +459,12 @@ final class AppModel {
         guard !hydrating else { return }
         sessionStore.save(
             SessionSnapshot(
-                preset: preset,
-                quality: quality,
-                size: size,
-                output: output,
-                language: language
+                language: language,
+                convertMode: convertMode,
+                historySegment: historySegment,
+                video: video,
+                audio: audio,
+                document: document
             )
         )
     }

@@ -134,13 +134,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved in the Files app"
+            "value" : "LiteTrans in the Files app"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存在文件 App"
+            "value" : "文件 App 中的轻转码"
           }
         }
       }
@@ -1423,6 +1423,132 @@
             "value" : "未命名"
           }
         }
+      }
+    },
+    "segment_video" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "视频" } }
+      }
+    },
+    "segment_audio" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "音频" } }
+      }
+    },
+    "segment_document" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Document" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "文档" } }
+      }
+    },
+    "segment_convert" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Conversion type" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "转码类型" } }
+      }
+    },
+    "wizard_source_music" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Music" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "音乐" } }
+      }
+    },
+    "wizard_source_gallery_hint_audio" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Extract audio from videos" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从视频抽出音轨" } }
+      }
+    },
+    "footer_audio" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add audio, or extract a track from a video" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加音频，或从视频抽出音轨" } }
+      }
+    },
+    "footer_document" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add images, PDFs, or office documents" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加图片、PDF 或办公文档" } }
+      }
+    },
+    "format_more" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "More formats" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "更多格式" } }
+      }
+    },
+    "format_less" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show less" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "收起" } }
+      }
+    },
+    "error_mixed_documents" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add only one kind of file at a time" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请一次只加同一种文件" } }
+      }
+    },
+    "error_office_later" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Coming in a later version" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "后续版本提供" } }
+      }
+    },
+    "error_unsupported_document" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This format isn’t supported" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "不支持此格式" } }
+      }
+    },
+    "error_no_audio" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No audio stream to export" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有音频流，无法导出音频" } }
+      }
+    },
+    "error_encrypted_pdf" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Encrypted PDFs aren’t supported" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "不支持加密 PDF" } }
+      }
+    },
+    "error_no_text" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No text to extract" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有可提取的文字" } }
+      }
+    },
+    "error_cannot_compress_pdf" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This PDF can’t be compressed" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法压缩此 PDF" } }
+      }
+    },
+    "wizard_preview_pdf" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Preview pages and pick a range" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "预览页面并选择范围" } }
+      }
+    },
+    "wizard_preview_image" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Image preview" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "图片预览" } }
+      }
+    },
+    "pdf_page_start" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start page" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "起始页" } }
+      }
+    },
+    "pdf_page_end" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "End page" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "结束页" } }
       }
     }
   },
