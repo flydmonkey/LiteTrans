@@ -3,26 +3,23 @@ import { execFileSync } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
-  createReadStream,
-  createWriteStream,
   mkdirSync,
   readdirSync,
   readFileSync,
   renameSync,
   rmSync,
   statSync,
+  createWriteStream,
 } from "node:fs";
-import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import https from "node:https";
-import { createGunzip } from "node:zlib";
 import path from "node:path";
 
 const ARCHIVE_URL =
-  "https://github.com/fazi-gondal/ffmpeg/releases/download/latest/ffmpeg-android-arm64-v8a.tar.gz";
+  "https://github.com/rhythmcache/ffmpeg-android/releases/download/build-264/ffmpeg-8.0-ee2eb6c-Dynamic-android-arm64-v8a.zip";
 const EXPECTED_SHA256 =
-  "7dbe009d53ae6bc6eddd7dc8a025726b4a41d5b1fd6933f6b1811328b0ed9e39";
+  "62b9ac127b75ee73873d2a953f23f31813e763695915b07c8ac0b3fcb0b6a70d";
 const REQUIRED_CONFIGURATION_FLAGS = [
   "--enable-libx264",
   "--enable-libx265",
@@ -35,7 +32,10 @@ const REQUIRED_CONFIGURATION_FLAGS = [
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const androidDir = path.resolve(scriptDir, "..");
 const cacheDir = path.join(androidDir, ".ffmpeg-cache");
-const archivePath = path.join(cacheDir, "ffmpeg-android-arm64-v8a.tar.gz");
+const archivePath = path.join(
+  cacheDir,
+  "ffmpeg-8.0-ee2eb6c-Dynamic-android-arm64-v8a.zip",
+);
 const extractDir = path.join(cacheDir, "arm64-v8a");
 const outputDir = path.join(
   androidDir,
@@ -90,14 +90,6 @@ function sha256(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
-async function verifyGzip(file) {
-  await pipeline(
-    createReadStream(file),
-    createGunzip(),
-    new Writable({ write(_chunk, _encoding, callback) { callback(); } }),
-  );
-}
-
 function findNamedFile(directory, targetName) {
   for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) =>
     a.name.localeCompare(b.name),
@@ -110,6 +102,26 @@ function findNamedFile(directory, targetName) {
     }
   }
   return null;
+}
+
+function collectSharedLibraries(directory) {
+  const libraries = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const candidate = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      libraries.push(...collectSharedLibraries(candidate));
+      continue;
+    }
+    if (
+      entry.isFile() &&
+      entry.name.endsWith(".so") &&
+      entry.name !== "libffmpeg.so" &&
+      entry.name !== "libffprobe.so"
+    ) {
+      libraries.push(candidate);
+    }
+  }
+  return libraries.sort();
 }
 
 async function main() {
@@ -126,13 +138,18 @@ async function main() {
       `FFmpeg 归档 sha256 校验失败：期望 ${EXPECTED_SHA256}，实际 ${actualSha256}`,
     );
   }
-  await verifyGzip(archivePath);
 
   rmSync(extractDir, { recursive: true, force: true });
   mkdirSync(extractDir, { recursive: true });
-  execFileSync("tar", ["-xzf", archivePath, "-C", extractDir], {
+  execFileSync("unzip", ["-o", archivePath, "-d", extractDir], {
     stdio: "inherit",
   });
+  const innerArchive = findNamedFile(extractDir, "ffmpeg.tar.xz");
+  if (innerArchive) {
+    execFileSync("tar", ["-xJf", innerArchive, "-C", extractDir], {
+      stdio: "inherit",
+    });
+  }
 
   const ffmpeg = findNamedFile(extractDir, "ffmpeg");
   if (!ffmpeg) {
@@ -152,6 +169,12 @@ async function main() {
   }
 
   mkdirSync(outputDir, { recursive: true });
+  for (const library of collectSharedLibraries(extractDir)) {
+    const destination = path.join(outputDir, path.basename(library));
+    copyFileSync(library, destination);
+    chmodSync(destination, 0o755);
+    console.log(`已安装 ${destination}`);
+  }
   for (const name of ["ffmpeg", "ffprobe"]) {
     const source = findNamedFile(extractDir, name);
     if (!source) {

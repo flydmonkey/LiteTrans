@@ -1,0 +1,60 @@
+<h2>图片 Tab：点开一张图之后呢？</h2>
+<p class="subtitle">网格已经定了。选一种「看大图」的方式。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">A · 左格 + 右大图（推荐）</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:10px;font-size:11px">
+          <div style="display:flex;gap:0;border-bottom:1px solid #d5d2cc;margin-bottom:8px">
+            <span style="padding:6px 10px;color:#5c6460">视频</span>
+            <span style="padding:6px 10px;border-bottom:2px solid #c45a2a;color:#c45a2a;font-weight:600">图片</span>
+            <span style="padding:6px 10px;color:#5c6460">文档</span>
+          </div>
+          <div style="display:flex;gap:8px;min-height:128px">
+            <div style="width:38%;display:grid;grid-template-columns:1fr 1fr;gap:5px">
+              <div style="aspect-ratio:1;background:#c9c4ba;border-radius:6px;outline:2px solid #c45a2a"></div>
+              <div style="aspect-ratio:1;background:#b7c4c0;border-radius:6px"></div>
+              <div style="aspect-ratio:1;background:#d4c8b4;border-radius:6px"></div>
+              <div style="aspect-ratio:1;background:#c0c6ce;border-radius:6px"></div>
+            </div>
+            <div style="flex:1;background:#111;border-radius:10px;display:flex;align-items:center;justify-content:center">
+              <div style="width:70%;height:78%;background:#d4c8b4;border-radius:4px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 和视频同一套骨架</h3>
+      <p>左边缩略图，右边深色区放大图 + 下载。四个 Tab 操作一致，不用学第二套。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">B · 全屏灯箱</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:10px;font-size:11px;position:relative">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;opacity:.35">
+            <div style="aspect-ratio:1;background:#c9c4ba;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#b7c4c0;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#d4c8b4;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#c0c6ce;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#d0b8b0;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#bcc9b8;border-radius:6px"></div>
+          </div>
+          <div style="position:absolute;inset:18px 14px 14px;background:rgba(17,17,17,.92);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#ecece8">
+            <div style="width:56%;height:58%;background:#d4c8b4;border-radius:4px;margin-bottom:8px"></div>
+            <span style="font-size:10px;color:#c45a2a">下载 · Esc 关闭</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 点开盖住整页</h3>
+      <p>更像相册。图很大，但和视频 Tab 的「列表+播放器」不统一，还要做关闭/左右切图。</p>
+    </div>
+  </div>
+</div>

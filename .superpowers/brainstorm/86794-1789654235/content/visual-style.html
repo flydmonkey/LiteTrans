@@ -1,0 +1,73 @@
+<h2>网页视觉走哪边？</h2>
+<p class="subtitle">结构已定为「左列表 + 右详情」。下面只比配色和气质，都能播放和下载。</p>
+
+<div class="cards">
+  <div class="card" data-choice="light" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">浅色 · 跟 App</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:10px;font-size:11px;display:flex;gap:8px;min-height:150px">
+          <div style="width:36%;background:#fff;border-radius:8px;padding:8px">
+            <div style="font-weight:600;margin-bottom:6px">LiteTrans</div>
+            <div style="background:#f3eee6;border-left:3px solid #c45a2a;padding:6px;margin-bottom:4px">假期.mp4</div>
+            <div style="padding:6px;color:#666">demo.mp4</div>
+          </div>
+          <div style="flex:1;background:#fff;border-radius:8px;overflow:hidden">
+            <div style="height:78px;background:#d8d4cc;display:flex;align-items:center;justify-content:center;color:#1f2428">▶</div>
+            <div style="padding:8px">假期.mp4<br><span style="color:#c45a2a">下载</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>1. 浅色，跟 App</h3>
+      <p>底 #ecece8、强调 #c45a2a。和手机端是一家，白天用电脑更舒服。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="dark" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">深色播放器</div>
+        <div class="mockup-body" style="background:#16181b;color:#ecece8;padding:10px;font-size:11px;display:flex;gap:8px;min-height:150px">
+          <div style="width:36%;background:#1f2428;border-radius:8px;padding:8px">
+            <div style="font-weight:600;margin-bottom:6px">LiteTrans</div>
+            <div style="background:#2a3136;border-left:3px solid #c45a2a;padding:6px;margin-bottom:4px">假期.mp4</div>
+            <div style="padding:6px;color:#9aa3ab">demo.mp4</div>
+          </div>
+          <div style="flex:1;background:#111;border-radius:8px;overflow:hidden">
+            <div style="height:78px;background:#000;display:flex;align-items:center;justify-content:center;color:#ecece8">▶</div>
+            <div style="padding:8px">假期.mp4<br><span style="color:#c45a2a">下载</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>2. 深色播放器</h3>
+      <p>看视频更沉浸，电脑夜间也好用。和手机浅色 App 会有一点反差。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="split" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">浅壳 + 深播放区</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:10px;font-size:11px;display:flex;gap:8px;min-height:150px">
+          <div style="width:36%;background:#fff;border-radius:8px;padding:8px">
+            <div style="font-weight:600;margin-bottom:6px">LiteTrans</div>
+            <div style="background:#f3eee6;border-left:3px solid #c45a2a;padding:6px;margin-bottom:4px">假期.mp4</div>
+            <div style="padding:6px;color:#666">demo.mp4</div>
+          </div>
+          <div style="flex:1;background:#111;border-radius:8px;overflow:hidden;color:#ecece8">
+            <div style="height:78px;background:#000;display:flex;align-items:center;justify-content:center">▶</div>
+            <div style="padding:8px">假期.mp4 · <span style="color:#c45a2a">下载</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>3. 浅壳 + 深播放区</h3>
+      <p>列表跟 App，播放画面是黑底。我更推荐这个：既正式，又适合看片。</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,94 @@
+<h2>四个 Tab 下面，文件怎么摆？</h2>
+<p class="subtitle">点选一种版式。推荐 B：视频/音频保留大播放器，图片改成相册格，文档用文件表。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">A · 统一：左列表 + 右预览</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:10px;font-size:11px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <strong>LiteTrans</strong>
+            <span style="color:#666">局域网</span>
+          </div>
+          <div style="display:flex;gap:0;border-bottom:1px solid #d5d2cc;margin-bottom:8px">
+            <span style="padding:6px 10px;border-bottom:2px solid #c45a2a;color:#c45a2a;font-weight:600">视频</span>
+            <span style="padding:6px 10px;color:#666">音频</span>
+            <span style="padding:6px 10px;color:#666">图片</span>
+            <span style="padding:6px 10px;color:#666">文档</span>
+          </div>
+          <div style="display:flex;gap:8px;min-height:132px">
+            <div style="width:36%;background:#fff;border-radius:8px;padding:6px">
+              <div style="background:#f4f1ea;border-left:3px solid #c45a2a;padding:6px;margin-bottom:4px">假期.mp4</div>
+              <div style="padding:6px;color:#666">demo.mp4</div>
+              <div style="padding:6px;color:#666">clip.mkv</div>
+            </div>
+            <div style="flex:1;background:#111;border-radius:8px;color:#ecece8;display:flex;align-items:center;justify-content:center">▶</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 四种都用同一套</h3>
+      <p>顶栏 Tab 只过滤左侧列表，右侧始终是大预览。结构稳，但图片会像文件名清单，不像相册。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">B · 按类型换画布（推荐）</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:10px;font-size:11px">
+          <div style="display:flex;gap:0;border-bottom:1px solid #d5d2cc;margin-bottom:8px">
+            <span style="padding:6px 10px;color:#666">视频</span>
+            <span style="padding:6px 10px;color:#666">音频</span>
+            <span style="padding:6px 10px;border-bottom:2px solid #c45a2a;color:#c45a2a;font-weight:600">图片</span>
+            <span style="padding:6px 10px;color:#666">文档</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div style="aspect-ratio:1;background:#c9c4ba;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#b7c4c0;border-radius:6px;outline:2px solid #c45a2a"></div>
+            <div style="aspect-ratio:1;background:#d4c8b4;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#c0c6ce;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#d0b8b0;border-radius:6px"></div>
+            <div style="aspect-ratio:1;background:#bcc9b8;border-radius:6px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 视频/音频用播放器，图片用格子</h3>
+      <p>视频、音频：左列表 + 右大播放器。图片：相册网格，点开看大图。文档：文件表 + 下载（PDF 可预览）。最像正式媒体库。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">C · 全是卡片墙</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:10px;font-size:11px">
+          <div style="display:flex;gap:0;border-bottom:1px solid #d5d2cc;margin-bottom:8px">
+            <span style="padding:6px 10px;border-bottom:2px solid #c45a2a;color:#c45a2a;font-weight:600">视频</span>
+            <span style="padding:6px 10px;color:#666">音频</span>
+            <span style="padding:6px 10px;color:#666">图片</span>
+            <span style="padding:6px 10px;color:#666">文档</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div style="background:#fff;border-radius:8px;overflow:hidden">
+              <div style="height:52px;background:#111;color:#ecece8;display:flex;align-items:center;justify-content:center">▶</div>
+              <div style="padding:6px">假期.mp4</div>
+            </div>
+            <div style="background:#fff;border-radius:8px;overflow:hidden">
+              <div style="height:52px;background:#111;color:#ecece8;display:flex;align-items:center;justify-content:center">▶</div>
+              <div style="padding:6px">demo.mp4</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 四种都是卡片墙</h3>
+      <p>每个 Tab 都是卡片网格，点卡片再播。浏览感强，但没有稳定的大播放区，长视频不舒服。</p>
+    </div>
+  </div>
+</div>

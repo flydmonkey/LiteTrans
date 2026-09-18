@@ -1,0 +1,89 @@
+<h2>电脑网页怎么摆？</h2>
+<p class="subtitle">三种都能播放 + 下载。点选你更想要的结构。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">A · 卡片库</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:12px;font-size:11px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <strong>LiteTrans</strong>
+            <span style="color:#666">局域网</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <span style="background:#c45a2a;color:#fff;border-radius:999px;padding:2px 10px">视频</span>
+            <span style="color:#666">音频</span>
+            <span style="color:#666">文档</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:#fff;border-radius:8px;overflow:hidden">
+              <div style="height:54px;background:#1f2428;display:flex;align-items:center;justify-content:center;color:#ecece8">▶</div>
+              <div style="padding:6px">假期.mp4<br><span style="color:#c45a2a">播放 · 下载</span></div>
+            </div>
+            <div style="background:#fff;border-radius:8px;overflow:hidden">
+              <div style="height:54px;background:#1f2428;display:flex;align-items:center;justify-content:center;color:#ecece8">▶</div>
+              <div style="padding:6px">demo.mp4<br><span style="color:#c45a2a">播放 · 下载</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 卡片库</h3>
+      <p>一页浏览，每条一块卡片，播放器和下载都在卡片上。适合文件不多、扫一眼就取。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">B · 列表 + 详情</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:12px;font-size:11px;display:flex;gap:8px;min-height:150px">
+          <div style="width:38%;background:#fff;border-radius:8px;padding:8px">
+            <div style="color:#c45a2a;margin-bottom:6px">视频</div>
+            <div style="background:#f4f1ea;border-radius:4px;padding:6px;margin-bottom:4px">假期.mp4</div>
+            <div style="padding:6px;color:#666">demo.mp4</div>
+            <div style="padding:6px;color:#666">clip.mp4</div>
+          </div>
+          <div style="flex:1;background:#fff;border-radius:8px;overflow:hidden;display:flex;flex-direction:column">
+            <div style="flex:1;background:#1f2428;display:flex;align-items:center;justify-content:center;color:#ecece8;min-height:88px">▶ 假期.mp4</div>
+            <div style="padding:8px">假期.mp4 · MP4<br><span style="color:#c45a2a">下载</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 列表 + 详情</h3>
+      <p>左边选记录，右边大播放器。更像正式媒体库，文件多时也好找。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;box-shadow:none">
+        <div class="mockup-header">C · 封面墙</div>
+        <div class="mockup-body" style="background:#ecece8;color:#1f2428;padding:12px;font-size:11px">
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <span style="background:#c45a2a;color:#fff;border-radius:999px;padding:2px 10px">视频</span>
+            <span style="color:#666">音频</span>
+            <span style="color:#666">文档</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div style="height:48px;background:#1f2428;border-radius:6px;color:#ecece8;display:flex;align-items:center;justify-content:center">▶</div>
+            <div style="height:48px;background:#1f2428;border-radius:6px;color:#ecece8;display:flex;align-items:center;justify-content:center">▶</div>
+            <div style="height:48px;background:#1f2428;border-radius:6px;color:#ecece8;display:flex;align-items:center;justify-content:center">▶</div>
+          </div>
+          <div style="margin-top:8px;background:#fff;border-radius:8px;padding:8px;display:flex;gap:8px;align-items:center">
+            <div style="width:72px;height:40px;background:#1f2428;border-radius:4px;color:#ecece8;display:flex;align-items:center;justify-content:center">▶</div>
+            <div>假期.mp4<br><span style="color:#c45a2a">播放中 · 下载</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 封面墙</h3>
+      <p>缩略图网格，点选后底部展开播放。更轻，但没有稳定的大播放区。</p>
+    </div>
+  </div>
+</div>
