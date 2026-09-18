@@ -203,6 +203,7 @@ struct ConvertHomeView: View {
             case .photos: text("output_photos")
             case .downloads: text("output_downloads")
             case .custom: text("output_custom")
+            case .documents: text("output_documents")
             }
         }
     }
