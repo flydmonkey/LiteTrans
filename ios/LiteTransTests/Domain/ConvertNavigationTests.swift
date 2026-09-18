@@ -149,6 +149,12 @@ struct ConvertNavigationTests {
         #expect(outputChoices(mode: .audio, preset: "audio-mp3") == [.downloads, .custom])
         #expect(outputChoices(mode: .video, preset: "mp4-h264") == [.photos, .downloads, .custom])
         #expect(outputChoices(mode: .video, preset: "audio-mp3") == [.downloads, .custom])
+        #expect(!outputChoices(mode: .video, preset: "webm-vp9").contains(.photos))
+        #expect(outputChoices(mode: .video, preset: "webm-vp9") == [.downloads, .custom])
+        #expect(outputChoices(mode: .video, preset: "mkv-copy-friendly") == [.downloads, .custom])
+        #expect(outputChoices(mode: .video, preset: "mkv-h265") == [.downloads, .custom])
+        #expect(outputChoices(mode: .video, preset: "avi-mpeg4") == [.downloads, .custom])
+        #expect(outputChoices(mode: .video, preset: "gif").contains(.photos))
         #expect(outputChoices(mode: .document, preset: "image-jpg") == [.photos, .downloads, .custom])
         #expect(outputChoices(mode: .document, preset: "pdf-split") == [.documents, .downloads, .custom])
         #expect(usesPersistentSandboxOutput(.documents))
@@ -174,6 +180,7 @@ struct ConvertNavigationTests {
         let photos = OutputTarget(kind: .photos)
         #expect(coerceOutput(photos, mode: .video, preset: "audio-mp3").kind == .downloads)
         #expect(coerceOutput(photos, mode: .video, preset: "mp4-h264").kind == .photos)
+        #expect(coerceOutput(photos, mode: .video, preset: "webm-vp9").kind == .downloads)
     }
 }
 

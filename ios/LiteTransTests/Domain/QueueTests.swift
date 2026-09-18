@@ -250,6 +250,19 @@ struct QueueTests {
         #expect(report.jobs[0].outputPath == "/tmp/scan-001.pdf")
     }
 
+    @Test func enqueueImageCompressKeepsSourceExtension() throws {
+        let media = MediaInfo(sourceUri: "p", displayName: "photo.png", importable: true)
+        let report = try enqueueJobs(
+            sources: [media],
+            config: OutputConfig(preset: "image-compress", container: nil),
+            outputDir: "/tmp",
+            nextId: { "1" },
+            exists: { _ in false }
+        )
+        #expect(report.jobs[0].outputPath == "/tmp/photo.png")
+        #expect(report.jobs[0].outputPaths == ["/tmp/photo.png"])
+    }
+
     @Test func enqueueRejectsOffice() throws {
         let media = MediaInfo(sourceUri: "w", displayName: "a.docx", importable: true)
         let report = try enqueueJobs(

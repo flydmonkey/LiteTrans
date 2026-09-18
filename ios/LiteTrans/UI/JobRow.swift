@@ -62,11 +62,7 @@ struct JobRow: View {
     }
 
     private var title: String {
-        if let path = job.outputPath {
-            let name = URL(fileURLWithPath: path).lastPathComponent
-            if !name.isEmpty { return name }
-        }
-        return job.displayName.isEmpty ? text("untitled") : job.displayName
+        job.displayName.isEmpty ? text("untitled") : job.displayName
     }
 
     private var subtitle: String {

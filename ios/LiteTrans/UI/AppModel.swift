@@ -155,7 +155,7 @@ final class AppModel {
                 maxHeight: bounds.1,
                 quality: session.quality
             )
-            if session.preset == "pdf-image" || session.preset == "image-compress" {
+            if session.preset == "pdf-image" {
                 config.container = session.imageFormat
             }
             let report = try enqueueJobs(
@@ -286,28 +286,17 @@ final class AppModel {
             message = localized("error_invalid_filename")
             return
         }
-        guard let currentPath = job.outputPath else { return }
-        let started = beginHistoryOutputAccess()
-        defer { endHistoryOutputAccess(started) }
-        let currentURL = URL(fileURLWithPath: currentPath)
-        let ext = currentURL.pathExtension
-        let newName = ext.isEmpty ? stem : "\(stem).\(ext)"
-        let dest = currentURL.deletingLastPathComponent().appendingPathComponent(newName)
-        do {
-            if dest.path != currentURL.path {
-                if FileManager.default.fileExists(atPath: dest.path) {
-                    throw CocoaError(.fileWriteFileExists)
-                }
-                try FileManager.default.moveItem(at: currentURL, to: dest)
-            }
-            var next = job
-            next.outputPath = dest.path
-            next.displayName = newName
-            replaceJob(next)
-            persistJobs()
-        } catch {
-            message = localized("error_cannot_rename")
+        let ext: String
+        if let currentPath = job.outputPath {
+            ext = URL(fileURLWithPath: currentPath).pathExtension
+        } else {
+            ext = URL(fileURLWithPath: job.displayName).pathExtension
         }
+        let newName = ext.isEmpty ? stem : "\(stem).\(ext)"
+        var next = job
+        next.displayName = newName
+        replaceJob(next)
+        persistJobs()
     }
 
     func clearFinished() {

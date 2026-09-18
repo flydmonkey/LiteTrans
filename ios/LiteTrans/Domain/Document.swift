@@ -45,6 +45,16 @@ public func defaultDocumentPreset(_ kind: DocumentSourceKind) -> String {
 public func isDocumentPreset(_ preset: String) -> Bool { documentPresetIDs.contains(preset) }
 public func documentResultIsImage(_ preset: String) -> Bool { imageResultPresets.contains(preset) }
 
+public func keptImageExtension(_ fileName: String) -> String {
+    let name = fileName.split(separator: "/").last.map(String.init) ?? fileName
+    let ext = name.split(separator: ".").last.map { String($0).lowercased() } ?? ""
+    switch ext {
+    case "jpg", "jpeg": return "jpg"
+    case "png", "webp", "bmp", "gif": return ext
+    default: return "jpg"
+    }
+}
+
 public func documentExtension(_ preset: String, imageFormat: String?) -> String {
     switch preset {
     case "image-jpg": return "jpg"

@@ -67,8 +67,8 @@ final class QueuePump {
                                 model.updateProgress(id: jobID, progress: progress)
                             }
                         }
-                        if shouldSaveToPhotos(current.outputKind) {
-                            try await saveVideoToPhotos(outputURL)
+                        if shouldSaveToPhotos(current.outputKind), current.config.preset == "gif" {
+                            try await saveImageToPhotos(outputURL)
                         }
                     case .document:
                         try await documents.run(job: current) { progress in

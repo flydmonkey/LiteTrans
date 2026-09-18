@@ -33,6 +33,11 @@ struct DocumentTests {
         #expect(!documentResultIsImage("pdf-split"))
         #expect(isDocumentPreset("office-pdf"))
         #expect(!isDocumentPreset("mp4-h264"))
+        #expect(keptImageExtension("a.WEBP") == "webp")
+        #expect(keptImageExtension("photo.png") == "png")
+        #expect(keptImageExtension("shot.JPEG") == "jpg")
+        #expect(keptImageExtension("scan.heic") == "jpg")
+        #expect(keptImageExtension("notes.txt") == "jpg")
     }
 
     @Test func outputCountUsesPageRange() {

@@ -96,15 +96,18 @@ public func enqueueJobs(
             return exists(candidate) || exists(partial) || allocated.contains(candidate) || allocated.contains(partial)
         }
         let stem = sourceStem(media.displayName)
+        let ext = resolved.preset == "image-compress"
+            ? keptImageExtension(media.displayName)
+            : resolved.extension
         let count = outputCount(preset: resolved.preset, media: media)
         var outputPaths: [String] = []
         if count > 1 {
             for index in 1...count {
-                let numbered = numberedOutputName(stem: stem, index: index, ext: resolved.extension)
+                let numbered = numberedOutputName(stem: stem, index: index, ext: ext)
                 let path = allocateOutputPath(
                     outputDir: outputDir,
                     stem: sourceStem(numbered),
-                    ext: resolved.extension,
+                    ext: ext,
                     exists: isTaken
                 )
                 outputPaths.append(path)
@@ -112,7 +115,7 @@ public func enqueueJobs(
                 allocated.insert(partialOutputPath(path))
             }
         } else {
-            let path = allocateOutputPath(outputDir: outputDir, stem: stem, ext: resolved.extension, exists: isTaken)
+            let path = allocateOutputPath(outputDir: outputDir, stem: stem, ext: ext, exists: isTaken)
             outputPaths.append(path)
             allocated.insert(path)
             allocated.insert(partialOutputPath(path))

@@ -199,8 +199,7 @@ struct HistoryView: View {
     }
 
     private func beginRename(_ job: Job) {
-        let current = job.outputPath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? job.displayName
-        renameText = sourceStem(current)
+        renameText = sourceStem(job.displayName.isEmpty ? (job.outputPath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "") : job.displayName)
         renameJob = job
     }
 }

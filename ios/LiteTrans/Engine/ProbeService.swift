@@ -3,6 +3,7 @@ import CoreMedia
 import Foundation
 import ImageIO
 import PDFKit
+@preconcurrency import ffmpegkit
 
 struct ProbeService {
     func probe(
@@ -110,6 +111,7 @@ private func probeAV(
     preset: String,
     language: AppLanguage
 ) async -> MediaInfo {
+    let audioOnlyTarget = mode == .audio || preset.hasPrefix("audio-")
     let asset = AVURLAsset(url: url)
     do {
         async let durationLoad = asset.load(.duration)
@@ -148,8 +150,7 @@ private func probeAV(
         }
 
         let seconds = CMTimeGetSeconds(duration)
-        let audioOnlyTarget = mode == .audio || preset.hasPrefix("audio-")
-        if audioOnlyTarget && audioTracks.isEmpty {
+        if audioOnlyTarget && audioTracks.isEmpty && !videoTracks.isEmpty {
             return MediaInfo(
                 sourceUri: url.absoluteString,
                 displayName: displayName,
@@ -166,22 +167,32 @@ private func probeAV(
         }
 
         let hasAV = videoTracks.isEmpty == false || audioTracks.isEmpty == false
-        return MediaInfo(
-            sourceUri: url.absoluteString,
-            displayName: displayName,
-            durationSecs: seconds.isFinite && seconds > 0 ? seconds : nil,
-            container: containerName(url),
-            videoCodec: videoCodec,
-            width: width == 0 ? nil : width,
-            height: height == 0 ? nil : height,
-            frameRate: frameRate,
-            audioCodec: audioCodec,
-            channels: channels,
-            importable: hasAV,
-            error: hasAV ? nil : "No convertible video or audio stream",
-            probing: false
-        )
+        if hasAV {
+            return MediaInfo(
+                sourceUri: url.absoluteString,
+                displayName: displayName,
+                durationSecs: seconds.isFinite && seconds > 0 ? seconds : nil,
+                container: containerName(url),
+                videoCodec: videoCodec,
+                width: width == 0 ? nil : width,
+                height: height == 0 ? nil : height,
+                frameRate: frameRate,
+                audioCodec: audioCodec,
+                channels: channels,
+                importable: true,
+                probing: false
+            )
+        }
     } catch {
+        let fallback = await probeFFprobe(
+            url: url,
+            displayName: displayName,
+            audioOnlyTarget: audioOnlyTarget,
+            language: language
+        )
+        if fallback.importable || fallback.error == localized("error_no_audio", language: language) {
+            return fallback
+        }
         return MediaInfo(
             sourceUri: url.absoluteString,
             displayName: displayName,
@@ -189,6 +200,63 @@ private func probeAV(
             error: error.localizedDescription,
             probing: false
         )
+    }
+
+    return await probeFFprobe(
+        url: url,
+        displayName: displayName,
+        audioOnlyTarget: audioOnlyTarget,
+        language: language
+    )
+}
+
+private func probeFFprobe(
+    url: URL,
+    displayName: String,
+    audioOnlyTarget: Bool,
+    language: AppLanguage
+) async -> MediaInfo {
+    let path = url.isFileURL ? url.path : url.absoluteString
+    let json = await executeFFprobe([
+        "-v", "error",
+        "-show_format",
+        "-show_streams",
+        "-print_format", "json",
+        ffmpegFileArg(path),
+    ])
+    guard let json, !json.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        return MediaInfo(
+            sourceUri: url.absoluteString,
+            displayName: displayName,
+            importable: false,
+            error: "No convertible video or audio stream",
+            probing: false
+        )
+    }
+    let probed = parseFfprobeJson(sourceUri: url.absoluteString, displayName: displayName, json: json)
+    if audioOnlyTarget && probed.audioCodec == nil {
+        return MediaInfo(
+            sourceUri: url.absoluteString,
+            displayName: displayName,
+            durationSecs: probed.durationSecs,
+            container: probed.container,
+            videoCodec: probed.videoCodec,
+            width: probed.width,
+            height: probed.height,
+            frameRate: probed.frameRate,
+            importable: false,
+            error: localized("error_no_audio", language: language),
+            probing: false
+        )
+    }
+    return probed
+}
+
+private func executeFFprobe(_ arguments: [String]) async -> String? {
+    await withCheckedContinuation { continuation in
+        _ = FFprobeKit.execute(withArgumentsAsync: arguments, withCompleteCallback: { session in
+            continuation.resume(returning: session?.getOutput() as String?)
+        })
     }
 }
 

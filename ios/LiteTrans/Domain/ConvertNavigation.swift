@@ -270,6 +270,9 @@ public func outputChoices(mode: ConvertMode, preset: String) -> [OutputKind] {
         return [.downloads, .custom]
     case .video:
         if preset == "audio-mp3" || preset == "audio-aac" { return [.downloads, .custom] }
+        if ["webm-vp9", "mkv-copy-friendly", "mkv-h265", "avi-mpeg4"].contains(preset) {
+            return [.downloads, .custom]
+        }
         return [.photos, .downloads, .custom]
     case .document:
         if documentResultIsImage(preset) { return [.photos, .downloads, .custom] }

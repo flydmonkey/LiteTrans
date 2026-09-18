@@ -1547,6 +1547,12 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从视频抽出音轨" } }
       }
     },
+    "wizard_source_gallery_hint_document" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add photos or images from the library" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从相册添加图片" } }
+      }
+    },
     "footer_audio" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Add audio, or extract a track from a video" } },

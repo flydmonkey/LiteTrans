@@ -17,7 +17,7 @@ struct DocumentEngine: Sendable {
         let destinations = try outputDestinations(for: job)
         let preset = job.config.preset
         if preset == "office-pdf" {
-            throw DocumentRunError(message: "后续版本提供")
+            throw DocumentRunError(message: String(localized: "error_office_later"))
         }
 
         if preset.hasPrefix("image-") {
@@ -41,12 +41,12 @@ struct DocumentEngine: Sendable {
         let image = try decodeImage(source)
         try checkCancelled()
         let destExt = URL(fileURLWithPath: destination).pathExtension.lowercased()
-        let sourceExt = sourceImageExtension(url: source, displayName: job.displayName)
         let quality = job.config.quality ?? "standard"
         let encoded: CGImage
         let compression: Double?
+        let ext: String
         if job.config.preset == "image-compress" {
-            let ext = destExt.isEmpty ? compressKeptExtension(sourceExt) : destExt
+            ext = destExt.isEmpty ? keptImageExtension(job.displayName) : destExt
             if ["png", "bmp"].contains(ext) {
                 encoded = scaledImage(image, scale: scaleForQuality(quality))
                 compression = nil
@@ -55,11 +55,12 @@ struct DocumentEngine: Sendable {
                 compression = lossyQuality(for: ext, quality: quality, compressing: true)
             }
         } else {
+            ext = destExt
             encoded = image
             compression = lossyQuality(for: destExt, quality: quality, compressing: false)
         }
         try writeReplacing(path: destination) { partial in
-            try writeImage(encoded, to: partial, ext: destExt, quality: compression)
+            try writeImage(encoded, to: partial, ext: ext, quality: compression)
         }
     }
 
@@ -169,7 +170,7 @@ struct DocumentEngine: Sendable {
         }
         let combined = parts.joined(separator: "\n")
         if combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            throw DocumentRunError(message: "没有可提取的文字")
+            throw DocumentRunError(message: String(localized: "error_no_text"))
         }
         try writeReplacing(path: destination) { partial in
             try combined.write(to: partial, atomically: true, encoding: .utf8)
@@ -185,10 +186,10 @@ struct DocumentEngine: Sendable {
         onProgress: @escaping @Sendable (Double) -> Void
     ) throws {
         guard let cgDocument = CGPDFDocument(source as CFURL) else {
-            throw DocumentRunError(message: "无法压缩此 PDF")
+            throw DocumentRunError(message: String(localized: "error_cannot_compress_pdf"))
         }
         if cgDocument.isEncrypted || !cgDocument.isUnlocked {
-            throw DocumentRunError(message: "不支持加密 PDF")
+            throw DocumentRunError(message: String(localized: "error_encrypted_pdf"))
         }
         let maxEdge = pdfImageMaxEdge(quality)
         let out = PDFDocument()
@@ -198,30 +199,30 @@ struct DocumentEngine: Sendable {
             try checkCancelled()
             guard let pdfPage = document.page(at: pageNumber - 1),
                   let cgPage = cgDocument.page(at: pageNumber) else {
-                throw DocumentRunError(message: "无法压缩此 PDF")
+                throw DocumentRunError(message: String(localized: "error_cannot_compress_pdf"))
             }
             let images = extractPageImages(cgPage)
             let oversized = images.filter { max($0.width, $0.height) > maxEdge }
             if oversized.count == 1, images.count == 1, isImageOnlyPage(pdfPage) {
                 let scaled = scaledToMaxEdge(images[0], maxEdge: maxEdge)
                 guard let newPage = PDFPage(image: UIImage(cgImage: scaled)) else {
-                    throw DocumentRunError(message: "无法压缩此 PDF")
+                    throw DocumentRunError(message: String(localized: "error_cannot_compress_pdf"))
                 }
                 out.insert(newPage, at: out.pageCount)
                 compressedAny = true
             } else if oversized.isEmpty, let copy = pdfPage.copy() as? PDFPage {
                 out.insert(copy, at: out.pageCount)
             } else {
-                throw DocumentRunError(message: "无法压缩此 PDF")
+                throw DocumentRunError(message: String(localized: "error_cannot_compress_pdf"))
             }
             onProgress(Double(offset + 1) / Double(total) * 100)
         }
         if !compressedAny {
-            throw DocumentRunError(message: "无法压缩此 PDF")
+            throw DocumentRunError(message: String(localized: "error_cannot_compress_pdf"))
         }
         try writeReplacing(path: destination) { partial in
             guard out.write(to: partial) else {
-                throw DocumentRunError(message: "无法压缩此 PDF")
+                throw DocumentRunError(message: String(localized: "error_cannot_compress_pdf"))
             }
         }
     }
@@ -232,7 +233,7 @@ private func openPDF(_ url: URL) throws -> PDFDocument {
         throw DocumentRunError(message: LiteTransError.cannotTranscode.localizedDescription)
     }
     if document.isEncrypted || document.isLocked {
-        throw DocumentRunError(message: "不支持加密 PDF")
+        throw DocumentRunError(message: String(localized: "error_encrypted_pdf"))
     }
     return document
 }
@@ -261,29 +262,6 @@ private func decodeImage(_ url: URL) throws -> CGImage {
         throw DocumentRunError(message: LiteTransError.cannotTranscode.localizedDescription)
     }
     return image
-}
-
-private func sourceImageExtension(url: URL, displayName: String) -> String {
-    if let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-       let raw = CGImageSourceGetType(source) as String?,
-       let type = UTType(raw) {
-        if type.conforms(to: .jpeg) { return "jpg" }
-        if type.conforms(to: .png) { return "png" }
-        if type.conforms(to: .webP) { return "webp" }
-        if type.conforms(to: .bmp) { return "bmp" }
-        if type.conforms(to: .gif) { return "gif" }
-    }
-    let ext = url.pathExtension.lowercased()
-    if !ext.isEmpty { return ext == "jpeg" ? "jpg" : ext }
-    let fromName = (displayName.split(separator: ".").last.map(String.init) ?? "jpg").lowercased()
-    return fromName == "jpeg" ? "jpg" : fromName
-}
-
-private func compressKeptExtension(_ sourceExt: String) -> String {
-    switch sourceExt.lowercased() {
-    case "jpg", "jpeg", "png", "webp", "bmp", "gif": return sourceExt == "jpeg" ? "jpg" : sourceExt
-    default: return "jpg"
-    }
 }
 
 private func lossyQuality(for ext: String, quality: String, compressing: Bool) -> Double? {
@@ -453,7 +431,7 @@ private final class PhotosAddFlag: @unchecked Sendable {
     var value = false
 }
 
-private func saveImageToPhotos(_ url: URL) async throws {
+func saveImageToPhotos(_ url: URL) async throws {
     let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
     guard status == .authorized || status == .limited else {
         throw VideoExportError.photosDenied

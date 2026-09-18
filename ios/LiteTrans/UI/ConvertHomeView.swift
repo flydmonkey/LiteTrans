@@ -208,7 +208,8 @@ struct ConvertHomeView: View {
     private var galleryHint: String {
         switch model.convertMode {
         case .audio: text("wizard_source_gallery_hint_audio")
-        default: text("wizard_source_gallery_hint_video")
+        case .document: text("wizard_source_gallery_hint_document")
+        case .video: text("wizard_source_gallery_hint_video")
         }
     }
 

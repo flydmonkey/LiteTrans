@@ -71,7 +71,12 @@ struct FFmpegRunner: Sendable {
                             }
                         }
                     },
-                    withStatisticsCallback: nil
+                    withStatisticsCallback: { stats in
+                        guard let stats else { return }
+                        let millis = Double(stats.getTime())
+                        guard duration.isFinite, duration > 0, millis.isFinite, millis >= 0 else { return }
+                        onProgress(min(100.0, max(0.0, (millis / 1000.0 / duration) * 100.0)))
+                    }
                 )
             }
         } onCancel: {

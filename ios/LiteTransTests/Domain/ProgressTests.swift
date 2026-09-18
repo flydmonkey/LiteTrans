@@ -4,6 +4,8 @@ import Testing
 struct ProgressTests {
     @Test func parsesOutTimeMs() {
         #expect(parseProgressLine("out_time_ms=5000000", durationSecs: 10) == 50)
+        #expect(parseProgressLine("info: out_time_ms=5000000", durationSecs: 10) == 50)
+        #expect(parseProgressLine("time=00:00:05.00", durationSecs: 10) == 50)
     }
 
     @Test func probeMarksImportableWhenVideoPresent() {
