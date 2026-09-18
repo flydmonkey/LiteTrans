@@ -79,6 +79,7 @@
 		EE8DB03E2544C5A8DAAB70EC /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1BB608CF198773DE165F6D /* RootView.swift */; };
 		F3C71A70B7D473A384BA6319 /* Naming.swift in Sources */ = {isa = PBXBuildFile; fileRef = 465D69B8A0C532097CBDD256 /* Naming.swift */; };
 		F7E4F1884BD57F80548D88F4 /* libavcodec.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F5798D6B7F5563B28BEE7D68 /* libavcodec.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		FA28574BEC27A2C4F79DC3F4 /* Concat.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5D536F40782199AD935F45 /* Concat.swift */; };
 		FBD25F029CE037BBF948F1BE /* libavfilter.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3E30A92DBC131C30ECEF1A23 /* libavfilter.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FFA37D52F5163A22C5F5594D /* ProbeParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31457203F12B09B74BD7643E /* ProbeParser.swift */; };
 /* End PBXBuildFile section */
@@ -195,6 +196,7 @@
 		9B63CAAE452A34FD3E88E0D6 /* libavdevice.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libavdevice.xcframework; path = Vendor/FFmpeg/libavdevice.xcframework; sourceTree = "<group>"; };
 		9DA1EA160A7B4F27032CCDEE /* LanShareServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanShareServer.swift; sourceTree = "<group>"; };
 		A26552228C498551B112105B /* libavformat.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libavformat.xcframework; path = Vendor/FFmpeg/libavformat.xcframework; sourceTree = "<group>"; };
+		AA5D536F40782199AD935F45 /* Concat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Concat.swift; sourceTree = "<group>"; };
 		B0CDEC2DEDFA2E1CC38309A3 /* RootSegmentedPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootSegmentedPicker.swift; sourceTree = "<group>"; };
 		B12DC144713D4CD33997EBBC /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B1B1C38AFCBE388E14054DF2 /* LanLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanLibrary.swift; sourceTree = "<group>"; };
@@ -265,6 +267,7 @@
 			isa = PBXGroup;
 			children = (
 				C7019577E8480BE1A42EE87E /* BackgroundProcessing.swift */,
+				AA5D536F40782199AD935F45 /* Concat.swift */,
 				53177D416925D7B8B98C820D /* ConvertNavigation.swift */,
 				D6982BE104BDEA5E62C33A98 /* Document.swift */,
 				8DA89A876D36BEEFADD874DE /* ExportPreset.swift */,
@@ -553,6 +556,7 @@
 				CCBB825CA3723FD442728C2A /* AppModel.swift in Sources */,
 				1F5A48B9688B96D5C329F796 /* BackgroundProcessing.swift in Sources */,
 				887CF2E70DE19C1BCA1BC216 /* BackgroundProcessingController.swift in Sources */,
+				FA28574BEC27A2C4F79DC3F4 /* Concat.swift in Sources */,
 				87AF12E43DAB2C26A085CBEB /* ConvertHomeView.swift in Sources */,
 				A1860FF6621512135945F1B6 /* ConvertNavigation.swift in Sources */,
 				E68CCD4841A993D3257BEE9B /* ConvertSettingsViews.swift in Sources */,
