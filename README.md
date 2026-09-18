@@ -115,6 +115,7 @@ cd ios && node scripts/fetch-ffmpeg.mjs && xcodegen generate && xcodebuild -sche
 9. Word 转 PDF 进「文件」；Excel 行标红不能开始
 10. 入队后锁屏或 Dynamic Island 显示文件名与百分比；完成后立刻消失
 11. Expanded / 锁屏上的取消能停当前任务
+12. 视频选「合并」，加两段相册视频，拖动对调后开始；历史一条记录，成片时长相加且顺序为对调后；竖屏拼横屏有黑边
 
 ## 从源码运行
 
