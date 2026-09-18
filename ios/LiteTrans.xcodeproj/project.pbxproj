@@ -669,7 +669,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios.activitykit;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.flydmonkey.litetrans.activitykit;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 6.0;
@@ -750,7 +750,7 @@
 				INFOPLIST_FILE = LiteTransLiveActivity/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios.LiveActivity;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.flydmonkey.litetrans.LiveActivity;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -767,7 +767,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.LiteTransTests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.flydmonkey.LiteTransTests;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -783,7 +783,7 @@
 				INFOPLIST_FILE = LiteTransLiveActivity/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios.LiveActivity;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.flydmonkey.litetrans.LiveActivity;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -800,7 +800,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.LiteTransTests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.flydmonkey.LiteTransTests;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -823,7 +823,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.flydmonkey.litetrans;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -845,7 +845,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.flydmonkey.litetrans;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -926,7 +926,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios.activitykit;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.flydmonkey.litetrans.activitykit;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 6.0;

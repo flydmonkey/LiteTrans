@@ -1,6 +1,6 @@
 name: LiteTrans
 options:
-  bundleIdPrefix: com.videoconverter
+  bundleIdPrefix: io.github.flydmonkey
   deploymentTarget:
     iOS: "18.0"
   developmentLanguage: en
@@ -35,11 +35,11 @@ targets:
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
         BGTaskSchedulerPermittedIdentifiers:
-          - com.videoconverter.ios.process
+          - io.github.flydmonkey.litetrans.process
         UIBackgroundModes:
           - processing
         CFBundleURLTypes:
-          - CFBundleURLName: com.videoconverter.ios
+          - CFBundleURLName: io.github.flydmonkey.litetrans
             CFBundleURLSchemes:
               - litetrans
         CFBundleLocalizations:
@@ -50,7 +50,7 @@ targets:
           - ko
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.flydmonkey.litetrans
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
@@ -95,7 +95,7 @@ targets:
       - LiteTransActivityKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios.activitykit
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.flydmonkey.litetrans.activitykit
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
@@ -119,7 +119,7 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios.LiveActivity
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.flydmonkey.litetrans.LiveActivity
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"

@@ -1,6 +1,6 @@
 import Foundation
 
-public let backgroundProcessingTaskIdentifier = "com.videoconverter.ios.process"
+public let backgroundProcessingTaskIdentifier = "io.github.flydmonkey.litetrans.process"
 
 public func shouldSubmitBackgroundProcessing(_ jobs: [Job]) -> Bool {
     jobs.contains { $0.status == .queued || $0.status == .running }

@@ -4,7 +4,7 @@ import Testing
 
 struct BackgroundProcessingTests {
     @Test func processingTaskIdentifierIsStable() {
-        #expect(backgroundProcessingTaskIdentifier == "com.videoconverter.ios.process")
+        #expect(backgroundProcessingTaskIdentifier == "io.github.flydmonkey.litetrans.process")
     }
 
     @Test func submitsWhenQueuedOrRunning() {
