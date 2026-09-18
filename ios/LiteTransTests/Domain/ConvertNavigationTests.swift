@@ -111,6 +111,70 @@ struct ConvertNavigationTests {
         #expect(usesPersistentSandboxOutput(.downloads))
         #expect(!usesPersistentSandboxOutput(.custom))
     }
+
+    @Test func engineKindSplitsThreeWays() {
+        #expect(engineKind("mp4-h264") == .avFoundation)
+        #expect(engineKind("mp4-copy") == .avFoundation)
+        #expect(engineKind("mp4-h265") == .avFoundation)
+        #expect(engineKind("mov-h264") == .avFoundation)
+        #expect(engineKind("webm-vp9") == .ffmpeg)
+        #expect(engineKind("audio-mp3") == .ffmpeg)
+        #expect(engineKind("image-jpg") == .document)
+        #expect(engineKind("pdf-split") == .document)
+    }
+
+    @Test func collapsedSwapsFourthWhenRareSelected() {
+        let folded = collapsedPresetCards(selectedId: "webm-vp9", showAll: false).map(\.id)
+        #expect(folded == ["mp4-h264", "mp4-copy", "mp4-h265", "webm-vp9"])
+        #expect(collapsedPresetCards(selectedId: "mp4-h264", showAll: false).map(\.id) == primaryPresetIDs)
+        #expect(collapsedPresetCards(selectedId: "gif", showAll: true).map(\.id).contains("gif"))
+        #expect(collapsedPresetCards(selectedId: "gif", showAll: true).map(\.id).contains("audio-aac"))
+        #expect(!collapsedPresetCards(selectedId: "gif", showAll: true).map(\.id).contains("audio-wav"))
+    }
+
+    @Test func qualityRowHidesLosslessAudioShowsMp3() {
+        #expect(!shouldShowQualityRow("mp4-copy"))
+        #expect(!shouldShowQualityRow("audio-wav"))
+        #expect(!shouldShowQualityRow("audio-flac"))
+        #expect(shouldShowQualityRow("audio-mp3"))
+        #expect(shouldShowQualityRow("image-compress"))
+        #expect(!shouldShowQualityRow("image-jpg"))
+        #expect(!shouldShowResolution("audio-mp3"))
+        #expect(!shouldShowResolution("pdf-image"))
+    }
+
+    @Test func audioDefaultsToDownloadsWithoutMusic() {
+        #expect(defaultSession(.audio).preset == "audio-mp3")
+        #expect(defaultSession(.audio).output.kind == .downloads)
+        #expect(outputChoices(mode: .audio, preset: "audio-mp3") == [.downloads, .custom])
+        #expect(outputChoices(mode: .video, preset: "mp4-h264") == [.photos, .downloads, .custom])
+        #expect(outputChoices(mode: .video, preset: "audio-mp3") == [.downloads, .custom])
+        #expect(outputChoices(mode: .document, preset: "image-jpg") == [.photos, .downloads, .custom])
+        #expect(outputChoices(mode: .document, preset: "pdf-split") == [.documents, .downloads, .custom])
+        #expect(usesPersistentSandboxOutput(.documents))
+        #expect(!shouldSaveToPhotos(.documents))
+    }
+
+    @Test func historySplitsAudioExtractFromVideo() throws {
+        let video = sampleJob(id: "v", status: .completed)
+        var extract = sampleJob(id: "a", status: .completed)
+        extract.config = OutputConfig(preset: "audio-mp3")
+        var pdf = sampleJob(id: "d", status: .completed)
+        pdf.config = OutputConfig(preset: "pdf-split")
+        #expect(historySegmentFor(extract) == .audio)
+        #expect(historySegmentFor(pdf) == .document)
+        #expect(historySegmentFor(video) == .video)
+        #expect(historySegmentAfterEnqueue(mode: .video, preset: "audio-mp3") == .audio)
+        let mixed = [video, extract, pdf, sampleJob(id: "q", status: .queued)]
+        #expect(remainingJobsAfterClearFinished(mixed, segment: .audio).map(\.id).contains("v"))
+        #expect(!remainingJobsAfterClearFinished(mixed, segment: .audio).map(\.id).contains("a"))
+    }
+
+    @Test func coercePhotosAwayWhenExtractingAudio() {
+        let photos = OutputTarget(kind: .photos)
+        #expect(coerceOutput(photos, mode: .video, preset: "audio-mp3").kind == .downloads)
+        #expect(coerceOutput(photos, mode: .video, preset: "mp4-h264").kind == .photos)
+    }
 }
 
 private func sampleJob(id: String, status: JobStatus) -> Job {
