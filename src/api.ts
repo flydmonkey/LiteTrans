@@ -1,6 +1,14 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { EnqueueReport, Job, MediaInfo, OutputConfig, PresetInfo, SessionSettings } from "./types";
+import type {
+  EnqueueReport,
+  HistorySegment,
+  Job,
+  MediaInfo,
+  OutputConfig,
+  PresetInfo,
+  SessionSettings,
+} from "./types";
 
 const VIDEO_EXTENSIONS = [
   "mp4",
@@ -101,8 +109,20 @@ export function retryJob(id: string) {
   return invoke<void>("retry_job", { id });
 }
 
-export function clearFinishedJobs() {
-  return invoke<void>("clear_finished_jobs");
+export function clearFinishedJobs(segment: HistorySegment) {
+  return invoke<void>("clear_finished_jobs", { segment });
+}
+
+export function deleteJob(id: string) {
+  return invoke<void>("delete_job", { id });
+}
+
+export function renameJob(id: string, rawName: string) {
+  return invoke<void>("rename_job", { id, rawName });
+}
+
+export function appVersion() {
+  return invoke<string>("app_version");
 }
 
 export function loadSessionSettings() {

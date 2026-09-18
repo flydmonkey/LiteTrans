@@ -1033,7 +1033,7 @@ export default function App() {
               <p>一次转一个，按源文件 → 输出文件进行</p>
             </div>
             {finishedCount > 0 ? (
-              <button type="button" className="text" onClick={() => void clearFinishedJobs()}>
+              <button type="button" className="text" onClick={() => void clearFinishedJobs("video")}>
                 清空已完成
               </button>
             ) : null}

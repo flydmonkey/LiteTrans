@@ -38,6 +38,10 @@ export type OutputConfig = {
 
 export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
+export type HistorySegment = "video" | "audio" | "document";
+
+export type AppLanguage = "system" | "zh-Hans" | "zh-Hant" | "en" | "ja" | "ko";
+
 export type Job = {
   id: string;
   sourcePath: string;
@@ -47,6 +51,10 @@ export type Job = {
   error: string | null;
   config: OutputConfig;
   media: MediaInfo;
+  displayName?: string;
+  outputPaths?: string[];
+  createdAtEpochMs?: number | null;
+  concatSourcePaths?: string[];
 };
 
 export type SkippedSource = {
@@ -65,6 +73,7 @@ export type SessionSettings = {
   quality?: string | null;
   maxWidth?: number | null;
   maxHeight?: number | null;
+  language?: AppLanguage | null;
 };
 
 export type SourceItem = MediaInfo & {
