@@ -20,7 +20,9 @@ use engine::{
     cancel_active, extract_preview_frame, prepare_preview, probe_media, transcode_job,
     ActiveTranscode,
 };
-use naming::{allocate_output_path, partial_output_path, source_stem};
+use history::{mark_interrupted, parse_history_segment, remaining_jobs_after_clear_finished};
+use job_store::{jobs_file, load_jobs, save_jobs};
+use naming::{allocate_output_path, partial_output_path, sanitized_rename_stem, source_stem};
 use presets::{list_presets, resolve_config, OutputConfig, PresetInfo};
 use probe::{unreadable, MediaInfo};
 use queue::{config_for_source, split_importable, EnqueueReport, Job, JobStatus, SkippedSource};
@@ -33,6 +35,7 @@ pub struct AppState {
     pub output_dir: Mutex<Option<String>>,
     pub active: Arc<Mutex<Option<ActiveTranscode>>>,
     pub pumping: Mutex<bool>,
+    pub config_dir: Mutex<PathBuf>,
 }
 
 impl Default for AppState {
@@ -42,6 +45,7 @@ impl Default for AppState {
             output_dir: Mutex::new(None),
             active: Arc::new(Mutex::new(None)),
             pumping: Mutex::new(false),
+            config_dir: Mutex::new(PathBuf::new()),
         }
     }
 }
@@ -217,10 +221,15 @@ async fn prepare_preview_command(
 }
 
 #[tauri::command]
-fn clear_finished_jobs(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+fn clear_finished_jobs(
+    app: AppHandle,
+    state: State<AppState>,
+    segment: String,
+) -> Result<(), String> {
+    let segment = parse_history_segment(&segment);
     {
         let mut jobs = lock_err(state.jobs.lock())?;
-        jobs.retain(|job| matches!(job.status, JobStatus::Queued | JobStatus::Running));
+        *jobs = remaining_jobs_after_clear_finished(&jobs, segment);
     }
     emit_jobs(&app, &state)
 }
@@ -259,18 +268,24 @@ fn enqueue_jobs(
             &resolved.extension,
             path_or_partial_exists,
         );
+        let output_path_str = output_path.to_string_lossy().to_string();
+        let display_name = output_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output")
+            .to_string();
         created.push(Job {
             id: format!("job-{}", NEXT_JOB_ID.fetch_add(1, Ordering::Relaxed)),
             source_path: media.path.clone(),
-            output_path: Some(output_path.to_string_lossy().to_string()),
+            output_path: Some(output_path_str.clone()),
             status: JobStatus::Queued,
             progress: 0.0,
             error: None,
             config: job_config,
             media,
-            display_name: String::new(),
-            output_paths: vec![],
-            created_at_epoch_ms: None,
+            display_name,
+            output_paths: vec![output_path_str],
+            created_at_epoch_ms: Some(now_epoch_ms()),
             concat_source_paths: vec![],
         });
     }
@@ -318,7 +333,7 @@ fn retry_job(app: AppHandle, state: State<AppState>, id: String) -> Result<(), S
         let Some(job) = jobs.iter_mut().find(|job| job.id == id) else {
             return Err("找不到该任务".into());
         };
-        if job.status != JobStatus::Failed {
+        if job.status != JobStatus::Failed && job.status != JobStatus::Cancelled {
             return Err("只能重试失败的任务".into());
         }
         let resolved = resolve_config(&job.config)?;
@@ -336,14 +351,103 @@ fn retry_job(app: AppHandle, state: State<AppState>, id: String) -> Result<(), S
             &resolved.extension,
             path_or_partial_exists,
         );
+        let output_path_str = output_path.to_string_lossy().to_string();
         job.status = JobStatus::Queued;
         job.progress = 0.0;
         job.error = None;
-        job.output_path = Some(output_path.to_string_lossy().to_string());
+        job.output_path = Some(output_path_str.clone());
+        job.output_paths = vec![output_path_str];
+        job.display_name = output_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output")
+            .to_string();
     }
     emit_jobs(&app, &state)?;
     start_pump(app);
     Ok(())
+}
+
+#[tauri::command]
+fn delete_job(app: AppHandle, state: State<AppState>, id: String) -> Result<(), String> {
+    let paths = {
+        let mut jobs = lock_err(state.jobs.lock())?;
+        let Some(index) = jobs.iter().position(|job| job.id == id) else {
+            return Err("找不到该任务".into());
+        };
+        if matches!(jobs[index].status, JobStatus::Queued | JobStatus::Running) {
+            return Err("进行中的任务请先取消".into());
+        }
+        let job = jobs.remove(index);
+        if job.output_paths.is_empty() {
+            job.output_path.into_iter().collect::<Vec<_>>()
+        } else {
+            job.output_paths
+        }
+    };
+    for path in paths {
+        let file = Path::new(&path);
+        if file.exists() {
+            let _ = std::fs::remove_file(file);
+        }
+    }
+    emit_jobs(&app, &state)
+}
+
+#[tauri::command]
+fn rename_job(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    raw_name: String,
+) -> Result<(), String> {
+    let stem = sanitized_rename_stem(&raw_name).ok_or_else(|| "文件名不能为空".to_string())?;
+    {
+        let mut jobs = lock_err(state.jobs.lock())?;
+        let Some(job) = jobs.iter_mut().find(|job| job.id == id) else {
+            return Err("找不到该任务".into());
+        };
+        if job.status != JobStatus::Completed {
+            return Err("只能重命名已完成的任务".into());
+        }
+        let current = job
+            .output_paths
+            .first()
+            .cloned()
+            .or_else(|| job.output_path.clone())
+            .ok_or_else(|| "没有输出路径".to_string())?;
+        let current_path = PathBuf::from(&current);
+        let parent = current_path.parent().unwrap_or_else(|| Path::new("."));
+        let ext = current_path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        let dest = allocate_output_path(parent, &stem, ext, |path| {
+            path.exists() && path != current_path.as_path()
+        });
+        if dest != current_path {
+            std::fs::rename(&current_path, &dest).map_err(|err| format!("无法重命名：{err}"))?;
+        }
+        let dest_str = dest.to_string_lossy().to_string();
+        let display_name = dest
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&dest_str)
+            .to_string();
+        job.output_path = Some(dest_str.clone());
+        if job.output_paths.is_empty() {
+            job.output_paths.push(dest_str);
+        } else {
+            job.output_paths[0] = dest_str;
+        }
+        job.display_name = display_name;
+    }
+    emit_jobs(&app, &state)
+}
+
+#[tauri::command]
+fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
 }
 
 #[tauri::command]
@@ -361,8 +465,48 @@ fn path_or_partial_exists(path: &Path) -> bool {
     path.exists() || partial_output_path(path).exists()
 }
 
+fn now_epoch_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+fn persist_jobs_if_possible(app: &AppHandle, jobs: &[Job]) {
+    if let Ok(dir) = app.path().app_config_dir() {
+        let _ = save_jobs(&jobs_file(&dir), jobs);
+    }
+}
+
+fn next_job_id_from(jobs: &[Job]) -> u64 {
+    jobs.iter()
+        .filter_map(|job| job.id.strip_prefix("job-")?.parse::<u64>().ok())
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1)
+}
+
+fn load_jobs_into_state(app: &AppHandle) {
+    let Ok(dir) = app.path().app_config_dir() else {
+        return;
+    };
+    let file = jobs_file(&dir);
+    let mut jobs = load_jobs(&file);
+    mark_interrupted(&mut jobs);
+    let _ = save_jobs(&file, &jobs);
+    NEXT_JOB_ID.store(next_job_id_from(&jobs), Ordering::Relaxed);
+    let state = app.state::<AppState>();
+    if let Ok(mut guard) = state.jobs.lock() {
+        *guard = jobs;
+    }
+    if let Ok(mut config_dir) = state.config_dir.lock() {
+        *config_dir = dir;
+    };
+}
+
 fn emit_jobs(app: &AppHandle, state: &AppState) -> Result<(), String> {
     let jobs = lock_err(state.jobs.lock())?.clone();
+    persist_jobs_if_possible(app, &jobs);
     app.emit("jobs-changed", jobs)
         .map_err(|err| format!("无法更新任务列表：{err}"))
 }
@@ -501,7 +645,9 @@ fn mark_job(
             job.error = error;
         }
     }
-    let _ = app.emit("jobs-changed", current_jobs(app));
+    let jobs = current_jobs(app);
+    persist_jobs_if_possible(app, &jobs);
+    let _ = app.emit("jobs-changed", jobs);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -510,6 +656,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .setup(|app| {
+            load_jobs_into_state(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             list_output_presets,
             probe_media_command,
@@ -527,6 +677,9 @@ pub fn run() {
             cancel_job,
             retry_job,
             clear_finished_jobs,
+            delete_job,
+            rename_job,
+            app_version,
             remove_source_jobs,
         ])
         .run(tauri::generate_context!())

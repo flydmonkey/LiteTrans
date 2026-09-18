@@ -41,6 +41,33 @@ pub fn ffmpeg_file_arg(path: &str) -> String {
     }
 }
 
+pub fn sanitized_rename_stem(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed == ".." {
+        return None;
+    }
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return None;
+    }
+    let stem = strip_trailing_extension(trimmed);
+    if stem.is_empty() || stem == ".." {
+        return None;
+    }
+    Some(stem.to_string())
+}
+
+fn strip_trailing_extension(name: &str) -> &str {
+    let Some(dot) = name.rfind('.') else {
+        return name;
+    };
+    let ext = &name[dot + 1..];
+    if (1..=8).contains(&ext.len()) && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+        &name[..dot]
+    } else {
+        name
+    }
+}
+
 pub fn allocate_output_path(
     output_dir: &Path,
     stem: &str,
@@ -115,5 +142,24 @@ mod tests {
         } else {
             assert_eq!(value, r"file:C:\Users\a\[4K]clip.mp4");
         }
+    }
+
+    #[test]
+    fn sanitized_rename_stem_strips_padding_and_extension() {
+        assert_eq!(sanitized_rename_stem("  clip.mp4 "), Some("clip".into()));
+    }
+
+    #[test]
+    fn sanitized_rename_stem_rejects_path_and_empty() {
+        assert_eq!(sanitized_rename_stem("a/b"), None);
+        assert_eq!(sanitized_rename_stem(".."), None);
+        assert_eq!(sanitized_rename_stem(""), None);
+        assert_eq!(sanitized_rename_stem("   "), None);
+    }
+
+    #[test]
+    fn sanitized_rename_stem_strips_only_last_extension() {
+        assert_eq!(sanitized_rename_stem("foo.bar.mp4"), Some("foo.bar".into()));
+        assert_eq!(sanitized_rename_stem("already-stem"), Some("already-stem".into()));
     }
 }

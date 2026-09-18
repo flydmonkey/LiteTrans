@@ -113,6 +113,14 @@ pub fn job_row_actions(status: &JobStatus) -> Vec<JobRowAction> {
     }
 }
 
+pub fn parse_history_segment(raw: &str) -> HistorySegment {
+    match raw {
+        "audio" => HistorySegment::Audio,
+        "document" => HistorySegment::Document,
+        _ => HistorySegment::Video,
+    }
+}
+
 pub fn history_segment_after_enqueue(preset: &str) -> HistorySegment {
     if is_audio_preset(preset) {
         HistorySegment::Audio
@@ -238,5 +246,17 @@ mod tests {
             history_segment_after_enqueue("mp4-h264"),
             HistorySegment::Video
         );
+    }
+
+    #[test]
+    fn parse_history_segment_audio() {
+        assert_eq!(parse_history_segment("audio"), HistorySegment::Audio);
+    }
+
+    #[test]
+    fn parse_history_segment_known_and_unknown() {
+        assert_eq!(parse_history_segment("video"), HistorySegment::Video);
+        assert_eq!(parse_history_segment("document"), HistorySegment::Document);
+        assert_eq!(parse_history_segment("nope"), HistorySegment::Video);
     }
 }
