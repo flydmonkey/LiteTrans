@@ -206,7 +206,7 @@ private func fallbackAudioEncoder(_ container: String) -> String {
     }
 }
 
-private func hardwareVideoQualityArgs(_ quality: String) -> [String] {
+func hardwareVideoQualityArgs(_ quality: String) -> [String] {
     let bitrate: String
     switch quality {
     case "original", "high": bitrate = "8000k"
@@ -216,7 +216,7 @@ private func hardwareVideoQualityArgs(_ quality: String) -> [String] {
     return ["-b:v", bitrate]
 }
 
-private func softwareVideoQualityArgs(encoder: String, quality: String) -> [String] {
+func softwareVideoQualityArgs(encoder: String, quality: String) -> [String] {
     switch encoder {
     case "h264":
         let crf: String
