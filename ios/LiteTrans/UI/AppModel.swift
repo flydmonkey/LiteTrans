@@ -87,7 +87,20 @@ final class AppModel {
 
     var importableCount: Int { sources.filter(\.importable).count }
     var probing: Bool { sources.contains(where: \.probing) }
-    var startEnabled: Bool { canStart(importable: importableCount, probing: probing, transcoding: transcoding, output: output) }
+    var startEnabled: Bool {
+        canStart(
+            importable: importableCount,
+            probing: probing,
+            transcoding: transcoding,
+            output: output,
+            preset: preset,
+            sourceCount: sources.count
+        )
+    }
+
+    func moveSources(from offsets: IndexSet, to destination: Int) {
+        sources.move(fromOffsets: offsets, toOffset: destination)
+    }
 
     private let jobStore: JobStore
     private let sessionStore: SessionStore

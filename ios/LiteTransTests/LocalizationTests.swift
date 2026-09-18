@@ -47,4 +47,15 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(localizedText("preset_office_pdf_title", locale: Locale(identifier: "en")), "To PDF")
         XCTAssertEqual(localizedText("error_cannot_convert_document", locale: Locale(identifier: "zh-Hans")), "无法转换此文档")
     }
+
+    func testConcatPresetSwitchesWithLocale() {
+        XCTAssertEqual(localizedText("preset_video_concat_title", locale: Locale(identifier: "zh-Hans")), "合并")
+        XCTAssertEqual(localizedText("preset_video_concat_title", locale: Locale(identifier: "en")), "Merge")
+        XCTAssertEqual(localizedText("preset_video_concat_title", locale: Locale(identifier: "zh-Hant")), "合併")
+        XCTAssertEqual(localizedText("preset_video_concat_title", locale: Locale(identifier: "ja")), "結合")
+        XCTAssertEqual(localizedText("preset_video_concat_title", locale: Locale(identifier: "ko")), "병합")
+        XCTAssertEqual(localizedText("preset_video_concat_desc", locale: Locale(identifier: "zh-Hans")), "按顺序拼成一个视频")
+        XCTAssertEqual(localizedText("concat_need_two", locale: Locale(identifier: "zh-Hans")), "至少添加两段视频")
+        XCTAssertEqual(localizedText("concat_need_two", locale: Locale(identifier: "en")), "Add at least two videos")
+    }
 }

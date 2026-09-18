@@ -88,13 +88,25 @@ struct ConvertHomeView: View {
                             }
                         }
                 }
+                .onMove { offsets, destination in
+                    guard isVideoConcatPreset(model.preset) else { return }
+                    model.moveSources(from: offsets, to: destination)
+                }
             } header: {
                 Text(text("section_files"))
             } footer: {
                 if model.sources.isEmpty {
                     Text(footerText)
+                } else if isVideoConcatPreset(model.preset) && model.importableCount < 2 {
+                    Text(text("concat_need_two"))
                 }
             }
+            .environment(
+                \.editMode,
+                isVideoConcatPreset(model.preset) && model.sources.count > 1
+                    ? .constant(.active)
+                    : .constant(.inactive)
+            )
 
             Section(text("section_settings")) {
                 ForEach(convertSettingsFor(preset: model.preset), id: \.self) { setting in
