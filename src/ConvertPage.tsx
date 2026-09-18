@@ -539,6 +539,7 @@ export type ConvertPageProps = {
   dragging: boolean;
   onNotice: (message: string | null) => void;
   onDraggingChange: (dragging: boolean) => void;
+  onEnqueued: (preset: string) => void;
 };
 
 export default function ConvertPage({
@@ -547,6 +548,7 @@ export default function ConvertPage({
   dragging,
   onNotice,
   onDraggingChange,
+  onEnqueued,
 }: ConvertPageProps) {
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [config, setConfig] = useState<OutputConfig>(emptyConfig());
@@ -727,6 +729,7 @@ export default function ConvertPage({
       );
       setSources([]);
       setSelectedPath(null);
+      onEnqueued(config.preset);
       if (report.skipped.length) {
         onNotice(
           t(locale, "notice_skipped", {

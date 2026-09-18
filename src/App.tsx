@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { listJobs, loadSessionSettings } from "./api";
 import ConvertPage from "./ConvertPage";
+import HistoryPage from "./HistoryPage";
+import { historySegmentAfterEnqueue } from "./history";
 import { resolveLocaleTag, t } from "./i18n";
-import type { AppLanguage, Job } from "./types";
+import type { AppLanguage, HistorySegment, Job } from "./types";
 import "./App.css";
 
 type Tab = "convert" | "history" | "mine";
@@ -24,10 +26,12 @@ function asAppLanguage(value: string | null | undefined): AppLanguage {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("convert");
+  const [historySegment, setHistorySegment] = useState<HistorySegment>("video");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [locale, setLocale] = useState(() => resolveLocaleTag("system", navigator.language));
   const [notice, setNotice] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const startedAtRef = useRef(new Map<string, number>());
 
   const activeCount = jobs.filter((job) => job.status === "queued" || job.status === "running").length;
 
@@ -46,9 +50,15 @@ export default function App() {
       .catch(() => {});
 
     const unlistenJobs = listen<Job[]>("jobs-changed", (event) => {
+      for (const job of event.payload) {
+        if (job.status !== "running") startedAtRef.current.delete(job.id);
+      }
       setJobs(event.payload);
     });
     const unlistenProgress = listen<{ id: string; percent: number }>("job-progress", (event) => {
+      if (!startedAtRef.current.has(event.payload.id)) {
+        startedAtRef.current.set(event.payload.id, Date.now());
+      }
       setJobs((current) =>
         current.map((job) =>
           job.id === event.payload.id ? { ...job, progress: event.payload.percent } : job,
@@ -105,9 +115,20 @@ export default function App() {
             dragging={dragging}
             onNotice={setNotice}
             onDraggingChange={setDragging}
+            onEnqueued={(preset) => setHistorySegment(historySegmentAfterEnqueue(preset))}
           />
         </div>
-        {tab === "history" ? <p>{t(locale, "tab_history")}</p> : null}
+        {tab === "history" ? (
+          <HistoryPage
+            locale={locale}
+            jobs={jobs}
+            segment={historySegment}
+            startedAtById={startedAtRef.current}
+            onSegmentChange={setHistorySegment}
+            onGoConvert={() => setTab("convert")}
+            onNotice={setNotice}
+          />
+        ) : null}
         {tab === "mine" ? <p>{t(locale, "tab_mine")}</p> : null}
       </div>
     </div>
