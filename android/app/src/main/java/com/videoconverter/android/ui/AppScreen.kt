@@ -29,8 +29,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.videoconverter.android.R
+import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.JobStatus
+import com.videoconverter.android.domain.documentSourceKind
 
 private val DOCUMENT_FILE_MIMES = arrayOf(
     "image/*",
@@ -62,11 +66,30 @@ fun AppScreen(
     var pickerMode by remember { mutableStateOf(ConvertMode.Video) }
     var pendingStartMode by remember { mutableStateOf(ConvertMode.Video) }
     val transcoding = state.jobs.any { it.status == JobStatus.Queued || it.status == JobStatus.Running }
+    val videoPreview = state.video.sources.firstOrNull { it.media.sourceUri == selectedUri }?.media
+        ?: state.video.sources.firstOrNull { itemHasDuration(it.media) }?.media
+    val audioPreview = state.audio.sources.firstOrNull { it.media.sourceUri == audioSelectedUri }?.media
+        ?: state.audio.sources.firstOrNull { itemHasDuration(it.media) }?.media
+    val documentPreview = state.document.sources.firstOrNull { it.media.sourceUri == documentSelectedUri }?.media
+        ?: state.document.sources.firstOrNull {
+            documentSourceKind(it.media.displayName) in setOf(DocumentSourceKind.Pdf, DocumentSourceKind.Image)
+        }?.media
     val versionName = remember(context) { installedVersionName(context) }
+    val currentMode = convertMode
     val currentPage = when (convertMode) {
         ConvertMode.Audio -> audioPage
         ConvertMode.Document -> documentPage
         ConvertMode.Video -> convertPage
+    }
+    val currentImportable = when (convertMode) {
+        ConvertMode.Audio -> state.audio.sources.count { it.media.importable }
+        ConvertMode.Document -> state.document.sources.count { it.media.importable }
+        ConvertMode.Video -> state.video.sources.count { it.media.importable }
+    }
+    val currentPreview = when (convertMode) {
+        ConvertMode.Audio -> audioPreview
+        ConvertMode.Document -> documentPreview
+        ConvertMode.Video -> videoPreview
     }
 
     LaunchedEffect(openLanShare) {
@@ -177,13 +200,13 @@ fun AppScreen(
                         ConvertMode.Document -> documentShowAll
                         ConvertMode.Video -> showAll
                     },
-                    selectedUriFor = { mode ->
-                        when (mode) {
-                            ConvertMode.Audio -> audioSelectedUri
-                            ConvertMode.Document -> documentSelectedUri
-                            ConvertMode.Video -> selectedUri
-                        }
+                    selectedUri = when (convertMode) {
+                        ConvertMode.Audio -> audioSelectedUri
+                        ConvertMode.Document -> documentSelectedUri
+                        ConvertMode.Video -> selectedUri
                     },
+                    preview = currentPreview,
+                    importable = currentImportable,
                     transcoding = transcoding,
                     onShowAll = {
                         when (convertMode) {
@@ -192,26 +215,26 @@ fun AppScreen(
                             ConvertMode.Video -> showAll = !showAll
                         }
                     },
-                    onSelectUri = { mode, uri ->
-                        when (mode) {
+                    onSelectUri = { uri ->
+                        when (convertMode) {
                             ConvertMode.Audio -> audioSelectedUri = uri
                             ConvertMode.Document -> documentSelectedUri = uri
                             ConvertMode.Video -> selectedUri = uri
                         }
                     },
-                    onPage = { mode, target ->
-                        when (mode) {
+                    onPage = { target ->
+                        when (convertMode) {
                             ConvertMode.Audio -> audioPage = target
                             ConvertMode.Document -> documentPage = target
                             ConvertMode.Video -> convertPage = target
                         }
                     },
                     onMode = { convertMode = it },
-                    onGallery = { mode ->
-                        pickerMode = mode
+                    onGallery = {
+                        pickerMode = convertMode
                         galleryPicker.launch(
                             PickVisualMediaRequest(
-                                if (mode == ConvertMode.Document) {
+                                if (convertMode == ConvertMode.Document) {
                                     ActivityResultContracts.PickVisualMedia.ImageOnly
                                 } else {
                                     ActivityResultContracts.PickVisualMedia.VideoOnly
@@ -219,40 +242,45 @@ fun AppScreen(
                             ),
                         )
                     },
-                    onFiles = { mode ->
-                        pickerMode = mode
+                    onFiles = {
+                        pickerMode = convertMode
                         filePicker.launch(
-                            when (mode) {
+                            when (convertMode) {
                                 ConvertMode.Audio -> arrayOf("audio/*", "video/*")
                                 ConvertMode.Document -> DOCUMENT_FILE_MIMES
                                 ConvertMode.Video -> arrayOf("video/*")
                             },
                         )
                     },
-                    onMusic = { mode ->
-                        pickerMode = mode
-                        filePicker.launch(arrayOf("audio/*"))
+                    onMusic = if (convertMode == ConvertMode.Audio) {
+                        {
+                            pickerMode = ConvertMode.Audio
+                            filePicker.launch(arrayOf("audio/*"))
+                        }
+                    } else {
+                        null
                     },
-                    onOutput = { mode ->
-                        pickerMode = mode
+                    onOutput = {
+                        pickerMode = convertMode
                         outputPicker.launch(null)
                     },
-                    onStart = { startWithNotificationPermission(it) },
+                    onStart = { startWithNotificationPermission(currentMode) },
                     appViewModel = appViewModel,
                 )
                 RootTab.History -> HistoryScreen(
                     segment = historySegment,
                     onSegment = { historySegment = it },
-                    jobs = state.jobs,
+                    jobs = historyJobs(state.jobs, historySegment),
+                    emptyLabel = stringResource(historyEmptyLabelRes(historySegment)),
                     onCancel = appViewModel::cancel,
                     onRetry = appViewModel::retry,
                     onOpen = { launchOutput(context, appViewModel.outputIntent(it, false)) },
                     onShare = { launchOutput(context, appViewModel.outputIntent(it, true)) },
                     onRename = { job, name -> appViewModel.rename(job.id, name) },
                     onDelete = appViewModel::delete,
-                    onClearFinished = appViewModel::clearFinished,
+                    onClearFinished = { appViewModel.clearFinished(historySegment) },
                     onConvertAgain = {
-                        convertMode = convertModeForHistorySegment(it)
+                        convertMode = convertModeForHistorySegment(historySegment)
                         tab = RootTab.Convert
                     },
                 )

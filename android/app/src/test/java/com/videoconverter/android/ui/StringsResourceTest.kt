@@ -201,6 +201,8 @@ class StringsResourceTest {
             R.string.output_custom_hint,
             R.string.output_custom_pick,
             R.string.privacy_capsule,
+            R.string.mine_local_promise,
+            R.string.mine_version,
             R.string.quality_audio_high,
             R.string.quality_audio_high_hint,
             R.string.quality_audio_small,

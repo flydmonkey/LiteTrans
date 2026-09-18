@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">LiteTrans</string>
     <string name="privacy_capsule">On this phone</string>
+    <string name="mine_local_promise">Files you pick stay on this phone</string>
+    <string name="mine_version">Version %1$s</string>
     <string name="tab_convert">Transcode</string>
     <string name="tab_transcode">Video</string>
     <string name="tab_audio">Audio</string>

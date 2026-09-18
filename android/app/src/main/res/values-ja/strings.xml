@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">LiteTrans</string>
     <string name="privacy_capsule">この端末</string>
+    <string name="mine_local_promise">選んだファイルはこの端末だけで処理します</string>
+    <string name="mine_version">バージョン %1$s</string>
     <string name="tab_convert">変換</string>
     <string name="tab_transcode">動画変換</string>
     <string name="tab_audio">音声変換</string>

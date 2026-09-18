@@ -99,16 +99,6 @@ fun convertModeLabelRes(mode: ConvertMode): Int = when (mode) {
     ConvertMode.Document -> R.string.lan_segment_document
 }
 
-fun convertModeIndex(mode: ConvertMode): Int = ConvertMode.entries.indexOf(mode)
-
-fun convertModeAt(index: Int): ConvertMode =
-    ConvertMode.entries[index.coerceIn(ConvertMode.entries.indices)]
-
-fun historySegmentIndex(segment: HistorySegment): Int = HistorySegment.entries.indexOf(segment)
-
-fun historySegmentAt(index: Int): HistorySegment =
-    HistorySegment.entries[index.coerceIn(HistorySegment.entries.indices)]
-
 fun mineItems(): List<MineItem> = listOf(
     MineItem(MinePage.LanShare, R.string.mine_lan),
     MineItem(MinePage.Language, R.string.mine_language),
@@ -130,12 +120,6 @@ fun minePageBodyRes(page: MinePage): Int = when (page) {
     MinePage.Privacy -> R.string.privacy_body
     MinePage.Terms -> R.string.terms_body
     else -> 0
-}
-
-fun legalUrl(page: MinePage): String? = when (page) {
-    MinePage.Privacy -> "https://flydmonkey.github.io/LiteTrans/docs/privacy.html"
-    MinePage.Terms -> "https://flydmonkey.github.io/LiteTrans/docs/terms.html"
-    else -> null
 }
 
 fun aboutBodyRes(): Int = R.string.about_body

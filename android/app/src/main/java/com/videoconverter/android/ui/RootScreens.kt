@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -42,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,55 +54,83 @@ fun HistoryScreen(
     segment: HistorySegment,
     onSegment: (HistorySegment) -> Unit,
     jobs: List<Job>,
+    emptyLabel: String,
     onCancel: (String) -> Unit,
     onRetry: (String) -> Unit,
     onOpen: (Job) -> Unit,
     onShare: (Job) -> Unit,
     onRename: (Job, String) -> Unit,
     onDelete: (String) -> Unit,
-    onClearFinished: (HistorySegment) -> Unit,
-    onConvertAgain: (HistorySegment) -> Unit,
+    onClearFinished: () -> Unit,
+    onConvertAgain: () -> Unit,
 ) {
     var renaming by remember { mutableStateOf<Job?>(null) }
     var deleting by remember { mutableStateOf<Job?>(null) }
-    val selectedJobs = historyJobs(jobs, segment)
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
             title = stringResource(R.string.tab_history),
             actions = {
-                if (hasFinishedJobs(selectedJobs)) {
-                    TextButton(onClick = { onClearFinished(segment) }) {
+                if (hasFinishedJobs(jobs)) {
+                    TextButton(onClick = onClearFinished) {
                         Text(stringResource(R.string.action_clear_finished))
                     }
                 }
             },
         )
-        val pagerState = rememberSyncedPagerState(
-            selectedIndex = historySegmentIndex(segment),
-            pageCount = HistorySegment.entries.size,
-            onIndexChange = { onSegment(historySegmentAt(it)) },
-        )
-        HistorySegmentTabs(
-            selected = historySegmentAt(pagerState.currentPage),
-            onSelect = onSegment,
-        )
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            beyondViewportPageCount = 1,
-        ) { index ->
-            val pageSegment = historySegmentAt(index)
-            HistorySegmentPane(
-                segment = pageSegment,
-                jobs = historyJobs(jobs, pageSegment),
-                onCancel = onCancel,
-                onRetry = onRetry,
-                onOpen = onOpen,
-                onShare = onShare,
-                onRename = { renaming = it },
-                onDelete = { deleting = it },
-                onConvertAgain = { onConvertAgain(pageSegment) },
-            )
+        HistorySegmentTabs(selected = segment, onSelect = onSegment)
+        if (hasActiveJobs(jobs)) {
+            Surface(
+                tonalElevation = 1.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clickable(onClick = onConvertAgain),
+            ) {
+                Text(
+                    stringResource(R.string.history_running_banner, historyActiveCount(jobs)),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        if (jobs.isEmpty()) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(Icons.Filled.List, contentDescription = null)
+                    Text(emptyLabel, style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        stringResource(R.string.history_empty_hint),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FilledTonalButton(onClick = onConvertAgain) {
+                        Text(stringResource(R.string.action_convert_again))
+                    }
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
+            ) {
+                items(jobs.asReversed(), key = { it.id }) { job ->
+                    JobRow(
+                        job = job,
+                        onCancel = { onCancel(job.id) },
+                        onRetry = { onRetry(job.id) },
+                        onOpen = { onOpen(job) },
+                        onShare = { onShare(job) },
+                        onRename = { renaming = job },
+                        onDelete = { deleting = job },
+                    )
+                }
+            }
         }
     }
     renaming?.let { job ->
@@ -148,87 +174,12 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun HistorySegmentPane(
-    segment: HistorySegment,
-    jobs: List<Job>,
-    onCancel: (String) -> Unit,
-    onRetry: (String) -> Unit,
-    onOpen: (Job) -> Unit,
-    onShare: (Job) -> Unit,
-    onRename: (Job) -> Unit,
-    onDelete: (Job) -> Unit,
-    onConvertAgain: () -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (hasActiveJobs(jobs)) {
-            Surface(
-                tonalElevation = 1.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clickable(onClick = onConvertAgain),
-            ) {
-                Text(
-                    stringResource(R.string.history_running_banner, historyActiveCount(jobs)),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-        if (jobs.isEmpty()) {
-            Box(
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    AppGlyphIcon(
-                        kind = historyEmptyGlyph(segment),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(56.dp),
-                    )
-                    Text(stringResource(historyEmptyLabelRes(segment)), style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        stringResource(R.string.history_empty_hint),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    FilledTonalButton(onClick = onConvertAgain) {
-                        Text(stringResource(R.string.action_convert_again))
-                    }
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
-            ) {
-                items(jobs.asReversed(), key = { it.id }) { job ->
-                    JobRow(
-                        job = job,
-                        onCancel = { onCancel(job.id) },
-                        onRetry = { onRetry(job.id) },
-                        onOpen = { onOpen(job) },
-                        onShare = { onShare(job) },
-                        onRename = { onRename(job) },
-                        onDelete = { onDelete(job) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun MineScreen(
     page: MinePage,
     versionName: String,
     onOpen: (MinePage) -> Unit,
     onBack: () -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
     if (page == MinePage.Root) {
         Column(modifier = Modifier.fillMaxSize()) {
             AppTopBar(title = stringResource(R.string.tab_mine))
@@ -247,18 +198,23 @@ fun MineScreen(
                             MineNavRow(
                                 item = item,
                                 showDivider = index < group.lastIndex,
-                                onClick = {
-                                    val url = legalUrl(item.page)
-                                    if (url != null) {
-                                        runCatching { uriHandler.openUri(url) }
-                                    } else {
-                                        onOpen(item.page)
-                                    }
-                                },
+                                onClick = { onOpen(item.page) },
                             )
                         }
                     }
                 }
+                Text(
+                    stringResource(R.string.mine_version, versionName),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                )
+                Text(
+                    stringResource(R.string.mine_local_promise),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
             }
         }
     } else {
