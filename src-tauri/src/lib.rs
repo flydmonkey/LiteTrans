@@ -2,6 +2,7 @@ mod args;
 mod engine;
 mod history;
 mod job_store;
+mod locale;
 mod naming;
 mod presets;
 mod probe;
@@ -171,6 +172,9 @@ fn save_session_settings(app: AppHandle, settings: SessionSettings) -> Result<()
     let mut current = load_from_path(&file);
     if settings.output_dir.is_some() {
         current.output_dir = settings.output_dir;
+    }
+    if settings.language.is_some() {
+        current.language = settings.language;
     }
     current.preset = settings.preset;
     current.quality = settings.quality;

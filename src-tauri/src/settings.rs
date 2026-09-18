@@ -10,6 +10,8 @@ pub struct SessionSettings {
     pub quality: Option<String>,
     pub max_width: Option<u32>,
     pub max_height: Option<u32>,
+    #[serde(default)]
+    pub language: Option<String>,
 }
 
 pub fn settings_file(config_dir: &Path) -> PathBuf {
@@ -59,6 +61,7 @@ mod tests {
             quality: Some("small".into()),
             max_width: Some(1280),
             max_height: Some(720),
+            language: Some("zh-Hans".into()),
         };
         save_to_path(&path, &settings).unwrap();
         assert_eq!(load_from_path(&path), settings);
