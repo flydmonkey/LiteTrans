@@ -51,6 +51,7 @@ struct FFmpegRunner: Sendable {
         let work = URL(fileURLWithPath: outputPath)
             .deletingLastPathComponent()
             .appendingPathComponent("concat-\(job.id)")
+        try? FileManager.default.removeItem(at: work)
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: work) }
 
