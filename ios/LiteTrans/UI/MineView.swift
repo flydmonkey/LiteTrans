@@ -22,13 +22,15 @@ struct MineView: View {
                     }
                 }
                 Section {
-                    NavigationLink(value: MinePage.privacy) {
+                    Link(destination: LegalDocument.privacy.url) {
                         Text(text("mine_privacy"))
-                            .frame(minHeight: 44, alignment: .leading)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .foregroundStyle(Color(uiColor: .label))
                     }
-                    NavigationLink(value: MinePage.terms) {
+                    Link(destination: LegalDocument.terms.url) {
                         Text(text("mine_terms"))
-                            .frame(minHeight: 44, alignment: .leading)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .foregroundStyle(Color(uiColor: .label))
                     }
                     NavigationLink(value: MinePage.about) {
                         Text(text("mine_about"))
