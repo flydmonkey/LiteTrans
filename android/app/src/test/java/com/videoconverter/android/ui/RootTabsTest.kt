@@ -1,5 +1,9 @@
 package com.videoconverter.android.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Sync
 import com.videoconverter.android.R
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
@@ -23,9 +27,30 @@ class RootTabsTest {
             ),
             RootTab.entries.map(::rootTabLabelRes),
         )
+        assertEquals(Icons.Filled.Sync, rootTabIcon(RootTab.Convert))
+        assertEquals(Icons.Filled.Schedule, rootTabIcon(RootTab.History))
+        assertEquals(Icons.Filled.AccountCircle, rootTabIcon(RootTab.Mine))
         assertEquals(R.string.lan_segment_video, convertModeLabelRes(ConvertMode.Video))
         assertEquals(R.string.lan_segment_audio, convertModeLabelRes(ConvertMode.Audio))
         assertEquals(R.string.lan_segment_document, convertModeLabelRes(ConvertMode.Document))
+        assertEquals(
+            listOf(ConvertMode.Video, ConvertMode.Audio, ConvertMode.Document),
+            ConvertMode.entries.mapIndexed { index, _ -> convertModeAt(index) },
+        )
+        assertEquals(0, convertModeIndex(ConvertMode.Video))
+        assertEquals(1, convertModeIndex(ConvertMode.Audio))
+        assertEquals(2, convertModeIndex(ConvertMode.Document))
+        assertEquals(ConvertMode.Video, convertModeAt(-1))
+        assertEquals(ConvertMode.Document, convertModeAt(99))
+        assertEquals(
+            listOf(HistorySegment.Video, HistorySegment.Audio, HistorySegment.Document),
+            HistorySegment.entries.mapIndexed { index, _ -> historySegmentAt(index) },
+        )
+        assertEquals(0, historySegmentIndex(HistorySegment.Video))
+        assertEquals(1, historySegmentIndex(HistorySegment.Audio))
+        assertEquals(2, historySegmentIndex(HistorySegment.Document))
+        assertEquals(HistorySegment.Video, historySegmentAt(-1))
+        assertEquals(HistorySegment.Document, historySegmentAt(99))
     }
 
     @Test
@@ -73,6 +98,23 @@ class RootTabsTest {
     }
 
     @Test
+    fun privacyAndTermsUsePublicHttpsPages() {
+        assertEquals(
+            "https://flydmonkey.github.io/LiteTrans/docs/privacy.html",
+            legalUrl(MinePage.Privacy),
+        )
+        assertEquals(
+            "https://flydmonkey.github.io/LiteTrans/docs/terms.html",
+            legalUrl(MinePage.Terms),
+        )
+        assertTrue(legalUrl(MinePage.Privacy) != legalUrl(MinePage.Terms))
+        assertNull(legalUrl(MinePage.About))
+        assertNull(legalUrl(MinePage.LanShare))
+        assertNull(legalUrl(MinePage.Language))
+        assertNull(legalUrl(MinePage.Root))
+    }
+
+    @Test
     fun legalCopyUsesStringResources() {
         assertEquals(R.string.privacy_body, minePageBodyRes(MinePage.Privacy))
         assertEquals(R.string.terms_body, minePageBodyRes(MinePage.Terms))
@@ -101,6 +143,9 @@ class RootTabsTest {
         assertEquals(R.string.history_empty_video, historyEmptyLabelRes(HistorySegment.Video))
         assertEquals(R.string.history_empty_audio, historyEmptyLabelRes(HistorySegment.Audio))
         assertEquals(R.string.history_empty_document, historyEmptyLabelRes(HistorySegment.Document))
+        assertEquals(AppGlyph.Video, historyEmptyGlyph(HistorySegment.Video))
+        assertEquals(AppGlyph.Audio, historyEmptyGlyph(HistorySegment.Audio))
+        assertEquals(AppGlyph.Document, historyEmptyGlyph(HistorySegment.Document))
     }
 
     @Test

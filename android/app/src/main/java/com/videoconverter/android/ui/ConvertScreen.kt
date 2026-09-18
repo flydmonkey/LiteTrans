@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
@@ -38,6 +39,7 @@ import com.videoconverter.android.R
 import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.documentSourceKind
 
 private val DOCUMENT_FORMAT_CHIPS = listOf(
     ChipOption("jpg", title = "JPG", hintRes = R.string.format_best_compat),
@@ -76,20 +78,18 @@ fun ConvertScreen(
     state: AppUiState,
     page: ConvertPage,
     showAll: Boolean,
-    selectedUri: String?,
-    preview: MediaInfo?,
-    importable: Int,
+    selectedUriFor: (ConvertMode) -> String?,
     transcoding: Boolean,
     onShowAll: () -> Unit,
-    onSelectUri: (String) -> Unit,
-    onPage: (ConvertPage) -> Unit,
+    onSelectUri: (ConvertMode, String) -> Unit,
+    onPage: (ConvertMode, ConvertPage) -> Unit,
     onMode: (ConvertMode) -> Unit,
-    onGallery: () -> Unit,
-    onFiles: () -> Unit,
-    onOutput: () -> Unit,
-    onStart: () -> Unit,
+    onGallery: (ConvertMode) -> Unit,
+    onFiles: (ConvertMode) -> Unit,
+    onOutput: (ConvertMode) -> Unit,
+    onStart: (ConvertMode) -> Unit,
     appViewModel: AppViewModel,
-    onMusic: (() -> Unit)? = null,
+    onMusic: ((ConvertMode) -> Unit)? = null,
 ) {
     val session = sessionFor(state.sessions(), mode)
     val audioMode = mode == ConvertMode.Audio
@@ -97,78 +97,56 @@ fun ConvertScreen(
     val documentKind = documentKindOf(session.sources) ?: DocumentSourceKind.Image
     val displayedPreset = if (audioMode || documentMode) session.preset else coerceVideoPreset(session.preset)
     val context = LocalContext.current
-    val probing = session.sources.any { it.probing }
-    val startEnabled = importable > 0 && !transcoding && !probing && outputReadyToStart(session.output)
     Column(modifier = Modifier.fillMaxSize()) {
         if (page == ConvertPage.Home) {
             AppTopBar(title = stringResource(R.string.tab_convert))
-            ConvertModeTabs(selected = mode, onSelect = onMode)
+            val pagerState = rememberSyncedPagerState(
+                selectedIndex = convertModeIndex(mode),
+                pageCount = ConvertMode.entries.size,
+                onIndexChange = { onMode(convertModeAt(it)) },
+            )
+            ConvertModeTabs(
+                selected = convertModeAt(pagerState.currentPage),
+                onSelect = onMode,
+            )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                beyondViewportPageCount = 1,
+            ) { index ->
+                val pageMode = convertModeAt(index)
+                ConvertHomePane(
+                    mode = pageMode,
+                    state = state,
+                    selectedUri = selectedUriFor(pageMode),
+                    transcoding = transcoding,
+                    showPreview = pageMode == mode,
+                    onSelectUri = { onSelectUri(pageMode, it) },
+                    onPage = { onPage(pageMode, it) },
+                    onGallery = { onGallery(pageMode) },
+                    onFiles = { onFiles(pageMode) },
+                    onStart = { onStart(pageMode) },
+                    onMusic = onMusic?.let { music -> { music(pageMode) } },
+                    appViewModel = appViewModel,
+                )
+            }
         } else {
             AppTopBar(
-                title = stringResource(
-                    when (page) {
-                        ConvertPage.Quality -> convertSettingTitleRes(ConvertSetting.Quality, displayedPreset)
-                        else -> convertPageTitleRes(page)
-                    },
-                ),
-                onBack = { onPage(ConvertPage.Home) },
-            )
-        }
+            title = stringResource(
+                when (page) {
+                    ConvertPage.Quality -> convertSettingTitleRes(ConvertSetting.Quality, displayedPreset)
+                    else -> convertPageTitleRes(page)
+                },
+            ),
+            onBack = { onPage(mode, ConvertPage.Home) },
+        )
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
         ) {
             when (page) {
-                ConvertPage.Home -> {
-                    if (preview != null) {
-                        item(key = "preview-${preview.sourceUri}") {
-                            AppCard {
-                                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                                    if (documentMode) {
-                                        DocumentSourcePreview(preview) { appViewModel.updateTrim(it, mode) }
-                                    } else {
-                                        TrimPanel(preview) { appViewModel.updateTrim(it, mode) }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    item("files") {
-                        FilesSection(
-                            session = session,
-                            selectedUri = selectedUri ?: preview?.sourceUri,
-                            documentMode = documentMode,
-                            audioMode = audioMode,
-                            runningUris = state.jobs.filter { it.status == JobStatus.Running }.map { it.sourceUri }.toSet(),
-                            onSelectUri = onSelectUri,
-                            onRemove = { appViewModel.remove(it, mode) },
-                            onGallery = onGallery,
-                            onFiles = onFiles,
-                            onMusic = onMusic,
-                        )
-                    }
-                    item("settings") {
-                        val settings = convertSettingsFor(displayedPreset)
-                        AppCard {
-                            settings.forEachIndexed { index, setting ->
-                                SettingRow(
-                                    title = stringResource(convertSettingTitleRes(setting, displayedPreset)),
-                                    value = settingValue(
-                                        setting = setting,
-                                        preset = displayedPreset,
-                                        quality = session.quality,
-                                        size = session.size,
-                                        output = outputFolderLabel(context, session.output),
-                                        container = session.container,
-                                    ),
-                                    showDivider = index < settings.lastIndex,
-                                    onClick = { onPage(convertPageFor(setting)) },
-                                )
-                            }
-                        }
-                    }
-                }
+                ConvertPage.Home -> Unit
                 ConvertPage.Format -> {
                     item("formats") {
                         val cards = when {
@@ -290,7 +268,7 @@ fun ConvertScreen(
                                     showDivider = index < cards.lastIndex,
                                     onClick = {
                                         if (card.id == OUTPUT_CHOICE_CUSTOM && customOutputTapOpensPicker(session.output)) {
-                                            onOutput()
+                                            onOutput(mode)
                                         } else {
                                             appViewModel.setOutputChoice(card.id, mode)
                                         }
@@ -302,18 +280,115 @@ fun ConvertScreen(
                 }
             }
         }
-        if (page == ConvertPage.Home) {
-            Button(
-                onClick = onStart,
-                enabled = startEnabled,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(R.string.wizard_start_convert))
+        }
+    }
+}
+
+@Composable
+private fun ConvertHomePane(
+    mode: ConvertMode,
+    state: AppUiState,
+    selectedUri: String?,
+    transcoding: Boolean,
+    showPreview: Boolean,
+    onSelectUri: (String) -> Unit,
+    onPage: (ConvertPage) -> Unit,
+    onGallery: () -> Unit,
+    onFiles: () -> Unit,
+    onStart: () -> Unit,
+    onMusic: (() -> Unit)?,
+    appViewModel: AppViewModel,
+) {
+    val session = sessionFor(state.sessions(), mode)
+    val audioMode = mode == ConvertMode.Audio
+    val documentMode = mode == ConvertMode.Document
+    val displayedPreset = if (audioMode || documentMode) session.preset else coerceVideoPreset(session.preset)
+    val context = LocalContext.current
+    val previewMedia = homePreview(session, selectedUri, documentMode)
+    val preview = if (showPreview) previewMedia else null
+    val probing = session.sources.any { it.probing }
+    val startEnabled = session.sources.count { it.media.importable } > 0 &&
+        !transcoding && !probing && outputReadyToStart(session.output)
+    Column(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+        ) {
+            if (preview != null) {
+                item(key = "preview-${preview.sourceUri}") {
+                    AppCard {
+                        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            if (documentMode) {
+                                DocumentSourcePreview(preview) { appViewModel.updateTrim(it, mode) }
+                            } else {
+                                TrimPanel(preview) { appViewModel.updateTrim(it, mode) }
+                            }
+                        }
+                    }
+                }
+            }
+            item("files") {
+                FilesSection(
+                    session = session,
+                    selectedUri = selectedUri ?: previewMedia?.sourceUri,
+                    documentMode = documentMode,
+                    audioMode = audioMode,
+                    runningUris = state.jobs.filter { it.status == JobStatus.Running }.map { it.sourceUri }.toSet(),
+                    onSelectUri = onSelectUri,
+                    onRemove = { appViewModel.remove(it, mode) },
+                    onGallery = onGallery,
+                    onFiles = onFiles,
+                    onMusic = onMusic,
+                )
+            }
+            item("settings") {
+                val settings = convertSettingsFor(displayedPreset)
+                AppCard {
+                    settings.forEachIndexed { index, setting ->
+                        SettingRow(
+                            title = stringResource(convertSettingTitleRes(setting, displayedPreset)),
+                            value = settingValue(
+                                setting = setting,
+                                preset = displayedPreset,
+                                quality = session.quality,
+                                size = session.size,
+                                output = outputFolderLabel(context, session.output),
+                                container = session.container,
+                            ),
+                            showDivider = index < settings.lastIndex,
+                            onClick = { onPage(convertPageFor(setting)) },
+                        )
+                    }
+                }
             }
         }
+        Button(
+            onClick = onStart,
+            enabled = startEnabled,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .heightIn(min = 48.dp),
+        ) {
+            Text(stringResource(R.string.wizard_start_convert))
+        }
+    }
+}
+
+private fun homePreview(
+    session: WizardSession,
+    selectedUri: String?,
+    documentMode: Boolean,
+): MediaInfo? {
+    val selected = session.sources.firstOrNull { it.media.sourceUri == selectedUri }?.media
+    if (selected != null) return selected
+    return if (documentMode) {
+        session.sources.firstOrNull {
+            documentSourceKind(it.media.displayName) in setOf(DocumentSourceKind.Pdf, DocumentSourceKind.Image)
+        }?.media
+    } else {
+        session.sources.firstOrNull { itemHasDuration(it.media) }?.media
     }
 }
 

@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -31,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -98,9 +102,32 @@ fun RootNavigationBar(
 }
 
 fun rootTabIcon(tab: RootTab): ImageVector = when (tab) {
-    RootTab.Convert -> ConvertTabIcon
-    RootTab.History -> Icons.Filled.List
-    RootTab.Mine -> Icons.Filled.Person
+    RootTab.Convert -> Icons.Filled.Sync
+    RootTab.History -> Icons.Filled.Schedule
+    RootTab.Mine -> Icons.Filled.AccountCircle
+}
+
+@Composable
+fun rememberSyncedPagerState(
+    selectedIndex: Int,
+    pageCount: Int,
+    onIndexChange: (Int) -> Unit,
+): PagerState {
+    val pagerState = rememberPagerState(
+        initialPage = selectedIndex,
+        pageCount = { pageCount },
+    )
+    LaunchedEffect(selectedIndex) {
+        if (pagerState.currentPage != selectedIndex) {
+            pagerState.animateScrollToPage(selectedIndex)
+        }
+    }
+    LaunchedEffect(pagerState.settledPage) {
+        if (pagerState.settledPage != selectedIndex) {
+            onIndexChange(pagerState.settledPage)
+        }
+    }
+    return pagerState
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,7 +154,7 @@ fun HistorySegmentTabs(
     selected: HistorySegment,
     onSelect: (HistorySegment) -> Unit,
 ) {
-    val segments = listOf(HistorySegment.Video, HistorySegment.Audio, HistorySegment.Document)
+    val segments = HistorySegment.entries
     SecondaryTabRow(selectedTabIndex = segments.indexOf(selected)) {
         segments.forEach { segment ->
             Tab(
