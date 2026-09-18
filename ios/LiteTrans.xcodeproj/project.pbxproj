@@ -14,6 +14,7 @@
 		1BFFEDEA7F3F43F0A2D167B5 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78DAAAC8BEC8725FCCD9F249 /* LocalizationTests.swift */; };
 		1E6C1922AEAB1A0CC7008A41 /* QueuePump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649853812F4A7AFB103E5865 /* QueuePump.swift */; };
 		1F5A48B9688B96D5C329F796 /* BackgroundProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7019577E8480BE1A42EE87E /* BackgroundProcessing.swift */; };
+		227133B82A1A4D0003F881B5 /* Legal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D5BF622D1D511AE2761FB83 /* Legal.swift */; };
 		2537D4296E0AAC2F95A88E06 /* LiteTransLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D6C5BC6F0421485FDEDCDBA /* LiteTransLiveActivityBundle.swift */; };
 		2EC777D78F2A0633D517E964 /* LanShareStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD697DE596EB2BD8C1E453C0 /* LanShareStoreTests.swift */; };
 		3544EAF0046E5E2BCC0D51B0 /* LiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B5BE3984367E7E941A88A1 /* LiveActivity.swift */; };
@@ -184,6 +185,7 @@
 		7A45EB60957DFD20427030B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7BD8209150E98AAD72ECE2FE /* Progress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Progress.swift; sourceTree = "<group>"; };
 		7CB07C96BA9578C2CB2149DB /* Trim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trim.swift; sourceTree = "<group>"; };
+		7D5BF622D1D511AE2761FB83 /* Legal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Legal.swift; sourceTree = "<group>"; };
 		7E19011C027DBA528DF8CD7F /* libavutil.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libavutil.xcframework; path = Vendor/FFmpeg/libavutil.xcframework; sourceTree = "<group>"; };
 		8805C9FD8CFDA0930ADC9631 /* FFmpegRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FFmpegRunner.swift; sourceTree = "<group>"; };
 		8D6C5BC6F0421485FDEDCDBA /* LiteTransLiveActivityBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiteTransLiveActivityBundle.swift; sourceTree = "<group>"; };
@@ -272,6 +274,7 @@
 				B1B1C38AFCBE388E14054DF2 /* LanLibrary.swift */,
 				7231C4CA8E91BD3BB531FB73 /* LanMedia.swift */,
 				5EC6ADD57EE05CDD9573AE0B /* LanShare.swift */,
+				7D5BF622D1D511AE2761FB83 /* Legal.swift */,
 				34B5BE3984367E7E941A88A1 /* LiveActivity.swift */,
 				CB6A5778D22766C5522FCC42 /* Models.swift */,
 				465D69B8A0C532097CBDD256 /* Naming.swift */,
@@ -568,6 +571,7 @@
 				A99905DB388EC3B3D0245A28 /* LanShare.swift in Sources */,
 				AFC0F33F7404227EC91B1B32 /* LanShareServer.swift in Sources */,
 				98AF9C9B920AB1F758B7E20B /* LanShareStore.swift in Sources */,
+				227133B82A1A4D0003F881B5 /* Legal.swift in Sources */,
 				6820A862DE083CB36C5C7C05 /* LiteTransApp.swift in Sources */,
 				3544EAF0046E5E2BCC0D51B0 /* LiveActivity.swift in Sources */,
 				8A2615D5322178FA1AF6313A /* LiveActivityController.swift in Sources */,
