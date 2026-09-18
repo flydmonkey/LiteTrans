@@ -21,14 +21,16 @@ import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+const val OUTPUT_FOLDER_NAME = "LiteTrans"
+
 fun defaultRelativePath(): String = mediaStoreRelativePath(OutputTarget.Kind.Downloads)
 
 fun mediaStoreRelativePath(kind: OutputTarget.Kind): String = when (kind) {
-    OutputTarget.Kind.Gallery -> "DCIM/轻转码"
-    OutputTarget.Kind.Movies -> "Movies/轻转码"
-    OutputTarget.Kind.Downloads -> "Download/轻转码"
-    OutputTarget.Kind.Music -> "Music/轻转码"
-    OutputTarget.Kind.Documents -> "Documents/轻转码"
+    OutputTarget.Kind.Gallery -> "DCIM/$OUTPUT_FOLDER_NAME"
+    OutputTarget.Kind.Movies -> "Movies/$OUTPUT_FOLDER_NAME"
+    OutputTarget.Kind.Downloads -> "Download/$OUTPUT_FOLDER_NAME"
+    OutputTarget.Kind.Music -> "Music/$OUTPUT_FOLDER_NAME"
+    OutputTarget.Kind.Documents -> "Documents/$OUTPUT_FOLDER_NAME"
     OutputTarget.Kind.SafTree, OutputTarget.Kind.AppExternal ->
         throw IllegalArgumentException("not a MediaStore target")
 }
@@ -213,7 +215,7 @@ class OutputStore(
         ext: String,
     ): ExportedOutput {
         val root = context.getExternalFilesDir(null) ?: throw IOException(context.getString(R.string.error_cannot_write_app_output))
-        val outputDir = File(root, "轻转码").apply {
+        val outputDir = File(root, OUTPUT_FOLDER_NAME).apply {
             if (!exists() && !mkdirs()) throw IOException(context.getString(R.string.error_cannot_create_app_output))
         }
         val outputPath = allocateOutputPath(

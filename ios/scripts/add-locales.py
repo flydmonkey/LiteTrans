@@ -14,7 +14,7 @@ extra = {
     "output_downloads": {"zh-Hant": "下載", "ja": "ダウンロード", "ko": "다운로드"},
     "output_downloads_hint": {"zh-Hant": "應用程式下載資料夾", "ja": "アプリのダウンロードフォルダ", "ko": "앱 다운로드 폴더"},
     "output_documents": {"zh-Hant": "文件", "ja": "書類", "ko": "문서"},
-    "output_documents_hint": {"zh-Hant": "檔案 App 中的輕轉碼", "ja": "ファイル App の LiteTrans", "ko": "파일 앱의 LiteTrans"},
+    "output_documents_hint": {"zh-Hant": "檔案 App 中的 LiteTrans", "ja": "ファイル App の LiteTrans", "ko": "파일 앱의 LiteTrans"},
     "output_gallery_hint": {"zh-Hant": "儲存到系統照片", "ja": "写真に保存", "ko": "사진 앱에 저장"},
     "output_photos": {"zh-Hant": "照片", "ja": "写真", "ko": "사진"},
     "quality_original": {"zh-Hant": "原畫", "ja": "オリジナル", "ko": "원본"},

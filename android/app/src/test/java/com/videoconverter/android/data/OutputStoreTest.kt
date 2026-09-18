@@ -20,15 +20,15 @@ class OutputStoreTest {
 
     @Test
     fun mediaStoreRelativePathsMatchDestinationChoices() {
-        assertEquals("DCIM/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Gallery))
-        assertEquals("Movies/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Movies))
-        assertEquals("Download/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Downloads))
-        assertEquals("Download/轻转码", defaultRelativePath())
+        assertEquals("DCIM/LiteTrans", mediaStoreRelativePath(OutputTarget.Kind.Gallery))
+        assertEquals("Movies/LiteTrans", mediaStoreRelativePath(OutputTarget.Kind.Movies))
+        assertEquals("Download/LiteTrans", mediaStoreRelativePath(OutputTarget.Kind.Downloads))
+        assertEquals("Download/LiteTrans", defaultRelativePath())
     }
 
     @Test
     fun musicRelativePathIsMusicFolder() {
-        assertEquals("Music/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Music))
+        assertEquals("Music/LiteTrans", mediaStoreRelativePath(OutputTarget.Kind.Music))
     }
 
     @Test
@@ -81,7 +81,7 @@ class OutputStoreTest {
 
     @Test
     fun documentsRelativePath() {
-        assertEquals("Documents/轻转码", mediaStoreRelativePath(OutputTarget.Kind.Documents))
+        assertEquals("Documents/LiteTrans", mediaStoreRelativePath(OutputTarget.Kind.Documents))
     }
 
     @Test

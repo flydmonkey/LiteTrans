@@ -377,7 +377,7 @@ class WizardTest {
         assertEquals("Untitled", outputFileName(null, "Untitled"))
         assertEquals("Untitled", outputFileName("content://media/external/video/media/12345", "Untitled"))
         assertEquals("假期.mp4", historyTitle(mediaStoreJob("假期.mov"), "Untitled"))
-        assertEquals("clip.mp4", historyTitle(mediaStoreJob("clip.mp4", "/sdcard/轻转码/clip.mp4"), "Untitled"))
+        assertEquals("clip.mp4", historyTitle(mediaStoreJob("clip.mp4", "/sdcard/LiteTrans/clip.mp4"), "Untitled"))
     }
 
     @Test

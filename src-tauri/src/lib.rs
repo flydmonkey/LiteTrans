@@ -146,7 +146,7 @@ fn get_or_init_output_dir(app: AppHandle, state: State<AppState>) -> Result<Stri
         .path()
         .download_dir()
         .map_err(|err| format!("无法定位下载文件夹：{err}"))?;
-    dir.push("轻转码");
+    dir.push("LiteTrans");
     std::fs::create_dir_all(&dir).map_err(|err| format!("无法创建保存文件夹：{err}"))?;
     let path = dir.to_string_lossy().to_string();
     *lock_err(state.output_dir.lock())? = Some(path.clone());

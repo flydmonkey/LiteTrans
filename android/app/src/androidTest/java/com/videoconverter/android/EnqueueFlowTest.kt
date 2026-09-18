@@ -38,7 +38,7 @@ class EnqueueFlowTest {
         outputRoot = requireNotNull(context.getExternalFilesDir(null))
         plannedOutputDir = File(context.filesDir, "planned-instrumentation")
         plannedOutputDir.deleteRecursively()
-        File(outputRoot, "轻转码").deleteRecursively()
+        File(outputRoot, "LiteTrans").deleteRecursively()
         File(context.filesDir, "jobs").deleteRecursively()
     }
 
@@ -46,7 +46,7 @@ class EnqueueFlowTest {
     fun tearDown() {
         source.delete()
         plannedOutputDir.deleteRecursively()
-        File(outputRoot, "轻转码").deleteRecursively()
+        File(outputRoot, "LiteTrans").deleteRecursively()
         File(context.filesDir, "jobs").deleteRecursively()
     }
 
