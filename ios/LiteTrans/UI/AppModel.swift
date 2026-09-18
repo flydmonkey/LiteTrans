@@ -223,7 +223,7 @@ final class AppModel {
     }
 
     var hasFinishedJobs: Bool {
-        jobs.contains { $0.status != .queued && $0.status != .running }
+        historyJobs(jobs, segment: historySegment).contains { $0.status != .queued && $0.status != .running }
     }
 
     func outputFileURL(for job: Job) -> URL? {
@@ -311,8 +311,11 @@ final class AppModel {
     }
 
     func clearFinished() {
-        let removed = jobs.filter { $0.status != .queued && $0.status != .running }
-        jobs = remainingJobsAfterClearFinished(jobs)
+        let segment = historySegment
+        let remaining = remainingJobsAfterClearFinished(jobs, segment: segment)
+        let remainingIDs = Set(remaining.map(\.id))
+        let removed = jobs.filter { !remainingIDs.contains($0.id) }
+        jobs = remaining
         persistJobs()
         for job in removed {
             deleteOrphanedImport(sourceUri: job.sourceUri)
@@ -383,6 +386,12 @@ final class AppModel {
 
     func resolvedOutputDir() throws -> String {
         releaseOutputAccess()
+        if output.kind == .documents {
+            let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let directory = documents.appendingPathComponent("LiteTrans", isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            return directory.path
+        }
         if usesPersistentSandboxOutput(output.kind) {
             let directory = documentsDownloadsDirectory()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

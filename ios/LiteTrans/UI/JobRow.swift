@@ -70,13 +70,24 @@ struct JobRow: View {
     }
 
     private var subtitle: String {
+        let parts: [String]
         if job.status == .failed, let error = job.error, !error.isEmpty {
-            return error
+            parts = [error, multiOutputText].compactMap { $0 }
+        } else if job.status == .running {
+            parts = ["\(Int(job.progress.rounded()))% · \(statusText)", multiOutputText].compactMap { $0 }
+        } else {
+            parts = [statusText, multiOutputText].compactMap { $0 }
         }
-        if job.status == .running {
-            return "\(Int(job.progress.rounded()))% · \(statusText)"
+        return parts.joined(separator: " · ")
+    }
+
+    private var multiOutputText: String? {
+        guard job.outputPaths.count > 1 else { return nil }
+        let count = job.outputPaths.count
+        if documentResultIsImage(job.config.preset) {
+            return String(localized: "history_output_images \(count)", locale: locale)
         }
-        return statusText
+        return String(localized: "history_output_pdfs \(count)", locale: locale)
     }
 
     private var subtitleColor: Color {

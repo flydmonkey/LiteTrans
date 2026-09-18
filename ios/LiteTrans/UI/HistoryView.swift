@@ -10,21 +10,35 @@ struct HistoryView: View {
     @State private var renameText = ""
     @State private var showClearConfirm = false
 
+    private var visibleJobs: [Job] {
+        historyJobs(model.jobs, segment: model.historySegment)
+    }
+
     var body: some View {
         Group {
-            if model.jobs.isEmpty {
-                ContentUnavailableView {
-                    Label(text("history_empty"), systemImage: "clock")
-                } description: {
-                    Text(text("history_empty_hint"))
-                } actions: {
-                    Button(text("history_go_convert")) {
-                        model.tab = .convert
+            if visibleJobs.isEmpty {
+                VStack(spacing: 8) {
+                    historySegmentPicker
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                    ContentUnavailableView {
+                        Label(text(emptyTitleKey), systemImage: "clock")
+                    } description: {
+                        Text(text("history_empty_hint"))
+                    } actions: {
+                        Button(text("history_go_convert")) {
+                            goConvert()
+                        }
+                        .frame(minHeight: 44)
                     }
-                    .frame(minHeight: 44)
                 }
             } else {
                 List {
+                    Section {
+                        historySegmentPicker
+                    }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
                     if let message = model.message {
                         Section {
                             HStack(alignment: .top, spacing: 12) {
@@ -45,7 +59,7 @@ struct HistoryView: View {
                             .accessibilityElement(children: .combine)
                         }
                     }
-                    ForEach(model.jobs) { job in
+                    ForEach(visibleJobs) { job in
                         JobRow(
                             job: job,
                             outputURL: model.outputFileURL(for: job),
@@ -130,6 +144,14 @@ struct HistoryView: View {
         }
     }
 
+    private var emptyTitleKey: String.LocalizationValue {
+        switch model.historySegment {
+        case .video: "history_empty_video"
+        case .audio: "history_empty_audio"
+        case .document: "history_empty_document"
+        }
+    }
+
     private var deleteConfirm: Binding<Bool> {
         Binding(
             get: { pendingDelete != nil },
@@ -142,6 +164,34 @@ struct HistoryView: View {
             get: { renameJob != nil },
             set: { if !$0 { renameJob = nil } }
         )
+    }
+
+    private var historySegmentPicker: some View {
+        Picker("", selection: historySegmentBinding) {
+            Text(text("segment_video")).tag(HistorySegment.video)
+            Text(text("segment_audio")).tag(HistorySegment.audio)
+            Text(text("segment_document")).tag(HistorySegment.document)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .accessibilityLabel(text("segment_history"))
+        .frame(minHeight: 44)
+    }
+
+    private var historySegmentBinding: Binding<HistorySegment> {
+        Binding(
+            get: { model.historySegment },
+            set: { model.historySegment = $0 }
+        )
+    }
+
+    private func goConvert() {
+        switch model.historySegment {
+        case .video: model.convertMode = .video
+        case .audio: model.convertMode = .audio
+        case .document: model.convertMode = .document
+        }
+        model.tab = .convert
     }
 
     private func text(_ key: String.LocalizationValue) -> String {

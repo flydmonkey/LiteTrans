@@ -1073,6 +1073,54 @@
         }
       }
     },
+    "history_empty_video" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No video history yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有视频记录"
+          }
+        }
+      }
+    },
+    "history_empty_audio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No audio history yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有音频记录"
+          }
+        }
+      }
+    },
+    "history_empty_document" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No document history yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有文档记录"
+          }
+        }
+      }
+    },
     "history_empty_hint" : {
       "localizations" : {
         "en" : {
@@ -1085,6 +1133,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "转好的文件会出现在这里"
+          }
+        }
+      }
+    },
+    "history_output_images %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld images"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 张图片"
+          }
+        }
+      }
+    },
+    "history_output_pdfs %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld PDFs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个 PDF"
           }
         }
       }
@@ -1447,6 +1527,12 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Conversion type" } },
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "转码类型" } }
+      }
+    },
+    "segment_history" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "History type" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "历史类型" } }
       }
     },
     "wizard_source_music" : {
