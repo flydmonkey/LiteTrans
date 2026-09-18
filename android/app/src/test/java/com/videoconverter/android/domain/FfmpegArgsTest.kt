@@ -55,7 +55,7 @@ class FfmpegArgsTest {
 
     @Test
     fun standardQualitySoftwareCrfIs23() {
-        val config = resolveConfig(OutputConfig()).getOrThrow()
+        val config = resolveConfig(OutputConfig(quality = "standard")).getOrThrow()
 
         val args = buildFfmpegArgs(
             "/in",
@@ -288,7 +288,7 @@ class FfmpegArgsTest {
         assertEquals("amr", valueAfter(args, "-f"))
         assertEquals("8000", valueAfter(args, "-ar"))
         assertEquals("1", valueAfter(args, "-ac"))
-        assertEquals("7950", valueAfter(args, "-b:a"))
+        assertEquals("12200", valueAfter(args, "-b:a"))
     }
 
     @Test
