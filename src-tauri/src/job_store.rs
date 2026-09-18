@@ -28,6 +28,7 @@ pub fn save_jobs(path: &Path, jobs: &[Job]) -> Result<(), String> {
     let text =
         serde_json::to_string_pretty(jobs).map_err(|err| format!("无法保存任务：{err}"))?;
     std::fs::write(&tmp_path, text).map_err(|err| format!("无法保存任务：{err}"))?;
+    #[cfg(windows)]
     if path.exists() {
         std::fs::remove_file(path).map_err(|err| format!("无法保存任务：{err}"))?;
     }
