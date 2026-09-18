@@ -266,7 +266,6 @@ class WizardTest {
             documentCardsFor(DocumentSourceKind.Image).map { it.id },
         )
         assertEquals(listOf("office-pdf"), documentCardsFor(DocumentSourceKind.Word).map { it.id })
-        assertEquals(listOf("office-pdf"), documentCardsFor(DocumentSourceKind.Excel).map { it.id })
         val split = outputChoicesForDocument("pdf-split").map { it.id }
         assertTrue(split.containsAll(listOf("documents", "downloads", "custom")))
         assertFalse(split.contains("gallery"))
@@ -289,7 +288,6 @@ class WizardTest {
         assertEquals(R.string.size_original, sizeLabelRes("original"))
         assertEquals("Original size", sizeLabel(resources, "original"))
         assertEquals(R.string.document_office_word, officePreviewTitleRes(DocumentSourceKind.Word))
-        assertEquals(R.string.document_office_excel, officePreviewTitleRes(DocumentSourceKind.Excel))
         assertEquals(0, officePreviewTitleRes(DocumentSourceKind.Pdf))
     }
 

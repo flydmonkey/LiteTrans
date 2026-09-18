@@ -2,7 +2,6 @@ package com.videoconverter.android.document
 
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfDocument
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -83,36 +82,6 @@ class OfficePdfTest {
     }
 
     @Test
-    fun xlsxBlocksIncludeHeaderCells() {
-        val blocks = officeBlocksFromXlsx(sampleXlsx())
-        assertTrue(
-            blocks.any { block ->
-                block is OfficeBlock.Table &&
-                    block.rows.any { row -> row.contains("姓名") && row.contains("数量") }
-            },
-        )
-    }
-
-    @Test
-    fun xlsxSkipsUnusedRowsBetweenData() {
-        val workbook = XSSFWorkbook()
-        val sheet = workbook.createSheet()
-        sheet.createRow(0).createCell(0).setCellValue("头")
-        sheet.createRow(20).createCell(0).setCellValue("尾")
-        val bytes = ByteArrayOutputStream().use { out ->
-            workbook.write(out)
-            workbook.close()
-            out.toByteArray()
-        }
-
-        val table = officeBlocksFromXlsx(bytes).filterIsInstance<OfficeBlock.Table>().single()
-
-        org.junit.Assert.assertEquals(2, table.rows.size)
-        org.junit.Assert.assertEquals("头", table.rows[0][0])
-        org.junit.Assert.assertEquals("尾", table.rows[1][0])
-    }
-
-    @Test
     fun poiStaxFactoriesPointAtAalto() {
         val factories = poiStaxFactoryProperties()
         org.junit.Assert.assertEquals(
@@ -163,19 +132,6 @@ class OfficePdfTest {
         return ByteArrayOutputStream().use { out ->
             document.write(out)
             document.close()
-            out.toByteArray()
-        }
-    }
-
-    private fun sampleXlsx(): ByteArray {
-        val workbook = XSSFWorkbook()
-        val sheet = workbook.createSheet()
-        val row = sheet.createRow(0)
-        row.createCell(0).setCellValue("姓名")
-        row.createCell(1).setCellValue("数量")
-        return ByteArrayOutputStream().use { out ->
-            workbook.write(out)
-            workbook.close()
             out.toByteArray()
         }
     }

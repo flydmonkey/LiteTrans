@@ -1,6 +1,6 @@
 package com.videoconverter.android.domain
 
-enum class DocumentSourceKind { Image, Pdf, Word, Excel }
+enum class DocumentSourceKind { Image, Pdf, Word }
 
 private val DOCUMENT_PRESET_IDS = setOf(
     "image-jpg",
@@ -30,7 +30,6 @@ fun documentSourceKind(fileName: String): DocumentSourceKind? = when (fileName.s
     "jpg", "jpeg", "png", "webp", "bmp", "gif", "heic" -> DocumentSourceKind.Image
     "pdf" -> DocumentSourceKind.Pdf
     "docx" -> DocumentSourceKind.Word
-    "xlsx" -> DocumentSourceKind.Excel
     else -> null
 }
 
@@ -61,7 +60,7 @@ fun stepPage(value: Int, total: Int, delta: Int): Int {
 fun defaultDocumentPreset(kind: DocumentSourceKind): String = when (kind) {
     DocumentSourceKind.Image -> "image-jpg"
     DocumentSourceKind.Pdf -> "pdf-image"
-    DocumentSourceKind.Word, DocumentSourceKind.Excel -> "office-pdf"
+    DocumentSourceKind.Word -> "office-pdf"
 }
 
 fun documentPresetIds(): Set<String> = DOCUMENT_PRESET_IDS

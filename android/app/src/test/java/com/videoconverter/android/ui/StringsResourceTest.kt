@@ -217,7 +217,6 @@ class StringsResourceTest {
             R.string.wizard_title_split,
             R.string.document_office_preview,
             R.string.document_office_word,
-            R.string.document_office_excel,
             R.string.output_music_hint,
             R.string.output_documents_hint,
             R.string.quality_original,

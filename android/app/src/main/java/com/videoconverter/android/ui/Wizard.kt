@@ -74,7 +74,7 @@ val OFFICE_DOCUMENT_CARDS = listOf(
 fun documentCardsFor(kind: DocumentSourceKind): List<WizardPresetCard> = when (kind) {
     DocumentSourceKind.Image -> IMAGE_DOCUMENT_CARDS
     DocumentSourceKind.Pdf -> PDF_DOCUMENT_CARDS
-    DocumentSourceKind.Word, DocumentSourceKind.Excel -> OFFICE_DOCUMENT_CARDS
+    DocumentSourceKind.Word -> OFFICE_DOCUMENT_CARDS
 }
 
 fun outputChoicesForDocument(preset: String): List<OutputChoiceCard> =
@@ -175,7 +175,6 @@ fun customOutputHintRes(selected: Boolean, hasFolder: Boolean): Int =
 
 fun officePreviewTitleRes(kind: DocumentSourceKind): Int = when (kind) {
     DocumentSourceKind.Word -> R.string.document_office_word
-    DocumentSourceKind.Excel -> R.string.document_office_excel
     else -> 0
 }
 
@@ -481,7 +480,6 @@ fun sourceFormatLine(resources: Resources, media: MediaInfo, probing: Boolean): 
             }
         }
         DocumentSourceKind.Word -> return "Word"
-        DocumentSourceKind.Excel -> return "Excel"
         DocumentSourceKind.Image -> {
             val ext = media.displayName.substringAfterLast('.', "").uppercase()
             return ext.ifBlank { resources.getString(R.string.wizard_image) }

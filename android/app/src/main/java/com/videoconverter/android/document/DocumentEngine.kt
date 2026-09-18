@@ -213,10 +213,6 @@ class DocumentEngine(
                         bytes,
                         app.getString(R.string.error_cannot_convert_document),
                     )
-                    DocumentSourceKind.Excel -> officeBlocksFromXlsx(
-                        bytes,
-                        app.getString(R.string.error_cannot_convert_document),
-                    )
                     else -> error(app.getString(R.string.error_cannot_convert_document))
                 }
                 writeOfficePdf(blocks, dest, app.getString(R.string.error_cannot_convert_document))

@@ -539,7 +539,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         return when (kind) {
             DocumentSourceKind.Pdf -> probePdf(uri, displayName)
-            DocumentSourceKind.Image, DocumentSourceKind.Word, DocumentSourceKind.Excel ->
+            DocumentSourceKind.Image, DocumentSourceKind.Word ->
                 MediaInfo(
                     sourceUri = uri.toString(),
                     displayName = displayName,

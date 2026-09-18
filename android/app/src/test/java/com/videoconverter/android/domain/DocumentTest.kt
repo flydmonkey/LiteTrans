@@ -13,10 +13,12 @@ class DocumentTest {
         assertEquals(DocumentSourceKind.Image, documentSourceKind("a.heic"))
         assertEquals(DocumentSourceKind.Pdf, documentSourceKind("scan.pdf"))
         assertEquals(DocumentSourceKind.Word, documentSourceKind("a.docx"))
-        assertEquals(DocumentSourceKind.Excel, documentSourceKind("a.xlsx"))
+        assertNull(documentSourceKind("a.xlsx"))
+        assertNull(documentSourceKind("a.xls"))
         assertNull(documentSourceKind("a.doc"))
         assertNull(documentSourceKind("a.wps"))
         assertTrue(unsupportedDocumentReason("old.doc")!!.contains("not supported"))
+        assertTrue(unsupportedDocumentReason("sheet.xlsx")!!.contains("not supported"))
     }
 
     @Test

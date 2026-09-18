@@ -99,7 +99,7 @@
     <string name="wizard_add_document">변환할 파일 추가</string>
     <string name="wizard_add_video">변환할 동영상 추가</string>
     <string name="wizard_add_audio_hint">음악 라이브러리에서 곡을 고르거나, 갤러리 동영상에서 오디오를 추출하거나, 폴더에서 파일을 선택하세요.</string>
-    <string name="wizard_add_document_hint">갤러리에서 사진을 고르거나, 폴더에서 PDF, Word, Excel을 선택하세요.\n한 번에 한 종류만 추가하세요. 파일은 이 휴대폰에 남습니다.</string>
+    <string name="wizard_add_document_hint">갤러리에서 사진을 고르거나, 폴더에서 PDF, Word를 선택하세요.\n한 번에 한 종류만 추가하세요. 파일은 이 휴대폰에 남습니다.</string>
     <string name="wizard_add_video_hint">갤러리의 최근 클립이나 폴더의 원본을 선택하세요.\n여러 개를 한 번에 고를 수 있습니다. 파일은 이 휴대폰에 남습니다.</string>
     <string name="wizard_source_music">음악</string>
     <string name="wizard_source_music_hint">기기 음악 라이브러리</string>
@@ -195,7 +195,6 @@
     <string name="document_preview_failed">미리보기 불가</string>
     <string name="document_office_preview">PDF로 변환됩니다</string>
     <string name="document_office_word">Word 문서</string>
-    <string name="document_office_excel">Excel 시트</string>
     <string name="duration_seconds">%1$d초</string>
     <string name="duration_minutes">%1$d분</string>
     <string name="duration_min_sec">%1$d분 %2$d초</string>

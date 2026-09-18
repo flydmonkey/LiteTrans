@@ -2,16 +2,13 @@ package com.videoconverter.android.document
 
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
-import org.apache.poi.ss.usermodel.DataFormatter
-import org.apache.poi.ss.usermodel.Row
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.coroutines.cancellation.CancellationException
 
-/** Android has no StAX; POI reads xlsx/docx through Aalto. */
+/** Android has no StAX; POI reads docx through Aalto. */
 
 sealed class OfficeBlock {
     data class Paragraph(val text: String) : OfficeBlock()
@@ -44,30 +41,6 @@ fun officeBlocksFromDocx(
             )
         }
         blocks.also { if (it.isEmpty()) error(cannotConvert) }
-    }
-}
-
-fun officeBlocksFromXlsx(
-    bytes: ByteArray,
-    cannotConvert: String = "Could not convert this document",
-): List<OfficeBlock> = officeOrFail(cannotConvert) {
-    installPoiStaxFactories()
-    XSSFWorkbook(ByteArrayInputStream(bytes)).use { workbook ->
-        val sheet = workbook.getSheetAt(0)
-        val formatter = DataFormatter()
-        var lastCell = 0
-        val usedRows = mutableListOf<Row>()
-        for (r in sheet.firstRowNum..sheet.lastRowNum) {
-            val row = sheet.getRow(r) ?: continue
-            lastCell = maxOf(lastCell, row.lastCellNum.toInt().coerceAtLeast(0))
-            usedRows += row
-        }
-        val rows = usedRows.map { row ->
-            (0 until lastCell).map { c ->
-                row.getCell(c)?.let { formatter.formatCellValue(it) }.orEmpty()
-            }
-        }
-        listOf(OfficeBlock.Table(rows)).also { if (usedRows.isEmpty()) error(cannotConvert) }
     }
 }
 

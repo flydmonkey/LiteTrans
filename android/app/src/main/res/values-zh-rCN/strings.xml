@@ -99,7 +99,7 @@
     <string name="wizard_add_document">添加要转换的文件</string>
     <string name="wizard_add_video">添加要转码的视频</string>
     <string name="wizard_add_audio_hint">从音乐库选曲子，从相册抽视频音轨，或从文件夹选文件。</string>
-    <string name="wizard_add_document_hint">从相册选图片，或从文件夹选 PDF、Word、Excel。\n一次只加同一种文件，文件只留在这台手机上。</string>
+    <string name="wizard_add_document_hint">从相册选图片，或从文件夹选 PDF、Word。\n一次只加同一种文件，文件只留在这台手机上。</string>
     <string name="wizard_add_video_hint">从相册选最近拍的，或从文件夹选原片。\n一次能选好几个，文件只留在这台手机上。</string>
     <string name="wizard_source_music">音乐</string>
     <string name="wizard_source_music_hint">手机音乐库</string>
@@ -195,7 +195,6 @@
     <string name="document_preview_failed">无法预览</string>
     <string name="document_office_preview">将转成 PDF</string>
     <string name="document_office_word">Word 文档</string>
-    <string name="document_office_excel">Excel 表格</string>
     <string name="duration_seconds">%1$d 秒</string>
     <string name="duration_minutes">%1$d 分钟</string>
     <string name="duration_min_sec">%1$d 分 %2$d 秒</string>

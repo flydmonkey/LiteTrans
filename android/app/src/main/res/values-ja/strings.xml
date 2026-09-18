@@ -99,7 +99,7 @@
     <string name="wizard_add_document">変換するファイルを追加</string>
     <string name="wizard_add_video">変換する動画を追加</string>
     <string name="wizard_add_audio_hint">音楽ライブラリから曲を選ぶ、ギャラリーの動画から音声を取り出す、またはフォルダからファイルを選べます。</string>
-    <string name="wizard_add_document_hint">ギャラリーから写真を選ぶか、フォルダから PDF、Word、Excel を選びます。\n一度に追加できる種類は1つだけです。ファイルはこの端末に残ります。</string>
+    <string name="wizard_add_document_hint">ギャラリーから写真を選ぶか、フォルダから PDF、Word を選びます。\n一度に追加できる種類は1つだけです。ファイルはこの端末に残ります。</string>
     <string name="wizard_add_video_hint">ギャラリーの最近のクリップ、またはフォルダの元動画を選べます。\n複数選択できます。ファイルはこの端末に残ります。</string>
     <string name="wizard_source_music">音楽</string>
     <string name="wizard_source_music_hint">端末内の音楽ライブラリ</string>
@@ -195,7 +195,6 @@
     <string name="document_preview_failed">プレビューできません</string>
     <string name="document_office_preview">PDF に変換します</string>
     <string name="document_office_word">Word 文書</string>
-    <string name="document_office_excel">Excel シート</string>
     <string name="duration_seconds">%1$d 秒</string>
     <string name="duration_minutes">%1$d 分</string>
     <string name="duration_min_sec">%1$d 分 %2$d 秒</string>

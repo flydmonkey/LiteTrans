@@ -99,7 +99,7 @@
     <string name="wizard_add_document">Add files to convert</string>
     <string name="wizard_add_video">Add videos to convert</string>
     <string name="wizard_add_audio_hint">Pick a track from your music library, pull audio from a video in your gallery, or choose a file from a folder.</string>
-    <string name="wizard_add_document_hint">Pick photos from your gallery, or PDFs, Word, or Excel from a folder.\nAdd only one type at a time. Files stay on this phone.</string>
+    <string name="wizard_add_document_hint">Pick photos from your gallery, or PDFs or Word from a folder.\nAdd only one type at a time. Files stay on this phone.</string>
     <string name="wizard_add_video_hint">Pick recent clips from your gallery, or originals from a folder.\nYou can select several at once. Files stay on this phone.</string>
     <string name="wizard_source_music">Music</string>
     <string name="wizard_source_music_hint">On-device music library</string>
@@ -195,7 +195,6 @@
     <string name="document_preview_failed">Preview unavailable</string>
     <string name="document_office_preview">Will convert to PDF</string>
     <string name="document_office_word">Word document</string>
-    <string name="document_office_excel">Excel spreadsheet</string>
     <string name="duration_seconds">%1$d sec</string>
     <string name="duration_minutes">%1$d min</string>
     <string name="duration_min_sec">%1$d min %2$d sec</string>
