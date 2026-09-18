@@ -120,6 +120,30 @@ class JobStoreTest {
         assertNull(parsed.media.pageCount)
     }
 
+    @Test
+    fun jobJsonRoundTripKeepsConcatSources() {
+        val first = MediaInfo(
+            sourceUri = "content://a",
+            displayName = "a.mp4",
+            durationSecs = 3.0,
+            videoCodec = "h264",
+            width = 1920,
+            height = 1080,
+            importable = true,
+        )
+        val second = first.copy(sourceUri = "content://b", displayName = "b.mp4")
+        val job = sampleJob().copy(
+            config = OutputConfig(
+                preset = "video-concat",
+                concatSourceUris = listOf("content://a", "content://b"),
+            ),
+            concatMedias = listOf(first, second),
+        )
+        val parsed = jobsFromJson(jobsToJson(listOf(job))).single()
+        assertEquals(listOf("content://a", "content://b"), parsed.config.concatSourceUris)
+        assertEquals(listOf("content://a", "content://b"), parsed.concatMedias.map { it.sourceUri })
+    }
+
     private fun sampleJob(
         outputKind: String? = null,
         outputTreeUri: String? = null,

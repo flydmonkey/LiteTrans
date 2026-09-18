@@ -74,6 +74,8 @@
     <string name="action_clear_finished">완료 지우기</string>
     <string name="action_convert_again">다시 변환</string>
     <string name="action_remove">제거</string>
+    <string name="action_move_up">위로</string>
+    <string name="action_move_down">아래로</string>
     <string name="action_more">더보기</string>
     <string name="action_collapse">접기</string>
     <string name="section_files">파일</string>
@@ -204,6 +206,11 @@
     <string name="preset_mp4_copy_desc">컨테이너만 변경 — 가장 빠름</string>
     <string name="preset_mp4_h265_desc">같은 MP4, 더 새로운 코덱</string>
     <string name="preset_mov_h264_desc">Apple 기기와 편집 프로그램용</string>
+    <string name="preset_video_concat_title">병합</string>
+    <string name="preset_video_concat_desc">순서대로 하나의 동영상으로 이어 붙입니다</string>
+    <string name="concat_need_two">동영상을 두 개 이상 추가하세요</string>
+    <string name="concat_too_many">동영상은 최대 20개까지 병합할 수 있습니다</string>
+    <string name="concat_missing_video">각 클립에 영상 트랙이 필요합니다</string>
     <string name="preset_mkv_copy_friendly_desc">컨테이너를 유지하기에 좋음</string>
     <string name="preset_mkv_h265_desc">장기 보관에 좋음</string>
     <string name="preset_webm_vp9_desc">웹에서 흔함. MP4보다 조금 느림</string>

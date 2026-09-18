@@ -35,6 +35,7 @@ class AppViewModelTest {
         assertFalse(shouldShowResolution("audio-mp3"))
         assertFalse(shouldShowResolution("audio-aac"))
         assertFalse(shouldShowResolution("mp4-copy"))
+        assertFalse(shouldShowResolution("video-concat"))
         assertTrue(shouldShowResolution("mp4-h264"))
     }
 

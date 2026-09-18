@@ -252,6 +252,10 @@ class RootTabsTest {
             listOf(ConvertSetting.Format, ConvertSetting.Output),
             convertSettingsFor("audio-wav"),
         )
+        assertEquals(
+            listOf(ConvertSetting.Format, ConvertSetting.Quality, ConvertSetting.Output),
+            convertSettingsFor("video-concat"),
+        )
         assertEquals(R.string.tab_convert, convertPageTitleRes(ConvertPage.Home))
         assertEquals(R.string.wizard_title_format, convertPageTitleRes(ConvertPage.Format))
         assertEquals(R.string.quality_video_title, convertPageTitleRes(ConvertPage.Quality))

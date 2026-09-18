@@ -159,6 +159,90 @@ class QueueTest {
         assertEquals("Could not read the page count", report.skipped.single().reason)
     }
 
+    private fun clip(
+        sourceUri: String,
+        displayName: String,
+        importable: Boolean = true,
+        videoCodec: String? = "h264",
+        width: Int? = 1920,
+        height: Int? = 1080,
+    ) = MediaInfo(
+        sourceUri = sourceUri,
+        displayName = displayName,
+        durationSecs = 5.0,
+        videoCodec = videoCodec,
+        width = width,
+        height = height,
+        audioCodec = "aac",
+        importable = importable,
+    )
+
+    @Test
+    fun concatEnqueuesOneMergedJob() {
+        val report = enqueueJobs(
+            sources = listOf(clip("content://a", "a.mp4"), clip("content://b", "b.mp4")),
+            config = OutputConfig(preset = "video-concat"),
+            outputDir = "/tmp",
+            nextId = { "job-1" },
+            exists = { false },
+        ).getOrThrow()
+
+        assertEquals(1, report.jobs.size)
+        assertTrue(report.skipped.isEmpty())
+        assertEquals("content://a", report.jobs[0].sourceUri)
+        assertEquals(listOf("content://a", "content://b"), report.jobs[0].config.concatSourceUris)
+        assertEquals(listOf("content://a", "content://b"), report.jobs[0].concatMedias.map { it.sourceUri })
+        assertEquals("/tmp/a-merged.mp4", report.jobs[0].outputPath)
+    }
+
+    @Test
+    fun concatRejectsMixedUnimportable() {
+        val report = enqueueJobs(
+            sources = listOf(
+                clip("content://a", "a.mp4"),
+                clip("content://bad", "bad.mp4", importable = false),
+            ),
+            config = OutputConfig(preset = "video-concat"),
+            outputDir = "/tmp",
+            nextId = { "1" },
+            exists = { false },
+        ).getOrThrow()
+
+        assertTrue(report.jobs.isEmpty())
+        assertTrue(report.skipped.any { it.sourceUri == "content://bad" })
+    }
+
+    @Test
+    fun concatRejectsOneClip() {
+        val report = enqueueJobs(
+            sources = listOf(clip("content://a", "a.mp4")),
+            config = OutputConfig(preset = "video-concat"),
+            outputDir = "/tmp",
+            nextId = { "1" },
+            exists = { false },
+        ).getOrThrow()
+
+        assertTrue(report.jobs.isEmpty())
+        assertEquals("Add at least two videos", report.skipped[0].reason)
+    }
+
+    @Test
+    fun concatRejectsMissingVideoTrack() {
+        val report = enqueueJobs(
+            sources = listOf(
+                clip("content://a", "a.mp4"),
+                clip("content://b", "b.mp4", videoCodec = null, width = null, height = null),
+            ),
+            config = OutputConfig(preset = "video-concat"),
+            outputDir = "/tmp",
+            nextId = { "1" },
+            exists = { false },
+        ).getOrThrow()
+
+        assertTrue(report.jobs.isEmpty())
+        assertEquals("Each clip needs a video track", report.skipped.single { it.sourceUri == "content://b" }.reason)
+    }
+
     @Test
     fun markInterruptedConvertsOnlyRunningToFailed() {
         val running = Job(

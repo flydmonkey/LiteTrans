@@ -85,4 +85,13 @@ class PresetsTest {
         assertEquals(128, resolved.audioBitrateKbps)
         assertTrue(isAudioOnlyConfig(resolved))
     }
+
+    @Test
+    fun concatPresetUsesH264Mp4() {
+        val resolved = resolveConfig(OutputConfig(preset = "video-concat", quality = "standard")).getOrThrow()
+        assertEquals("mp4", resolved.container)
+        assertEquals("h264", resolved.videoEncoder)
+        assertEquals("aac", resolved.audioEncoder)
+        assertEquals("mp4", resolved.extension)
+    }
 }

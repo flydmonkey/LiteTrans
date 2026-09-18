@@ -29,6 +29,7 @@ import com.videoconverter.android.domain.documentSourceKind
 import com.videoconverter.android.domain.enqueueDocumentJobs
 import com.videoconverter.android.domain.enqueueJobs
 import com.videoconverter.android.domain.isDocumentPreset
+import com.videoconverter.android.domain.isVideoConcatPreset
 import com.videoconverter.android.domain.renamedFileName
 import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.domain.sameDocumentKind
@@ -165,7 +166,10 @@ fun resolutionBounds(size: String): Pair<Int?, Int?> = when (size) {
 }
 
 fun shouldShowResolution(preset: String): Boolean =
-    !preset.startsWith("audio-") && preset != "mp4-copy" && !isDocumentPreset(preset)
+    !preset.startsWith("audio-") &&
+        preset != "mp4-copy" &&
+        !isDocumentPreset(preset) &&
+        !isVideoConcatPreset(preset)
 
 fun effectiveResolution(preset: String, size: String): Pair<Int?, Int?> =
     if (shouldShowResolution(preset)) resolutionBounds(size) else null to null
@@ -272,6 +276,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         markSourcesChanged(mode, true)
     }
 
+    fun moveSource(from: Int, to: Int, mode: ConvertMode) {
+        updateSession(mode) { session ->
+            session.copy(sources = movedItems(session.sources, from, to))
+        }
+        markSourcesChanged(mode, true)
+    }
+
     fun clearSources(mode: ConvertMode) {
         updateSession(mode) { it.copy(sources = emptyList()) }
         markSourcesChanged(mode, true)
@@ -372,6 +383,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 selectOutput = app.getString(R.string.error_select_output),
                 validateCopy = validateCopy(app.resources),
                 unknownPreset = { app.getString(R.string.error_unknown_preset, it) },
+                concatNeedsTwo = app.getString(R.string.concat_need_two),
+                concatTooMany = app.getString(R.string.concat_too_many),
+                concatMissingVideo = app.getString(R.string.concat_missing_video),
             )
         }.getOrElse {
             mutableState.value = snapshot.copy(message = it.message ?: app.getString(R.string.error_cannot_create_job))

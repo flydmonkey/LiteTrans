@@ -12,8 +12,11 @@ import com.videoconverter.android.domain.documentExtension
 import com.videoconverter.android.domain.documentResultIsImage
 import com.videoconverter.android.domain.documentSourceKind
 import com.videoconverter.android.domain.isDocumentPreset
+import com.videoconverter.android.domain.isVideoConcatPreset
 import com.videoconverter.android.domain.resolveConfig
 import com.videoconverter.android.domain.sourceStem
+import com.videoconverter.android.domain.VIDEO_CONCAT_MAX_SOURCES
+import com.videoconverter.android.domain.VIDEO_CONCAT_PRESET_ID
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -28,13 +31,18 @@ data class WizardPresetCard(
     val badgeRes: Int? = null,
 )
 
-val PRIMARY_PRESET_IDS = listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264")
+val PRIMARY_PRESET_IDS = listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264", VIDEO_CONCAT_PRESET_ID)
 
 val WIZARD_PRESET_CARDS = listOf(
     WizardPresetCard("mp4-h264", title = "MP4 · H.264", hintRes = R.string.preset_mp4_h264_desc, badgeRes = R.string.preset_badge_common),
     WizardPresetCard("mp4-copy", titleRes = R.string.preset_mp4_copy_title, hintRes = R.string.preset_mp4_copy_desc, badgeRes = R.string.preset_badge_fastest),
     WizardPresetCard("mp4-h265", title = "MP4 · H.265", hintRes = R.string.preset_mp4_h265_desc),
     WizardPresetCard("mov-h264", title = "MOV · H.264", hintRes = R.string.preset_mov_h264_desc),
+    WizardPresetCard(
+        VIDEO_CONCAT_PRESET_ID,
+        titleRes = R.string.preset_video_concat_title,
+        hintRes = R.string.preset_video_concat_desc,
+    ),
     WizardPresetCard("mkv-copy-friendly", title = "MKV · H.264", hintRes = R.string.preset_mkv_copy_friendly_desc),
     WizardPresetCard("mkv-h265", title = "MKV · H.265", hintRes = R.string.preset_mkv_h265_desc),
     WizardPresetCard("webm-vp9", title = "WebM · VP9", hintRes = R.string.preset_webm_vp9_desc),
@@ -170,6 +178,37 @@ fun customOutputTapOpensPicker(output: OutputTarget): Boolean =
 fun outputReadyToStart(output: OutputTarget): Boolean =
     output.kind != OutputTarget.Kind.SafTree || !output.treeUri.isNullOrBlank()
 
+fun allowsTrim(preset: String): Boolean =
+    !isCopyPreset(preset) && !isVideoConcatPreset(preset)
+
+fun canStart(
+    importable: Int,
+    probing: Boolean,
+    transcoding: Boolean,
+    outputReady: Boolean,
+    preset: String = "",
+    sourceCount: Int = importable,
+): Boolean {
+    val concat = isVideoConcatPreset(preset)
+    val minimum = if (concat) 2 else 1
+    val maximum = if (concat) VIDEO_CONCAT_MAX_SOURCES else Int.MAX_VALUE
+    val noRejects = !concat || importable == sourceCount
+    return importable >= minimum &&
+        importable <= maximum &&
+        noRejects &&
+        !probing &&
+        !transcoding &&
+        outputReady
+}
+
+fun movedItems(items: List<SourceItem>, from: Int, to: Int): List<SourceItem> {
+    if (from == to || from !in items.indices || to !in items.indices) return items
+    val next = items.toMutableList()
+    val item = next.removeAt(from)
+    next.add(to, item)
+    return next
+}
+
 fun customOutputHintRes(selected: Boolean, hasFolder: Boolean): Int =
     if (selected && !hasFolder) R.string.output_custom_pick else R.string.output_custom_hint
 
@@ -197,7 +236,7 @@ data class WizardReset(
     val clearSources: Boolean = false,
 )
 
-fun resetWizardAfterStart(): WizardReset = WizardReset()
+fun resetWizardAfterStart(): WizardReset = WizardReset(clearSources = true)
 
 const val OUTPUT_CHOICE_GALLERY = "gallery"
 const val OUTPUT_CHOICE_MOVIES = "movies"
@@ -248,7 +287,7 @@ fun collapsedPresetCards(selectedId: String, showAll: Boolean): List<WizardPrese
     val primary = PRIMARY_PRESET_IDS.map { id -> WIZARD_PRESET_CARDS.first { it.id == id } }
     if (selectedId in PRIMARY_PRESET_IDS) return primary
     val selected = WIZARD_PRESET_CARDS.find { it.id == selectedId } ?: return primary
-    return primary.take(3) + selected
+    return primary.dropLast(1) + selected
 }
 
 fun dockActionLabelRes(

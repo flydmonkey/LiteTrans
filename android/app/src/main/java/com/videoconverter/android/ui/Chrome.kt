@@ -1,11 +1,13 @@
 package com.videoconverter.android.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.PagerState
@@ -16,7 +18,6 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -81,14 +82,7 @@ fun RootNavigationBar(
                 selected = tab == selected,
                 onClick = { onSelect(tab) },
                 icon = {
-                    val icon = rootTabIcon(tab)
-                    if (tab == RootTab.History && activeHistoryCount > 0) {
-                        BadgedBox(badge = { Badge { Text("$activeHistoryCount") } }) {
-                            Icon(icon, contentDescription = stringResource(rootTabLabelRes(tab)))
-                        }
-                    } else {
-                        Icon(icon, contentDescription = stringResource(rootTabLabelRes(tab)))
-                    }
+                    RootTabIcon(tab = tab, activeHistoryCount = activeHistoryCount)
                 },
                 label = {
                     Text(
@@ -96,6 +90,35 @@ fun RootNavigationBar(
                         style = MaterialTheme.typography.labelMedium,
                     )
                 },
+            )
+        }
+    }
+}
+
+@Composable
+private fun RootTabIcon(
+    tab: RootTab,
+    activeHistoryCount: Int,
+) {
+    val icon = rootTabIcon(tab)
+    val label = stringResource(rootTabLabelRes(tab))
+    if (tab != RootTab.History || activeHistoryCount <= 0) {
+        Icon(icon, contentDescription = label)
+        return
+    }
+    Box(
+        modifier = Modifier.padding(top = 2.dp, end = 10.dp),
+    ) {
+        Icon(icon, contentDescription = label)
+        Badge(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 10.dp, y = (-2).dp),
+        ) {
+            Text(
+                text = "$activeHistoryCount",
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
             )
         }
     }

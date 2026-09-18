@@ -97,6 +97,7 @@ private fun Job.toJson(): JSONObject = JSONObject()
     .putNullable("outputTreeUri", outputTreeUri)
     .put("outputPaths", JSONArray(outputPaths))
     .putNullable("createdAtEpochMs", createdAtEpochMs)
+    .put("concatMedias", JSONArray().apply { concatMedias.forEach { put(it.toJson()) } })
 
 private fun JSONObject.toJob(): Job = Job(
     id = getString("id"),
@@ -112,6 +113,7 @@ private fun JSONObject.toJob(): Job = Job(
     outputTreeUri = nullableString("outputTreeUri"),
     outputPaths = stringList("outputPaths"),
     createdAtEpochMs = nullableLong("createdAtEpochMs"),
+    concatMedias = mediaList("concatMedias"),
 )
 
 private fun OutputConfig.toJson(): JSONObject = JSONObject()
@@ -128,6 +130,7 @@ private fun OutputConfig.toJson(): JSONObject = JSONObject()
     .putNullable("quality", quality)
     .putNullable("trimStartSecs", trimStartSecs)
     .putNullable("trimEndSecs", trimEndSecs)
+    .put("concatSourceUris", JSONArray(concatSourceUris))
 
 private fun JSONObject.toOutputConfig(): OutputConfig = OutputConfig(
     preset = getString("preset"),
@@ -143,6 +146,7 @@ private fun JSONObject.toOutputConfig(): OutputConfig = OutputConfig(
     quality = nullableString("quality"),
     trimStartSecs = nullableDouble("trimStartSecs"),
     trimEndSecs = nullableDouble("trimEndSecs"),
+    concatSourceUris = stringList("concatSourceUris"),
 )
 
 private fun MediaInfo.toJson(): JSONObject = JSONObject()
@@ -201,6 +205,16 @@ private fun JSONObject.nullableBoolean(name: String): Boolean? =
 
 private fun JSONObject.nullableLong(name: String): Long? =
     if (isNull(name)) null else getLong(name)
+
+private fun JSONObject.mediaList(name: String): List<MediaInfo> {
+    if (isNull(name)) return emptyList()
+    val array = getJSONArray(name)
+    return buildList {
+        for (index in 0 until array.length()) {
+            add(array.getJSONObject(index).toMediaInfo())
+        }
+    }
+}
 
 private fun JSONObject.stringList(name: String): List<String> {
     if (isNull(name)) return emptyList()

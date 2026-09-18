@@ -10,11 +10,19 @@ import com.videoconverter.android.data.OutputTarget
 import com.videoconverter.android.data.ResolvedInput
 import com.videoconverter.android.data.SourceAccess
 import com.videoconverter.android.R
+import com.videoconverter.android.domain.ConcatTarget
 import com.videoconverter.android.domain.Job
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
+import com.videoconverter.android.domain.ResolvedConfig
+import com.videoconverter.android.domain.buildConcatJoinArgs
+import com.videoconverter.android.domain.buildConcatNormalizeArgs
 import com.videoconverter.android.domain.buildFfmpegArgs
+import com.videoconverter.android.domain.concatListFileContents
+import com.videoconverter.android.domain.concatOutputStem
+import com.videoconverter.android.domain.concatTarget
 import com.videoconverter.android.domain.ffmpegFileArg
+import com.videoconverter.android.domain.isVideoConcatPreset
 import com.videoconverter.android.domain.outputDurationSecs
 import com.videoconverter.android.domain.parseFfprobeJson
 import com.videoconverter.android.domain.parseProgressLine
@@ -65,6 +73,15 @@ class FfmpegProcess(
                 extension = config.extension,
                 create = outputStore::createJobOutput,
             )
+            if (isVideoConcatPreset(job.config.preset)) {
+                return@withContext transcodeConcat(
+                    job = job,
+                    outputTarget = outputTarget,
+                    config = config,
+                    output = output!!,
+                    onProgress = onProgress,
+                )
+            }
             val partial = output.partial
             val duration = outputDurationSecs(config, job.media)
             val uri = Uri.parse(job.sourceUri)
@@ -230,9 +247,182 @@ class FfmpegProcess(
             validateCopy = validateCopy(context.resources),
             ffmpegValidate = context.getString(R.string.error_ffmpeg_validate),
         ).getOrThrow()
+        return runFfmpeg(job.id, args, partial, durationSecs, onProgress)
+    }
+
+    private suspend fun transcodeConcat(
+        job: Job,
+        outputTarget: OutputTarget,
+        config: ResolvedConfig,
+        output: JobOutput,
+        onProgress: (Double) -> Unit,
+    ): Job {
+        val medias = job.concatMedias
+        if (medias.size < 2 || medias.size != job.config.concatSourceUris.size) {
+            return job.copy(
+                status = JobStatus.Failed,
+                error = context.getString(R.string.concat_need_two),
+            )
+        }
+        val target = concatTarget(
+            medias[0],
+            context.getString(R.string.concat_missing_video),
+        )
+        val work = File(context.cacheDir, "concat-${job.id}")
+        work.deleteRecursively()
+        if (!work.mkdirs()) {
+            throw IllegalStateException(context.getString(R.string.error_cannot_create_temp))
+        }
+        try {
+            val clipPaths = mutableListOf<String>()
+            val quality = job.config.quality ?: "standard"
+            for ((index, media) in medias.withIndex()) {
+                if (activeProcess.wasCancelled(job.id)) {
+                    return job.copy(status = JobStatus.Cancelled, error = null)
+                }
+                val uri = Uri.parse(media.sourceUri)
+                val clipPartial = File(work, String.format(java.util.Locale.US, "clip-%03d.partial.mp4", index))
+                val clipFinal = File(work, String.format(java.util.Locale.US, "clip-%03d.mp4", index))
+                val base = index.toDouble() / medias.size * 90.0
+                val result = runWithInputFallback(
+                    cachedInput = sourceAccess.cachedInput(uri),
+                    openInput = { sourceAccess.resolveInput(uri) },
+                    inputPath = ResolvedInput::ffmpegPath,
+                    needsCacheFallback = { it.pfd != null },
+                    copyToCache = { sourceAccess.copyToCache(uri) },
+                    closeInput = ResolvedInput::close,
+                    run = { inputPath ->
+                        runConcatNormalizeAttempts(
+                            job = job,
+                            inputPath = inputPath,
+                            media = media,
+                            target = target,
+                            quality = quality,
+                            partial = clipPartial,
+                            onProgress = { clipLocal ->
+                                onProgress(minOf(90.0, base + clipLocal / 100.0 * (90.0 / medias.size)))
+                            },
+                        )
+                    },
+                )
+                if (result.cancelled || activeProcess.wasCancelled(job.id)) {
+                    return job.copy(status = JobStatus.Cancelled, error = null)
+                }
+                if (result.exitCode != 0) {
+                    Log.e(TAG, "FFmpeg concat clip failed (${result.exitCode}): ${result.stderr.takeLast(4_000)}")
+                    return job.copy(
+                        status = JobStatus.Failed,
+                        error = context.getString(R.string.error_ffmpeg_failed, result.exitCode),
+                    )
+                }
+                if (!clipPartial.renameTo(clipFinal)) {
+                    clipPartial.copyTo(clipFinal, overwrite = true)
+                    clipPartial.delete()
+                }
+                clipPaths += clipFinal.absolutePath
+            }
+
+            val listFile = File(work, "list.txt")
+            listFile.writeText(concatListFileContents(clipPaths))
+            val joinPartial = output.partial
+            val joinDuration = medias.sumOf { it.durationSecs ?: 0.0 }
+            val joinResult = runFfmpeg(
+                jobId = job.id,
+                args = buildConcatJoinArgs(listFile.absolutePath, joinPartial.absolutePath),
+                partial = joinPartial,
+                durationSecs = joinDuration,
+                onProgress = { joinLocal ->
+                    onProgress(minOf(100.0, 90.0 + joinLocal / 100.0 * 10.0))
+                },
+            )
+            if (joinResult.cancelled || activeProcess.wasCancelled(job.id)) {
+                joinPartial.delete()
+                return job.copy(status = JobStatus.Cancelled, error = null)
+            }
+            if (joinResult.exitCode != 0) {
+                joinPartial.delete()
+                Log.e(TAG, "FFmpeg concat join failed (${joinResult.exitCode}): ${joinResult.stderr.takeLast(4_000)}")
+                return job.copy(
+                    status = JobStatus.Failed,
+                    error = context.getString(R.string.error_ffmpeg_failed, joinResult.exitCode),
+                )
+            }
+            val final = outputStore.finalizeJobOutput(output)
+            if (activeProcess.wasCancelled(job.id)) {
+                final.delete()
+                return job.copy(status = JobStatus.Cancelled, error = null)
+            }
+            val exported = outputStore.export(
+                source = final,
+                stem = concatOutputStem(job.displayName),
+                ext = config.extension,
+                mimeType = mimeType(config.container),
+                target = outputTarget,
+            )
+            return job.completed(exported)
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    private fun runConcatNormalizeAttempts(
+        job: Job,
+        inputPath: String,
+        media: MediaInfo,
+        target: ConcatTarget,
+        quality: String,
+        partial: File,
+        onProgress: (Double) -> Unit,
+    ): ProcessResult {
+        val duration = media.durationSecs ?: 0.0
+        val first = runFfmpeg(
+            jobId = job.id,
+            args = buildConcatNormalizeArgs(
+                input = inputPath,
+                outputPartial = partial.absolutePath,
+                media = media,
+                target = target,
+                quality = quality,
+                preferHardware = true,
+            ),
+            partial = partial,
+            durationSecs = duration,
+            onProgress = onProgress,
+        )
+        if (
+            first.exitCode == 0 ||
+            first.cancelled ||
+            !shouldRetryWithoutHardware(first.stderr)
+        ) {
+            return first
+        }
+        partial.delete()
+        return runFfmpeg(
+            jobId = job.id,
+            args = buildConcatNormalizeArgs(
+                input = inputPath,
+                outputPartial = partial.absolutePath,
+                media = media,
+                target = target,
+                quality = quality,
+                preferHardware = false,
+            ),
+            partial = partial,
+            durationSecs = duration,
+            onProgress = onProgress,
+        )
+    }
+
+    private fun runFfmpeg(
+        jobId: String,
+        args: List<String>,
+        partial: File,
+        durationSecs: Double,
+        onProgress: (Double) -> Unit,
+    ): ProcessResult {
         partial.delete()
         val process = activeProcess.start(
-            candidateJobId = job.id,
+            candidateJobId = jobId,
             start = { processBuilder(binaryPath(configuredFfmpegPath, "ffmpeg"), args).start() },
             destroy = { started ->
                 started.destroy()
@@ -246,7 +436,7 @@ class FfmpegProcess(
         )
 
         val stderr = StringBuilder()
-        val stdoutReader = thread(name = "ffmpeg-progress-${job.id}") {
+        val stdoutReader = thread(name = "ffmpeg-progress-$jobId") {
             try {
                 process.inputStream.bufferedReader().useLines { lines ->
                     lines.forEach { line ->
@@ -257,7 +447,7 @@ class FfmpegProcess(
                 Log.e(TAG, "读取 FFmpeg 进度失败", error)
             }
         }
-        val stderrReader = thread(name = "ffmpeg-stderr-${job.id}") {
+        val stderrReader = thread(name = "ffmpeg-stderr-$jobId") {
             process.errorStream.bufferedReader().useLines { lines ->
                 lines.forEach { line -> stderr.appendLine(line) }
             }
@@ -268,7 +458,7 @@ class FfmpegProcess(
         return ProcessResult(
             exitCode = exitCode,
             stderr = stderr.toString(),
-            cancelled = activeProcess.wasCancelled(job.id),
+            cancelled = activeProcess.wasCancelled(jobId),
         )
     }
 

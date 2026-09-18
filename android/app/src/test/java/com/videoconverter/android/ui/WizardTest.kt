@@ -63,7 +63,7 @@ class WizardTest {
         assertEquals(WizardStep.Sources, reset.step)
         assertFalse(reset.showAll)
         assertNull(reset.selectedUri)
-        assertFalse(reset.clearSources)
+        assertTrue(reset.clearSources)
     }
 
     @Test
@@ -106,14 +106,88 @@ class WizardTest {
     @Test
     fun collapsedPresetsKeepPrimaryAndSwapFourthWhenNeeded() {
         val primary = collapsedPresetCards("mp4-h264", showAll = false).map { it.id }
-        assertEquals(listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"), primary)
+        assertEquals(listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264", "video-concat"), primary)
         val withGif = collapsedPresetCards("gif", showAll = false).map { it.id }
-        assertEquals(listOf("mp4-h264", "mp4-copy", "mp4-h265", "gif"), withGif)
+        assertEquals(listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264", "gif"), withGif)
         val all = collapsedPresetCards("mp4-h264", showAll = true)
-        assertEquals(9, all.size)
+        assertEquals(10, all.size)
         assertTrue(all.none { it.id.startsWith("audio-") })
         assertTrue(WIZARD_PRESET_CARDS.none { it.id.startsWith("audio-") })
-        assertEquals(listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"), collapsedPresetCards("audio-mp3", false).map { it.id })
+        assertEquals(
+            listOf("mp4-h264", "mp4-copy", "mp4-h265", "mov-h264", "video-concat"),
+            collapsedPresetCards("audio-mp3", false).map { it.id },
+        )
+        assertEquals(R.string.preset_video_concat_title, presetCard("video-concat")?.titleRes)
+        assertEquals(R.string.preset_video_concat_desc, presetCard("video-concat")?.hintRes)
+    }
+
+    @Test
+    fun concatStartNeedsTwoImportableClips() {
+        assertFalse(allowsTrim("video-concat"))
+        assertFalse(allowsTrim("mp4-copy"))
+        assertTrue(allowsTrim("mp4-h264"))
+        assertFalse(
+            canStart(
+                importable = 1,
+                probing = false,
+                transcoding = false,
+                outputReady = true,
+                preset = "video-concat",
+                sourceCount = 1,
+            ),
+        )
+        assertTrue(
+            canStart(
+                importable = 2,
+                probing = false,
+                transcoding = false,
+                outputReady = true,
+                preset = "video-concat",
+                sourceCount = 2,
+            ),
+        )
+        assertFalse(
+            canStart(
+                importable = 2,
+                probing = false,
+                transcoding = false,
+                outputReady = true,
+                preset = "video-concat",
+                sourceCount = 3,
+            ),
+        )
+        assertFalse(
+            canStart(
+                importable = 21,
+                probing = false,
+                transcoding = false,
+                outputReady = true,
+                preset = "video-concat",
+                sourceCount = 21,
+            ),
+        )
+        assertTrue(
+            canStart(
+                importable = 1,
+                probing = false,
+                transcoding = false,
+                outputReady = true,
+                preset = "mp4-h264",
+                sourceCount = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun movedItemsReordersWithoutDropping() {
+        val items = listOf(
+            SourceItem(MediaInfo("a", "a.mp4", importable = true), false),
+            SourceItem(MediaInfo("b", "b.mp4", importable = true), false),
+            SourceItem(MediaInfo("c", "c.mp4", importable = true), false),
+        )
+        assertEquals(listOf("b", "a", "c"), movedItems(items, 0, 1).map { it.media.sourceUri })
+        assertEquals(items, movedItems(items, 0, 0))
+        assertEquals(items, movedItems(items, -1, 1))
     }
 
     @Test

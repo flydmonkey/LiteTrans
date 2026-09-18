@@ -74,6 +74,8 @@
     <string name="action_clear_finished">清空已完成</string>
     <string name="action_convert_again">再转一批</string>
     <string name="action_remove">移除</string>
+    <string name="action_move_up">上移</string>
+    <string name="action_move_down">下移</string>
     <string name="action_more">更多</string>
     <string name="action_collapse">收起</string>
     <string name="section_files">文件</string>
@@ -204,6 +206,11 @@
     <string name="preset_mp4_copy_desc">只换外壳，速度最快</string>
     <string name="preset_mp4_h265_desc">同样是 MP4，编码更新</string>
     <string name="preset_mov_h264_desc">苹果设备、剪辑软件</string>
+    <string name="preset_video_concat_title">合并</string>
+    <string name="preset_video_concat_desc">按顺序拼成一个视频</string>
+    <string name="concat_need_two">至少添加两段视频</string>
+    <string name="concat_too_many">最多合并 20 段视频</string>
+    <string name="concat_missing_video">每段都需要视频画面</string>
     <string name="preset_mkv_copy_friendly_desc">适合封装保存</string>
     <string name="preset_mkv_h265_desc">适合长期存档</string>
     <string name="preset_webm_vp9_desc">网页常用，会比 MP4 慢一点</string>

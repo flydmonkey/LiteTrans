@@ -36,6 +36,7 @@ data class OutputConfig(
     val quality: String? = null,
     val trimStartSecs: Double? = null,
     val trimEndSecs: Double? = null,
+    val concatSourceUris: List<String> = emptyList(),
 )
 
 data class ResolvedConfig(
@@ -71,6 +72,7 @@ data class Job(
     val outputTreeUri: String? = null,
     val outputPaths: List<String> = emptyList(),
     val createdAtEpochMs: Long? = null,
+    val concatMedias: List<MediaInfo> = emptyList(),
 )
 
 data class SkippedSource(val sourceUri: String, val displayName: String, val reason: String)

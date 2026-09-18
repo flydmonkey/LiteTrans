@@ -18,6 +18,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -40,6 +42,7 @@ import com.videoconverter.android.domain.DocumentSourceKind
 import com.videoconverter.android.domain.JobStatus
 import com.videoconverter.android.domain.MediaInfo
 import com.videoconverter.android.domain.documentSourceKind
+import com.videoconverter.android.domain.isVideoConcatPreset
 
 private val DOCUMENT_FORMAT_CHIPS = listOf(
     ChipOption("jpg", title = "JPG", hintRes = R.string.format_best_compat),
@@ -305,10 +308,16 @@ private fun ConvertHomePane(
     val displayedPreset = if (audioMode || documentMode) session.preset else coerceVideoPreset(session.preset)
     val context = LocalContext.current
     val previewMedia = homePreview(session, selectedUri, documentMode)
-    val preview = if (showPreview) previewMedia else null
+    val preview = if (showPreview && allowsTrim(displayedPreset)) previewMedia else null
     val probing = session.sources.any { it.probing }
-    val startEnabled = session.sources.count { it.media.importable } > 0 &&
-        !transcoding && !probing && outputReadyToStart(session.output)
+    val startEnabled = canStart(
+        importable = session.sources.count { it.media.importable },
+        probing = probing,
+        transcoding = transcoding,
+        outputReady = outputReadyToStart(session.output),
+        preset = displayedPreset,
+        sourceCount = session.sources.size,
+    )
     Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -334,9 +343,11 @@ private fun ConvertHomePane(
                     selectedUri = selectedUri ?: previewMedia?.sourceUri,
                     documentMode = documentMode,
                     audioMode = audioMode,
+                    concatMode = isVideoConcatPreset(displayedPreset),
                     runningUris = state.jobs.filter { it.status == JobStatus.Running }.map { it.sourceUri }.toSet(),
                     onSelectUri = onSelectUri,
                     onRemove = { appViewModel.remove(it, mode) },
+                    onMove = { from, to -> appViewModel.moveSource(from, to, mode) },
                     onGallery = onGallery,
                     onFiles = onFiles,
                     onMusic = onMusic,
@@ -398,9 +409,11 @@ private fun FilesSection(
     selectedUri: String?,
     documentMode: Boolean,
     audioMode: Boolean,
+    concatMode: Boolean,
     runningUris: Set<String>,
     onSelectUri: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onMove: (Int, Int) -> Unit,
     onGallery: () -> Unit,
     onFiles: () -> Unit,
     onMusic: (() -> Unit)?,
@@ -409,7 +422,7 @@ private fun FilesSection(
         if (session.sources.isNotEmpty()) {
             AppCard {
                 session.sources.forEachIndexed { index, source ->
-                    val canSelect = documentMode || itemHasDuration(source.media)
+                    val canSelect = !concatMode && (documentMode || itemHasDuration(source.media))
                     val failed = !source.media.importable && !source.probing
                     val selected = source.media.sourceUri == selectedUri
                     ListItem(
@@ -430,14 +443,38 @@ private fun FilesSection(
                         },
                         trailingContent = if (source.media.sourceUri !in runningUris) {
                             {
-                                IconButton(
-                                    onClick = { onRemove(source.media.sourceUri) },
-                                    modifier = Modifier.size(48.dp),
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Close,
-                                        contentDescription = stringResource(R.string.action_remove),
-                                    )
+                                Row {
+                                    if (concatMode) {
+                                        IconButton(
+                                            onClick = { onMove(index, index - 1) },
+                                            enabled = index > 0,
+                                            modifier = Modifier.size(48.dp),
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.KeyboardArrowUp,
+                                                contentDescription = stringResource(R.string.action_move_up),
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { onMove(index, index + 1) },
+                                            enabled = index < session.sources.lastIndex,
+                                            modifier = Modifier.size(48.dp),
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.KeyboardArrowDown,
+                                                contentDescription = stringResource(R.string.action_move_down),
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { onRemove(source.media.sourceUri) },
+                                        modifier = Modifier.size(48.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = stringResource(R.string.action_remove),
+                                        )
+                                    }
                                 }
                             }
                         } else {
@@ -471,6 +508,12 @@ private fun FilesSection(
                         else -> R.string.wizard_add_video_hint
                     },
                 ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (concatMode && session.sources.count { it.media.importable } < 2) {
+            Text(
+                stringResource(R.string.concat_need_two),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

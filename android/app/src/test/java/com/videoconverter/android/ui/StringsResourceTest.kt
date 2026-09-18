@@ -135,6 +135,8 @@ class StringsResourceTest {
             R.string.action_copied,
             R.string.action_got_it,
             R.string.action_remove,
+            R.string.action_move_up,
+            R.string.action_move_down,
             R.string.action_more,
             R.string.action_collapse,
             R.string.wizard_step_sources,
@@ -285,6 +287,11 @@ class StringsResourceTest {
             R.string.preset_mp4_copy_desc,
             R.string.preset_mp4_h265_desc,
             R.string.preset_mov_h264_desc,
+            R.string.preset_video_concat_title,
+            R.string.preset_video_concat_desc,
+            R.string.concat_need_two,
+            R.string.concat_too_many,
+            R.string.concat_missing_video,
             R.string.preset_mkv_copy_friendly_desc,
             R.string.preset_mkv_h265_desc,
             R.string.preset_webm_vp9_desc,
@@ -431,6 +438,13 @@ class StringsResourceTest {
             Character.UnicodeBlock.of(it) == Character.UnicodeBlock.HANGUL_SYLLABLES
         })
         assertEquals("還沒有圖片記錄", tw.getString(R.string.history_empty_image))
+        assertEquals("Merge", app.getString(R.string.preset_video_concat_title))
+        assertEquals("合并", zhCn().getString(R.string.preset_video_concat_title))
+        assertEquals("合併", tw.getString(R.string.preset_video_concat_title))
+        assertEquals("結合", ja.getString(R.string.preset_video_concat_title))
+        assertEquals("병합", ko.getString(R.string.preset_video_concat_title))
+        assertEquals("至少添加两段视频", zhCn().getString(R.string.concat_need_two))
+        assertEquals("Add at least two videos", app.getString(R.string.concat_need_two))
     }
 
     private fun zhCn() = locale("zh-CN")

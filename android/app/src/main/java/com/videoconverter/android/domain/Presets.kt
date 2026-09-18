@@ -27,6 +27,7 @@ fun resolveConfig(
     val preset = config.preset.ifBlank { DEFAULT_PRESET }
     val defaults = when (preset) {
         "mp4-h264" -> PresetDefaults("mp4", "h264", "aac", true)
+        "video-concat" -> PresetDefaults("mp4", "h264", "aac", true)
         "mp4-h265" -> PresetDefaults("mp4", "h265", "aac", true)
         "mp4-copy" -> PresetDefaults("mp4", "copy", "copy", true)
         "mov-h264" -> PresetDefaults("mov", "h264", "aac", true)

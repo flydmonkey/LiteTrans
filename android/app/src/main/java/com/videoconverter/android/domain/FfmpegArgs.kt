@@ -224,7 +224,7 @@ private fun fallbackAudioEncoder(container: String): String = when (container) {
     else -> "aac"
 }
 
-private fun hardwareVideoQualityArgs(quality: String): List<String> {
+internal fun hardwareVideoQualityArgs(quality: String): List<String> {
     val bitrate = when (quality) {
         "original", "high" -> "8000k"
         "small" -> "1500k"
@@ -233,7 +233,7 @@ private fun hardwareVideoQualityArgs(quality: String): List<String> {
     return listOf("-b:v", bitrate)
 }
 
-private fun softwareVideoQualityArgs(encoder: String, quality: String): List<String> =
+internal fun softwareVideoQualityArgs(encoder: String, quality: String): List<String> =
     when (encoder) {
         "h264" -> listOf(
             "-preset",

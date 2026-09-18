@@ -74,6 +74,8 @@
     <string name="action_clear_finished">完了を消去</string>
     <string name="action_convert_again">もう一度変換</string>
     <string name="action_remove">取り除く</string>
+    <string name="action_move_up">上へ</string>
+    <string name="action_move_down">下へ</string>
     <string name="action_more">その他</string>
     <string name="action_collapse">閉じる</string>
     <string name="section_files">ファイル</string>
@@ -204,6 +206,11 @@
     <string name="preset_mp4_copy_desc">容器だけ変更 — 最速</string>
     <string name="preset_mp4_h265_desc">同じ MP4、新しいコーデック</string>
     <string name="preset_mov_h264_desc">Apple 端末と編集ソフト向け</string>
+    <string name="preset_video_concat_title">結合</string>
+    <string name="preset_video_concat_desc">順番に1本の動画へつなぎます</string>
+    <string name="concat_need_two">動画を2本以上追加してください</string>
+    <string name="concat_too_many">動画は最大20本まで結合できます</string>
+    <string name="concat_missing_video">各クリップに映像トラックが必要です</string>
     <string name="preset_mkv_copy_friendly_desc">容器を保つのに向く</string>
     <string name="preset_mkv_h265_desc">長期保存に向く</string>
     <string name="preset_webm_vp9_desc">ウェブでよく使う。MP4 より少し遅い</string>
