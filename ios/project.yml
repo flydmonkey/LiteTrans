@@ -37,21 +37,29 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
     dependencies:
       - framework: Vendor/FFmpeg/ffmpegkit.xcframework
-        embed: false
+        embed: true
+        codeSign: true
       - framework: Vendor/FFmpeg/libavcodec.xcframework
-        embed: false
+        embed: true
+        codeSign: true
       - framework: Vendor/FFmpeg/libavformat.xcframework
-        embed: false
+        embed: true
+        codeSign: true
       - framework: Vendor/FFmpeg/libavutil.xcframework
-        embed: false
+        embed: true
+        codeSign: true
       - framework: Vendor/FFmpeg/libavfilter.xcframework
-        embed: false
+        embed: true
+        codeSign: true
       - framework: Vendor/FFmpeg/libavdevice.xcframework
-        embed: false
+        embed: true
+        codeSign: true
       - framework: Vendor/FFmpeg/libswscale.xcframework
-        embed: false
+        embed: true
+        codeSign: true
       - framework: Vendor/FFmpeg/libswresample.xcframework
-        embed: false
+        embed: true
+        codeSign: true
     scheme:
       testTargets:
         - LiteTransTests

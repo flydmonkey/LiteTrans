@@ -11,19 +11,24 @@
 		1E6C1922AEAB1A0CC7008A41 /* QueuePump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649853812F4A7AFB103E5865 /* QueuePump.swift */; };
 		35EACD9AB0DA81183FDC5130 /* RootTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */; };
 		37EAD7EDC58FF278BFB02A5E /* VideoExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 323EA2195BE1E67A612A8329 /* VideoExporter.swift */; };
+		390DEAA9D3311D53FEF0E67B /* libswresample.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0E212F731FD70A3698A29A44 /* libswresample.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		39A52E7998394E37F5CB556F /* Presets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D6EFB5057E109D9C167BD8A /* Presets.swift */; };
 		4AAB2BCE694CBC18EF884BB7 /* ProbeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72DD3198570CA635500454EA /* ProbeService.swift */; };
 		56AE1FF64F8DFDB99422CF81 /* libavfilter.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3E30A92DBC131C30ECEF1A23 /* libavfilter.xcframework */; };
 		66E16188C0ABF0DA6E03AF40 /* ExportPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA89A876D36BEEFADD874DE /* ExportPreset.swift */; };
 		67FD04C0D0C11EC445F914D9 /* libavdevice.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B63CAAE452A34FD3E88E0D6 /* libavdevice.xcframework */; };
 		6820A862DE083CB36C5C7C05 /* LiteTransApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D493963E185A66CA597C9F18 /* LiteTransApp.swift */; };
+		6BBEC8630504BE21E60953C2 /* libavutil.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7E19011C027DBA528DF8CD7F /* libavutil.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		705C0BED4BDF8DB281340D29 /* Progress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD8209150E98AAD72ECE2FE /* Progress.swift */; };
 		7783A142A273E108A2A3660E /* ffmpegkit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C070567FA01DE13AD0B66242 /* ffmpegkit.xcframework */; };
+		7BE19849568956D6C0DC823C /* libavdevice.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B63CAAE452A34FD3E88E0D6 /* libavdevice.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7F7F4F958B954E1987F7C703 /* libswscale.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6E76AF098843FC66F3169DEA /* libswscale.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		805B87A1CFAF32772B6FF29A /* libswresample.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E212F731FD70A3698A29A44 /* libswresample.xcframework */; };
 		80699DE1D9EBD82A93D0458F /* FfmpegCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3829401B1B84DEB75DADFE7 /* FfmpegCodec.swift */; };
 		8582D808DC928350667CA6B5 /* libavcodec.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = F5798D6B7F5563B28BEE7D68 /* libavcodec.xcframework */; };
 		8611C48001DC587F51292F54 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB6A5778D22766C5522FCC42 /* Models.swift */; };
 		8689E96CB8EABEE7CB1B36A3 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438F0538358FDF4B223E1FE1 /* HistoryView.swift */; };
+		878A7B2117F314EE86BC0E25 /* ffmpegkit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C070567FA01DE13AD0B66242 /* ffmpegkit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		87AF12E43DAB2C26A085CBEB /* ConvertHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98630E3AD2AE3D908BAFC718 /* ConvertHomeView.swift */; };
 		923EA6576EFE61C7F2734A48 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B12DC144713D4CD33997EBBC /* Localizable.xcstrings */; };
 		99AEBFEF60DAB3B6CC322FE5 /* libavutil.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E19011C027DBA528DF8CD7F /* libavutil.xcframework */; };
@@ -38,12 +43,15 @@
 		DA49790C9CABF7962922E60A /* JobRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2156F0B7C9EB4E762BAC090C /* JobRow.swift */; };
 		DA4CD55D9B8F20AF4F12C232 /* FFmpegRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8805C9FD8CFDA0930ADC9631 /* FFmpegRunner.swift */; };
 		DB20B343FD314DF2DF931039 /* Document.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6982BE104BDEA5E62C33A98 /* Document.swift */; };
+		DB8D7986EF831B9871214903 /* libavformat.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A26552228C498551B112105B /* libavformat.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		DF635D44441C022FE23D3C95 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CFC99B15435DF9AA8824ACE /* SessionStore.swift */; };
 		E1F630904C8D0723EE66CDE2 /* Validate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6186922C3EF56B1844D77649 /* Validate.swift */; };
 		E68CCD4841A993D3257BEE9B /* ConvertSettingsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD525B2FA107C96DEAB166C5 /* ConvertSettingsViews.swift */; };
 		E743AE7AFC3D412B16C06943 /* Queue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A412F7A83F94A9EE15401A /* Queue.swift */; };
 		EE8DB03E2544C5A8DAAB70EC /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1BB608CF198773DE165F6D /* RootView.swift */; };
 		F3C71A70B7D473A384BA6319 /* Naming.swift in Sources */ = {isa = PBXBuildFile; fileRef = 465D69B8A0C532097CBDD256 /* Naming.swift */; };
+		F7E4F1884BD57F80548D88F4 /* libavcodec.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F5798D6B7F5563B28BEE7D68 /* libavcodec.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		FBD25F029CE037BBF948F1BE /* libavfilter.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3E30A92DBC131C30ECEF1A23 /* libavfilter.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FFA37D52F5163A22C5F5594D /* ProbeParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31457203F12B09B74BD7643E /* ProbeParser.swift */; };
 /* End PBXBuildFile section */
 
@@ -56,6 +64,27 @@
 			remoteInfo = LiteTrans;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A88AB34ACD56B6FC765D658B /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				878A7B2117F314EE86BC0E25 /* ffmpegkit.xcframework in Embed Frameworks */,
+				F7E4F1884BD57F80548D88F4 /* libavcodec.xcframework in Embed Frameworks */,
+				DB8D7986EF831B9871214903 /* libavformat.xcframework in Embed Frameworks */,
+				6BBEC8630504BE21E60953C2 /* libavutil.xcframework in Embed Frameworks */,
+				FBD25F029CE037BBF948F1BE /* libavfilter.xcframework in Embed Frameworks */,
+				7BE19849568956D6C0DC823C /* libavdevice.xcframework in Embed Frameworks */,
+				7F7F4F958B954E1987F7C703 /* libswscale.xcframework in Embed Frameworks */,
+				390DEAA9D3311D53FEF0E67B /* libswresample.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		05A412F7A83F94A9EE15401A /* Queue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Queue.swift; sourceTree = "<group>"; };
@@ -257,6 +286,7 @@
 				1C46CC95EC3E5141B349A899 /* Sources */,
 				5FB51B1D6DF563C1ECD77B42 /* Resources */,
 				D9EFBF95AF502C5CE27CAC39 /* Frameworks */,
+				A88AB34ACD56B6FC765D658B /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
