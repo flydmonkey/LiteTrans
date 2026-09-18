@@ -41,4 +41,15 @@ struct NamingTests {
         #expect(photosImportDisplayName(fileName: "", pathExtension: "") == "video.mov")
         #expect(photosImportDisplayName(fileName: "", pathExtension: "m4v") == "video.m4v")
     }
+
+    @Test func numberedNameIsThreeDigits() {
+        #expect(numberedOutputName(stem: "scan", index: 1, ext: "jpg") == "scan-001.jpg")
+        #expect(numberedOutputName(stem: "scan", index: 12, ext: "pdf") == "scan-012.pdf")
+    }
+
+    @Test func ffmpegFileArgPrefixesLocalPaths() {
+        #expect(ffmpegFileArg("/tmp/a.mp4") == "file:/tmp/a.mp4")
+        #expect(ffmpegFileArg("file:/tmp/a.mp4") == "file:/tmp/a.mp4")
+        #expect(ffmpegFileArg("pipe:1") == "pipe:1")
+    }
 }

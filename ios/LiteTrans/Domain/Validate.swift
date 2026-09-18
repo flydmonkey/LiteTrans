@@ -3,6 +3,12 @@ private let videoEncoders = ["h264", "h265", "vp9", "mpeg4", "gif", "copy"]
 private let audioEncoders = ["aac", "opus", "mp3", "copy", "pcm_s16le", "flac", "amr_nb"]
 
 public func validate(_ config: ResolvedConfig, media: MediaInfo) throws {
+    if isDocumentPreset(config.preset) {
+        if config.preset == "office-pdf" {
+            throw LiteTransError.officeNotAvailable
+        }
+        return
+    }
     if !containers.contains(config.container) {
         throw LiteTransError.unsupportedContainer(config.container)
     }

@@ -14,10 +14,14 @@ public struct MediaInfo: Equatable, Sendable, Codable {
     public var trimStartSecs: Double?
     public var trimEndSecs: Double?
     public var probing: Bool
+    public var pageCount: Int?
+    public var pageStart: Int?
+    public var pageEnd: Int?
 
     enum CodingKeys: String, CodingKey {
         case sourceUri, displayName, durationSecs, container, videoCodec, width, height
         case frameRate, audioCodec, channels, importable, error, trimStartSecs, trimEndSecs, probing
+        case pageCount, pageStart, pageEnd
     }
 
     public init(
@@ -35,7 +39,10 @@ public struct MediaInfo: Equatable, Sendable, Codable {
         error: String? = nil,
         trimStartSecs: Double? = nil,
         trimEndSecs: Double? = nil,
-        probing: Bool = false
+        probing: Bool = false,
+        pageCount: Int? = nil,
+        pageStart: Int? = nil,
+        pageEnd: Int? = nil
     ) {
         self.sourceUri = sourceUri
         self.displayName = displayName
@@ -52,6 +59,9 @@ public struct MediaInfo: Equatable, Sendable, Codable {
         self.trimStartSecs = trimStartSecs
         self.trimEndSecs = trimEndSecs
         self.probing = probing
+        self.pageCount = pageCount
+        self.pageStart = pageStart
+        self.pageEnd = pageEnd
     }
 
     public init(from decoder: Decoder) throws {
@@ -71,6 +81,9 @@ public struct MediaInfo: Equatable, Sendable, Codable {
         trimStartSecs = try container.decodeIfPresent(Double.self, forKey: .trimStartSecs)
         trimEndSecs = try container.decodeIfPresent(Double.self, forKey: .trimEndSecs)
         probing = try container.decodeIfPresent(Bool.self, forKey: .probing) ?? false
+        pageCount = try container.decodeIfPresent(Int.self, forKey: .pageCount)
+        pageStart = try container.decodeIfPresent(Int.self, forKey: .pageStart)
+        pageEnd = try container.decodeIfPresent(Int.self, forKey: .pageEnd)
     }
 }
 
@@ -194,6 +207,13 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
     public var error: String?
     public var config: OutputConfig
     public var media: MediaInfo
+    public var outputPaths: [String]
+    public var outputKind: OutputKind
+
+    enum CodingKeys: String, CodingKey {
+        case id, sourceUri, displayName, outputPath, status, progress, error, config, media
+        case outputPaths, outputKind
+    }
 
     public init(
         id: String,
@@ -204,7 +224,9 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
         progress: Double,
         error: String?,
         config: OutputConfig,
-        media: MediaInfo
+        media: MediaInfo,
+        outputPaths: [String] = [],
+        outputKind: OutputKind = .downloads
     ) {
         self.id = id
         self.sourceUri = sourceUri
@@ -215,6 +237,23 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
         self.error = error
         self.config = config
         self.media = media
+        self.outputPaths = outputPaths
+        self.outputKind = outputKind
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        sourceUri = try container.decode(String.self, forKey: .sourceUri)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        outputPath = try container.decodeIfPresent(String.self, forKey: .outputPath)
+        status = try container.decode(JobStatus.self, forKey: .status)
+        progress = try container.decode(Double.self, forKey: .progress)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+        config = try container.decode(OutputConfig.self, forKey: .config)
+        media = try container.decode(MediaInfo.self, forKey: .media)
+        outputPaths = try container.decodeIfPresent([String].self, forKey: .outputPaths) ?? []
+        outputKind = try container.decodeIfPresent(OutputKind.self, forKey: .outputKind) ?? .downloads
     }
 }
 

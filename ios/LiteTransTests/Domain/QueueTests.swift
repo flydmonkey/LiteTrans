@@ -158,4 +158,75 @@ struct QueueTests {
         #expect(encoded.trimStartSecs == 1)
         #expect(encoded.trimEndSecs == 4)
     }
+
+    @Test func completedDeleteRemovesAllOutputPaths() {
+        let completed = Job(
+            id: "old",
+            sourceUri: "file:///a.pdf",
+            displayName: "a.pdf",
+            outputPath: "/out/a-001.pdf",
+            status: .completed,
+            progress: 100,
+            error: nil,
+            config: OutputConfig(preset: "pdf-split"),
+            media: MediaInfo(sourceUri: "file:///a.pdf", displayName: "a.pdf"),
+            outputPaths: ["/out/a-001.pdf", "/out/a-002.pdf"]
+        )
+        let deletion = outputFileDeletionPaths(job: completed, remainingJobs: [])
+        #expect(deletion.contains("/out/a-001.pdf"))
+        #expect(deletion.contains("/out/a-002.pdf"))
+        #expect(deletion.contains("/out/a-001.partial.pdf"))
+        #expect(deletion.contains("/out/a-002.partial.pdf"))
+    }
+
+    @Test func cancelledJobDoesNotDeleteOccupiedOutputPaths() {
+        let cancelled = Job(
+            id: "old",
+            sourceUri: "file:///a.pdf",
+            displayName: "a.pdf",
+            outputPath: "/out/a-001.pdf",
+            status: .cancelled,
+            progress: 10,
+            error: nil,
+            config: OutputConfig(preset: "pdf-split"),
+            media: MediaInfo(sourceUri: "file:///a.pdf", displayName: "a.pdf"),
+            outputPaths: ["/out/a-001.pdf", "/out/a-002.pdf"]
+        )
+        let later = Job(
+            id: "new",
+            sourceUri: "file:///b.pdf",
+            displayName: "b.pdf",
+            outputPath: "/out/a-001.pdf",
+            status: .queued,
+            progress: 0,
+            error: nil,
+            config: OutputConfig(preset: "pdf-split"),
+            media: MediaInfo(sourceUri: "file:///b.pdf", displayName: "b.pdf"),
+            outputPaths: ["/out/a-001.pdf", "/out/a-002.pdf"]
+        )
+        #expect(occupiedOutputPaths([cancelled]).contains("/out/a-001.pdf"))
+        #expect(occupiedOutputPaths([cancelled]).contains("/out/a-002.pdf"))
+        #expect(occupiedOutputPaths([cancelled]).contains("/out/a-001.partial.pdf"))
+        #expect(outputFileDeletionPaths(job: cancelled, remainingJobs: [later]).isEmpty)
+    }
+
+    @Test func markInterruptedCopiesOutputPathsAndKind() {
+        let running = Job(
+            id: "1",
+            sourceUri: "a",
+            displayName: "a",
+            outputPath: "/out/a-001.jpg",
+            status: .running,
+            progress: 10,
+            error: nil,
+            config: OutputConfig(),
+            media: MediaInfo(sourceUri: "a", displayName: "a"),
+            outputPaths: ["/out/a-001.jpg", "/out/a-002.jpg"],
+            outputKind: .photos
+        )
+        let out = markInterrupted([running], interrupted: "interrupted")
+        #expect(out[0].status == .failed)
+        #expect(out[0].outputPaths == ["/out/a-001.jpg", "/out/a-002.jpg"])
+        #expect(out[0].outputKind == .photos)
+    }
 }

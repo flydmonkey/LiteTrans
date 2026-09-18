@@ -21,4 +21,42 @@ struct ModelsTests {
         let decoded = try JSONDecoder().decode(MediaInfo.self, from: json)
         #expect(decoded.probing == false)
     }
+
+    @Test func pageFieldsDefaultAndDecodeMissingAsNil() throws {
+        let media = MediaInfo(sourceUri: "u", displayName: "a.pdf")
+        #expect(media.pageCount == nil)
+        #expect(media.pageStart == nil)
+        #expect(media.pageEnd == nil)
+        let json = Data(#"{"sourceUri":"u","displayName":"a.pdf","importable":false}"#.utf8)
+        let decoded = try JSONDecoder().decode(MediaInfo.self, from: json)
+        #expect(decoded.pageCount == nil)
+        #expect(decoded.pageStart == nil)
+        #expect(decoded.pageEnd == nil)
+    }
+
+    @Test func jobDefaultsOutputKindToDownloads() {
+        let job = Job(
+            id: "1",
+            sourceUri: "a",
+            displayName: "a",
+            outputPath: nil,
+            status: .queued,
+            progress: 0,
+            error: nil,
+            config: OutputConfig(),
+            media: MediaInfo(sourceUri: "a", displayName: "a")
+        )
+        #expect(job.outputPaths.isEmpty)
+        #expect(job.outputKind == .downloads)
+    }
+
+    @Test func jobDecodesMissingOutputFields() throws {
+        let json = Data(#"""
+        {"id":"1","sourceUri":"a","displayName":"a","status":"queued","progress":0,"config":{"preset":"mp4-h264"},"media":{"sourceUri":"a","displayName":"a","importable":false}}
+        """#.utf8)
+        let decoded = try JSONDecoder().decode(Job.self, from: json)
+        #expect(decoded.outputPaths.isEmpty)
+        #expect(decoded.outputKind == .downloads)
+        #expect(decoded.media.pageCount == nil)
+    }
 }

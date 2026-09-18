@@ -15,6 +15,7 @@ public enum LiteTransError: Error, Equatable, LocalizedError {
     case containerAudioCodec
     case blankOutputDir
     case cannotTranscode
+    case officeNotAvailable
 
     public var errorDescription: String? {
         switch self {
@@ -42,6 +43,8 @@ public enum LiteTransError: Error, Equatable, LocalizedError {
             return "Choose an output folder"
         case .cannotTranscode:
             return "Could not convert this file"
+        case .officeNotAvailable:
+            return "Office conversion is not available yet / Office 转换将在后续版本提供"
         }
     }
 }
@@ -75,6 +78,26 @@ private struct PresetDefaults {
 
 public func resolveConfig(_ config: OutputConfig) throws -> ResolvedConfig {
     let preset = config.preset.isEmpty ? defaultPreset : config.preset
+    if isDocumentPreset(preset) {
+        let ext = documentExtension(preset, imageFormat: config.container)
+        let container = preset == "pdf-image" ? (config.container ?? "jpg") : ext
+        return ResolvedConfig(
+            preset: preset,
+            container: container,
+            extension: ext,
+            videoEncoder: nil,
+            audioEncoder: nil,
+            maxWidth: config.maxWidth,
+            maxHeight: config.maxHeight,
+            videoBitrateKbps: nil,
+            frameRate: nil,
+            audioBitrateKbps: nil,
+            keepAudio: false,
+            quality: normalizeQuality(config.quality),
+            trimStartSecs: config.trimStartSecs,
+            trimEndSecs: config.trimEndSecs
+        )
+    }
     let defaults: PresetDefaults
     switch preset {
     case "mp4-h264": defaults = .init(container: "mp4", videoEncoder: "h264", audioEncoder: "aac", keepAudio: true)

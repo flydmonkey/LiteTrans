@@ -25,24 +25,27 @@ public func configForSource(_ config: OutputConfig, media: MediaInfo) -> OutputC
 public func occupiedOutputPaths(_ jobs: [Job]) -> Set<String> {
     var paths = Set<String>()
     for job in jobs {
-        guard let path = job.outputPath else { continue }
-        paths.insert(path)
-        paths.insert(partialOutputPath(path))
+        for path in resolvedOutputPaths(job) {
+            paths.insert(path)
+            paths.insert(partialOutputPath(path))
+        }
     }
     return paths
 }
 
 public func outputFileDeletionPaths(job: Job, remainingJobs: [Job]) -> [String] {
-    guard let path = job.outputPath else { return [] }
-    if remainingJobs.contains(where: { $0.outputPath == path }) {
-        return []
+    guard job.status == .completed else { return [] }
+    let occupied = occupiedOutputPaths(remainingJobs)
+    var deletion: [String] = []
+    for path in resolvedOutputPaths(job) where !occupied.contains(path) {
+        deletion.append(path)
+        deletion.append(partialOutputPath(path))
     }
-    switch job.status {
-    case .completed:
-        return [path, partialOutputPath(path)]
-    case .queued, .running, .failed, .cancelled:
-        return []
-    }
+    return deletion
+}
+
+private func resolvedOutputPaths(_ job: Job) -> [String] {
+    job.outputPaths.isEmpty ? [job.outputPath].compactMap { $0 } : job.outputPaths
 }
 
 public func shouldDeleteImportedSource(
@@ -100,6 +103,20 @@ public func enqueueJobs(
 
 public func markInterrupted(_ jobs: [Job], interrupted: String = "Conversion was interrupted") -> [Job] {
     jobs.map { job in
-        job.status == .running ? Job(id: job.id, sourceUri: job.sourceUri, displayName: job.displayName, outputPath: job.outputPath, status: .failed, progress: job.progress, error: interrupted, config: job.config, media: job.media) : job
+        job.status == .running
+            ? Job(
+                id: job.id,
+                sourceUri: job.sourceUri,
+                displayName: job.displayName,
+                outputPath: job.outputPath,
+                status: .failed,
+                progress: job.progress,
+                error: interrupted,
+                config: job.config,
+                media: job.media,
+                outputPaths: job.outputPaths,
+                outputKind: job.outputKind
+            )
+            : job
     }
 }

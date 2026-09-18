@@ -57,6 +57,15 @@ public func sanitizeRenameStem(_ raw: String) -> String? {
 
 public func canRenameJob(_ status: JobStatus) -> Bool { status == .completed }
 
+public func numberedOutputName(stem: String, index: Int, ext: String) -> String {
+    String(format: "%@-%03d.%@", stem, index, ext)
+}
+
+public func ffmpegFileArg(_ path: String) -> String {
+    if path.hasPrefix("file:") || path.hasPrefix("pipe:") { return path }
+    return "file:\(path)"
+}
+
 public func photosImportDisplayName(
     fileName: String,
     pathExtension: String = "",
