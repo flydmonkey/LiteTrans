@@ -2,8 +2,6 @@
 <resources>
     <string name="app_name">LiteTrans</string>
     <string name="privacy_capsule">이 기기</string>
-    <string name="mine_local_promise">선택한 파일은 이 휴대폰에서만 처리됩니다</string>
-    <string name="mine_version">버전 %1$s</string>
     <string name="tab_convert">변환</string>
     <string name="tab_transcode">동영상 변환</string>
     <string name="tab_audio">오디오 변환</string>

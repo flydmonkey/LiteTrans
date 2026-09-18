@@ -2,8 +2,6 @@
 <resources>
     <string name="app_name">輕轉碼</string>
     <string name="privacy_capsule">只在本機</string>
-    <string name="mine_local_promise">所選檔案只在這支手機上處理</string>
-    <string name="mine_version">版本 %1$s</string>
     <string name="tab_convert">轉碼</string>
     <string name="tab_transcode">影片轉檔</string>
     <string name="tab_audio">音訊轉換</string>
