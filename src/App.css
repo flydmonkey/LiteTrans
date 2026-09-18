@@ -157,10 +157,6 @@ select {
   margin-top: 8px;
 }
 
-.history-jobs {
-  max-height: none;
-}
-
 .history-jobs li.failed {
   background: #fdece6;
   border-color: #f0c9bc;
@@ -401,6 +397,11 @@ select {
   max-height: min(340px, 38vh);
   overflow-y: auto;
   padding-right: 2px;
+}
+
+.jobs.history-jobs {
+  max-height: none;
+  overflow: visible;
 }
 
 .files li,

@@ -210,13 +210,18 @@ export default function HistoryPage({
   }
 
   function onRowKeyDown(job: Job, event: KeyboardEvent<HTMLLIElement>) {
+    if (dialog) return;
+
     if (event.key === "Enter") {
       event.preventDefault();
       if (job.status === "completed") void openJob(job);
       else if (job.status === "failed" || job.status === "cancelled") void run(() => retryJob(job.id));
       return;
     }
-    if (event.key === "Delete" && jobRowActions(job.status).includes("delete")) {
+    if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      jobRowActions(job.status).includes("delete")
+    ) {
       event.preventDefault();
       setDialog({ kind: "delete", job });
     }
@@ -407,6 +412,7 @@ export default function HistoryPage({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
+                      if (!dialog.name.trim()) return;
                       const { job, name } = dialog;
                       setDialog(null);
                       void run(() => renameJob(job.id, name));
