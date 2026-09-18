@@ -19,6 +19,13 @@ func localizedText(_ key: String.LocalizationValue, language: AppLanguage) -> St
     localizedText(key, locale: localizationLocale(for: language))
 }
 
+func localizedPresetCardTitle(_ card: PresetCard, locale: Locale) -> String {
+    if let key = card.titleKey {
+        return localizedText(key, locale: locale)
+    }
+    return card.title
+}
+
 func lanHistoryCopy(language: AppLanguage) -> LanHistoryCopy {
     LanHistoryCopy(
         warning: localizedText("lan_open_warning", language: language),

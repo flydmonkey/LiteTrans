@@ -70,6 +70,14 @@ public struct PresetCard: Equatable, Sendable {
     public var id: String
     public var title: String
     public var hintKey: String
+    public var titleKey: String?
+
+    public init(id: String, title: String, hintKey: String, titleKey: String? = nil) {
+        self.id = id
+        self.title = title
+        self.hintKey = hintKey
+        self.titleKey = titleKey
+    }
 }
 
 public let primaryPresetIDs = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"]
@@ -304,14 +312,14 @@ public func documentCards(for kind: DocumentSourceKind?) -> [PresetCard] {
     switch kind {
     case .pdf:
         [
-            .init(id: "pdf-image", title: "To images", hintKey: "preset_pdf_image_desc"),
-            .init(id: "pdf-txt", title: "To TXT", hintKey: "preset_pdf_txt_desc"),
-            .init(id: "pdf-compress", title: "Compress", hintKey: "preset_pdf_compress_desc"),
-            .init(id: "pdf-split", title: "Split", hintKey: "preset_pdf_split_desc"),
+            .init(id: "pdf-image", title: "To images", hintKey: "preset_pdf_image_desc", titleKey: "preset_pdf_image_title"),
+            .init(id: "pdf-txt", title: "To TXT", hintKey: "preset_pdf_txt_desc", titleKey: "preset_pdf_txt_title"),
+            .init(id: "pdf-compress", title: "Compress", hintKey: "preset_pdf_compress_desc", titleKey: "preset_pdf_compress_title"),
+            .init(id: "pdf-split", title: "Split", hintKey: "preset_pdf_split_desc", titleKey: "preset_pdf_split_title"),
         ]
     case .word, .excel:
         [
-            .init(id: "office-pdf", title: "To PDF", hintKey: "preset_office_pdf_desc"),
+            .init(id: "office-pdf", title: "To PDF", hintKey: "preset_office_pdf_desc", titleKey: "preset_office_pdf_title"),
         ]
     case .image, nil:
         [
@@ -320,7 +328,7 @@ public func documentCards(for kind: DocumentSourceKind?) -> [PresetCard] {
             .init(id: "image-webp", title: "WebP", hintKey: "preset_image_webp_desc"),
             .init(id: "image-bmp", title: "BMP", hintKey: "preset_image_bmp_desc"),
             .init(id: "image-gif", title: "GIF", hintKey: "preset_image_gif_desc"),
-            .init(id: "image-compress", title: "Compress", hintKey: "preset_image_compress_desc"),
+            .init(id: "image-compress", title: "Compress", hintKey: "preset_image_compress_desc", titleKey: "preset_image_compress_title"),
         ]
     }
 }

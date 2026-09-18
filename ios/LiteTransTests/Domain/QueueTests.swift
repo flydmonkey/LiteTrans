@@ -283,8 +283,22 @@ struct QueueTests {
         #expect(report.jobs[0].outputPaths == ["/tmp/photo.png"])
     }
 
-    @Test func enqueueRejectsOffice() throws {
+    @Test func enqueueWordOfficePdf() throws {
         let media = MediaInfo(sourceUri: "w", displayName: "a.docx", importable: true)
+        let report = try enqueueJobs(
+            sources: [media],
+            config: OutputConfig(preset: "office-pdf"),
+            outputDir: "/tmp",
+            nextId: { "1" },
+            exists: { _ in false }
+        )
+        #expect(report.jobs.map(\.id) == ["1"])
+        #expect(report.jobs[0].outputPath == "/tmp/a.pdf")
+        #expect(report.skipped.isEmpty)
+    }
+
+    @Test func enqueueRejectsExcelOffice() throws {
+        let media = MediaInfo(sourceUri: "x", displayName: "a.xlsx", importable: true)
         let report = try enqueueJobs(
             sources: [media],
             config: OutputConfig(preset: "office-pdf"),

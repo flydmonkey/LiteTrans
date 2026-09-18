@@ -10,12 +10,18 @@ let package = Package(
     targets: [
         .target(
             name: "LiteTransDomain",
-            path: "LiteTrans/Domain"
+            path: "LiteTrans/Domain",
+            linkerSettings: [
+                .linkedLibrary("z"),
+            ]
         ),
         .testTarget(
             name: "LiteTransDomainTests",
             dependencies: ["LiteTransDomain"],
-            path: "LiteTransTests/Domain"
+            path: "LiteTransTests/Domain",
+            linkerSettings: [
+                .linkedLibrary("z"),
+            ]
         ),
     ]
 )

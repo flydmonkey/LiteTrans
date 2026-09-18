@@ -168,6 +168,13 @@ extra = {
     "preset_pdf_compress_desc": {"zh-Hant": "縮小內嵌圖，不把整頁拍成圖", "ja": "埋め込み画像を縮小し、ページ全体はラスタ化しません", "ko": "삽입된 이미지를 줄이고 페이지 전체를 래스터화하지 않습니다"},
     "preset_pdf_split_desc": {"zh-Hant": "範圍內每頁一個 PDF", "ja": "範囲内の各ページを1つの PDF に", "ko": "범위의 각 페이지를 PDF 하나로"},
     "preset_office_pdf_desc": {"zh-Hant": "簡單文字和表格可以，複雜排版會對不齊", "ja": "簡単な文字と表は問題なし。複雑なレイアウトはずれることがあります", "ko": "간단한 글과 표는 괜찮습니다. 복잡한 레이아웃은 어긋날 수 있습니다"},
+    "preset_pdf_image_title": {"zh-Hant": "轉圖片", "ja": "画像にする", "ko": "이미지로"},
+    "preset_pdf_txt_title": {"zh-Hant": "轉 TXT", "ja": "TXT にする", "ko": "TXT로"},
+    "preset_pdf_compress_title": {"zh-Hant": "壓縮", "ja": "圧縮", "ko": "압축"},
+    "preset_pdf_split_title": {"zh-Hant": "拆分", "ja": "分割", "ko": "분할"},
+    "preset_image_compress_title": {"zh-Hant": "壓縮", "ja": "圧縮", "ko": "압축"},
+    "preset_office_pdf_title": {"zh-Hant": "轉 PDF", "ja": "PDF にする", "ko": "PDF로"},
+    "error_cannot_convert_document": {"zh-Hant": "無法轉換此文件", "ja": "このドキュメントを変換できません", "ko": "이 문서를 변환할 수 없습니다"},
 }
 
 missing = []

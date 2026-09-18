@@ -76,16 +76,6 @@ public func enqueueJobs(
     var jobs: [Job] = []
     var allocated = occupiedOutputPaths(existingJobs)
     for media in accepted {
-        if documentSourceKind(media.displayName) == .word || documentSourceKind(media.displayName) == .excel {
-            skipped.append(
-                .init(
-                    sourceUri: media.sourceUri,
-                    displayName: media.displayName,
-                    reason: LiteTransError.officeNotAvailable.localizedDescription
-                )
-            )
-            continue
-        }
         do {
             try validate(resolved, media: media)
         } catch {

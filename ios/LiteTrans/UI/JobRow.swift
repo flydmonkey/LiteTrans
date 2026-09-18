@@ -23,12 +23,7 @@ struct JobRow: View {
                 Text(subtitle)
                     .font(.footnote)
                     .foregroundStyle(subtitleColor)
-                if let date = historyDateLabel(job.createdAtEpochMs) {
-                    Text(date)
-                        .font(.footnote)
-                        .foregroundStyle(subtitleColor)
-                        .lineLimit(1)
-                }
+                    .lineLimit(1)
                 if job.status == .running {
                     ProgressView(value: min(max(job.progress, 0), 100), total: 100)
                         .tint(Color.primary)
@@ -77,13 +72,17 @@ struct JobRow: View {
     private var subtitle: String {
         let parts: [String]
         if job.status == .failed, let error = job.error, !error.isEmpty {
-            parts = [error, multiOutputText].compactMap { $0 }
+            parts = [error, dateText, multiOutputText].compactMap { $0 }
         } else if job.status == .running {
-            parts = ["\(Int(job.progress.rounded()))% · \(statusText)", multiOutputText].compactMap { $0 }
+            parts = ["\(Int(job.progress.rounded()))% · \(statusText)", dateText, multiOutputText].compactMap { $0 }
         } else {
-            parts = [statusText, multiOutputText].compactMap { $0 }
+            parts = [statusText, dateText, multiOutputText].compactMap { $0 }
         }
         return parts.joined(separator: " · ")
+    }
+
+    private var dateText: String? {
+        historyDateLabel(job.createdAtEpochMs)
     }
 
     private var multiOutputText: String? {

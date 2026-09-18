@@ -67,10 +67,11 @@ struct DocumentTests {
         #expect(png.extension == "png")
     }
 
-    @Test func validateRejectsOfficeAndAllowsOtherDocuments() throws {
+    @Test func validateAllowsWordOfficePdfAndRejectsExcel() throws {
         let office = try resolveConfig(OutputConfig(preset: "office-pdf"))
+        try validate(office, media: MediaInfo(sourceUri: "a", displayName: "a.docx", importable: true))
         #expect(throws: LiteTransError.officeNotAvailable) {
-            try validate(office, media: MediaInfo(sourceUri: "a", displayName: "a.docx", importable: true))
+            try validate(office, media: MediaInfo(sourceUri: "a", displayName: "a.xlsx", importable: true))
         }
 
         let split = try resolveConfig(OutputConfig(preset: "pdf-split"))

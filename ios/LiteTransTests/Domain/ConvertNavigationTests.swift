@@ -145,6 +145,7 @@ struct ConvertNavigationTests {
         #expect(engineKind("audio-mp3") == .ffmpeg)
         #expect(engineKind("image-jpg") == .document)
         #expect(engineKind("pdf-split") == .document)
+        #expect(engineKind("office-pdf") == .document)
     }
 
     @Test func collapsedSwapsFourthWhenRareSelected() {
@@ -177,6 +178,16 @@ struct ConvertNavigationTests {
         #expect(collapsedPrimaryPresets().first { $0.id == "mp4-h264" }?.hintKey == "preset_mp4_h264_desc")
         #expect(audioPresetCards().first { $0.id == "audio-mp3" }?.hintKey == "preset_audio_mp3_audio_desc")
         #expect(videoMorePresetCards().first { $0.id == "gif" }?.hintKey == "preset_gif_desc")
+    }
+
+    @Test func documentCardsUseTitleKeys() {
+        #expect(documentCards(for: .pdf).first { $0.id == "pdf-image" }?.titleKey == "preset_pdf_image_title")
+        #expect(documentCards(for: .pdf).first { $0.id == "pdf-txt" }?.titleKey == "preset_pdf_txt_title")
+        #expect(documentCards(for: .pdf).first { $0.id == "pdf-compress" }?.titleKey == "preset_pdf_compress_title")
+        #expect(documentCards(for: .pdf).first { $0.id == "pdf-split" }?.titleKey == "preset_pdf_split_title")
+        #expect(documentCards(for: .word).first { $0.id == "office-pdf" }?.titleKey == "preset_office_pdf_title")
+        #expect(documentCards(for: .image).first { $0.id == "image-compress" }?.titleKey == "preset_image_compress_title")
+        #expect(documentCards(for: .image).first { $0.id == "image-jpg" }?.titleKey == nil)
     }
 
     @Test func audioDefaultsToDownloadsWithoutMusic() {

@@ -16,7 +16,15 @@ struct ProbeService {
         let name = displayName.isEmpty ? url.lastPathComponent : displayName
         if let kind = documentSourceKind(name) {
             switch kind {
-            case .word, .excel:
+            case .word:
+                return MediaInfo(
+                    sourceUri: url.absoluteString,
+                    displayName: name,
+                    container: "docx",
+                    importable: true,
+                    probing: false
+                )
+            case .excel:
                 return blocked(
                     url: url,
                     displayName: name,

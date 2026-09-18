@@ -351,9 +351,11 @@ struct ConvertHomeView: View {
             + documentCards(for: model.documentKind)
             + documentCards(for: .image)
             + documentCards(for: .pdf)
-        return cards.first { $0.id == preset }?.title
-            ?? listPresets().first { $0.id == preset }?.label
-            ?? preset
+            + documentCards(for: .word)
+        if let card = cards.first(where: { $0.id == preset }) {
+            return localizedPresetCardTitle(card, locale: locale)
+        }
+        return listPresets().first { $0.id == preset }?.label ?? preset
     }
 
     private func moveConvertTab(step: Int) {

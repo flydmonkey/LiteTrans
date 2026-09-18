@@ -17,7 +17,11 @@ struct DocumentEngine: Sendable {
         let destinations = try outputDestinations(for: job)
         let preset = job.config.preset
         if preset == "office-pdf" {
-            throw DocumentRunError(message: String(localized: "error_office_later"))
+            onProgress(0)
+            try convertOffice(source: source, destination: destinations[0])
+            try checkCancelled()
+            onProgress(100)
+            return
         }
 
         if preset.hasPrefix("image-") {
@@ -61,6 +65,24 @@ struct DocumentEngine: Sendable {
         }
         try writeReplacing(path: destination) { partial in
             try writeImage(encoded, to: partial, ext: ext, quality: compression)
+        }
+    }
+
+    private func convertOffice(source: URL, destination: String) throws {
+        let data: Data
+        do {
+            data = try Data(contentsOf: source)
+        } catch {
+            throw DocumentRunError(message: String(localized: "error_cannot_convert_document"))
+        }
+        let blocks: [OfficeBlock]
+        do {
+            blocks = try officeBlocksFromDocx(data)
+        } catch {
+            throw DocumentRunError(message: String(localized: "error_cannot_convert_document"))
+        }
+        try writeReplacing(path: destination) { partial in
+            try writeOfficePdf(blocks, to: partial)
         }
     }
 
@@ -391,6 +413,70 @@ private func writeReplacing(path: String, writePartial: (URL) throws -> Void) th
         try? FileManager.default.removeItem(at: partialURL)
         throw error
     }
+}
+
+private func writeOfficePdf(_ blocks: [OfficeBlock], to url: URL) throws {
+    let pageRect = CGRect(x: 0, y: 0, width: 595, height: 842)
+    let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
+    let font = UIFont.systemFont(ofSize: 11)
+    let lineHeight = max(font.lineHeight, 14)
+    let margin: CGFloat = 48
+    let maxWidth = pageRect.width - margin * 2
+    let attributes: [NSAttributedString.Key: Any] = [
+        .font: font,
+        .foregroundColor: UIColor.black,
+    ]
+    try renderer.writePDF(to: url) { context in
+        context.beginPage()
+        var y = margin
+        func ensureSpace() {
+            if y + lineHeight > pageRect.height - margin {
+                context.beginPage()
+                y = margin
+            }
+        }
+        func drawText(_ text: String) {
+            for line in wrappedOfficeLines(text, font: font, width: maxWidth) {
+                ensureSpace()
+                (line as NSString).draw(at: CGPoint(x: margin, y: y), withAttributes: attributes)
+                y += lineHeight
+            }
+        }
+        for block in blocks {
+            switch block {
+            case .paragraph(let text):
+                drawText(text)
+            case .table(let rows):
+                for row in rows {
+                    drawText(row.joined(separator: "  "))
+                }
+            }
+            y += lineHeight / 2
+        }
+    }
+}
+
+private func wrappedOfficeLines(_ text: String, font: UIFont, width: CGFloat) -> [String] {
+    if text.isEmpty { return [""] }
+    var lines: [String] = []
+    var current = ""
+    for character in text {
+        if character == "\n" {
+            lines.append(current)
+            current = ""
+            continue
+        }
+        let candidate = current + String(character)
+        let candidateWidth = (candidate as NSString).size(withAttributes: [.font: font]).width
+        if candidateWidth > width, !current.isEmpty {
+            lines.append(current)
+            current = String(character)
+        } else {
+            current = candidate
+        }
+    }
+    lines.append(current)
+    return lines
 }
 
 private func isImageOnlyPage(_ page: PDFPage) -> Bool {

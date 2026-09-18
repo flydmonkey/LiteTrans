@@ -18,6 +18,7 @@
 		2EC777D78F2A0633D517E964 /* LanShareStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD697DE596EB2BD8C1E453C0 /* LanShareStoreTests.swift */; };
 		3544EAF0046E5E2BCC0D51B0 /* LiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B5BE3984367E7E941A88A1 /* LiveActivity.swift */; };
 		35EACD9AB0DA81183FDC5130 /* RootTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */; };
+		372F88B53C2C35087D5B8A6D /* Office.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92C35A51A132FAB1F221B86 /* Office.swift */; };
 		37EAD7EDC58FF278BFB02A5E /* VideoExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 323EA2195BE1E67A612A8329 /* VideoExporter.swift */; };
 		390DEAA9D3311D53FEF0E67B /* libswresample.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0E212F731FD70A3698A29A44 /* libswresample.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		39A52E7998394E37F5CB556F /* Presets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D6EFB5057E109D9C167BD8A /* Presets.swift */; };
@@ -210,6 +211,7 @@
 		DE1BB608CF198773DE165F6D /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		DE3853C67BE1C51F5877CC8D /* LiteTrans.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LiteTrans.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabTests.swift; sourceTree = "<group>"; };
+		E92C35A51A132FAB1F221B86 /* Office.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Office.swift; sourceTree = "<group>"; };
 		F5798D6B7F5563B28BEE7D68 /* libavcodec.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libavcodec.xcframework; path = Vendor/FFmpeg/libavcodec.xcframework; sourceTree = "<group>"; };
 		F6A8F3D12ACA003D19AA8FB0 /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -273,6 +275,7 @@
 				34B5BE3984367E7E941A88A1 /* LiveActivity.swift */,
 				CB6A5778D22766C5522FCC42 /* Models.swift */,
 				465D69B8A0C532097CBDD256 /* Naming.swift */,
+				E92C35A51A132FAB1F221B86 /* Office.swift */,
 				3D6EFB5057E109D9C167BD8A /* Presets.swift */,
 				31457203F12B09B74BD7643E /* ProbeParser.swift */,
 				7BD8209150E98AAD72ECE2FE /* Progress.swift */,
@@ -572,6 +575,7 @@
 				CE59B4247C2708FB200DC716 /* MineView.swift in Sources */,
 				8611C48001DC587F51292F54 /* Models.swift in Sources */,
 				F3C71A70B7D473A384BA6319 /* Naming.swift in Sources */,
+				372F88B53C2C35087D5B8A6D /* Office.swift in Sources */,
 				39A52E7998394E37F5CB556F /* Presets.swift in Sources */,
 				FFA37D52F5163A22C5F5594D /* ProbeParser.swift in Sources */,
 				4AAB2BCE694CBC18EF884BB7 /* ProbeService.swift in Sources */,

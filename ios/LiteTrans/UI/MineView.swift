@@ -13,7 +13,7 @@ struct MineView: View {
             List {
                 Section {
                     NavigationLink(value: MinePage.lan) {
-                        Text(text("mine_lan"))
+                        LabeledContent(text("mine_lan"), value: lanStatusValue)
                             .frame(minHeight: 44, alignment: .leading)
                     }
                     NavigationLink(value: MinePage.language) {
@@ -44,6 +44,10 @@ struct MineView: View {
         .navigationTitle(text("tab_mine"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private var lanStatusValue: String {
+        text(model.lanShare.enabled ? "lan_status_on" : "lan_status_off")
     }
 
     private var languageValue: String {

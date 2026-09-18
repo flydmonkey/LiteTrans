@@ -94,7 +94,7 @@ cd android && ./gradlew connectedDebugAndroidTest
 
 ### iOS
 
-第 3 刀支持 Live Activity 与后台 processing 任务。Office 尚未提供。许可仍按根 README 的本机处理说明。
+第 3 刀支持 Live Activity 与后台 processing 任务。Word 可转 PDF；Excel 尚未提供。许可仍按根 README 的本机处理说明。
 
 ```bash
 cd ios && node scripts/fetch-ffmpeg.mjs && xcodegen generate && xcodebuild -scheme LiteTrans -destination 'generic/platform=iOS Simulator' build
@@ -112,7 +112,7 @@ cd ios && node scripts/fetch-ffmpeg.mjs && xcodegen generate && xcodebuild -sche
 6. 相册图转 JPG 进照片
 7. 小 PDF 拆分在「文件」里可见
 8. 四张主视频仍成功
-9. Office 行标红不能开始
+9. Word 转 PDF 进「文件」；Excel 行标红不能开始
 10. 入队后锁屏或 Dynamic Island 显示文件名与百分比；完成后立刻消失
 11. Expanded / 锁屏上的取消能停当前任务
 

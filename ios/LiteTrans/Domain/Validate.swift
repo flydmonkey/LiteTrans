@@ -4,7 +4,7 @@ private let audioEncoders = ["aac", "opus", "mp3", "copy", "pcm_s16le", "flac", 
 
 public func validate(_ config: ResolvedConfig, media: MediaInfo) throws {
     if isDocumentPreset(config.preset) {
-        if config.preset == "office-pdf" {
+        if config.preset == "office-pdf", documentSourceKind(media.displayName) == .excel {
             throw LiteTransError.officeNotAvailable
         }
         return

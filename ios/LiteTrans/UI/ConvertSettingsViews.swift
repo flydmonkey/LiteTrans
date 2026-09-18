@@ -35,7 +35,7 @@ struct FormatSettingsView: View {
                     model.preset = card.id
                 } label: {
                     settingChoice(
-                        title: card.title,
+                        title: localizedPresetCardTitle(card, locale: locale),
                         hint: text(String.LocalizationValue(stringLiteral: card.hintKey)),
                         selected: model.preset == card.id
                     )
