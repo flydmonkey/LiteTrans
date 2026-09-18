@@ -267,6 +267,7 @@ function formatClock(seconds: number) {
 }
 
 function TrimBar({
+  active,
   locale,
   duration,
   start,
@@ -277,6 +278,7 @@ function TrimBar({
   audioCodec,
   onChange,
 }: {
+  active: boolean;
   locale: string;
   duration: number;
   start: number;
@@ -331,6 +333,12 @@ function TrimBar({
       cancelled = true;
     };
   }, [sourcePath, container, videoCodec, audioCodec, duration]);
+
+  useEffect(() => {
+    if (active) return;
+    videoRef.current?.pause();
+    setPlaying(false);
+  }, [active]);
 
   function seekTo(time: number) {
     const video = videoRef.current;
@@ -534,6 +542,7 @@ function TrimBar({
 }
 
 export type ConvertPageProps = {
+  active: boolean;
   locale: string;
   jobs: Job[];
   dragging: boolean;
@@ -543,6 +552,7 @@ export type ConvertPageProps = {
 };
 
 export default function ConvertPage({
+  active,
   locale,
   jobs,
   dragging,
@@ -559,6 +569,8 @@ export default function ConvertPage({
   const [showAllFormats, setShowAllFormats] = useState(false);
   const sourcesRef = useRef(sources);
   sourcesRef.current = sources;
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   const runningIds = useMemo(
     () => new Set(jobs.filter((job) => job.status === "running").map((job) => job.sourcePath)),
@@ -667,10 +679,17 @@ export default function ConvertPage({
     let unlistenDrop: Promise<() => void> | null = null;
     try {
       unlistenDrop = getCurrentWebview().onDragDropEvent((event) => {
-        if (event.payload.type === "over") onDraggingChange(true);
-        if (event.payload.type === "leave") onDraggingChange(false);
+        if (event.payload.type === "over") {
+          if (activeRef.current) onDraggingChange(true);
+          return;
+        }
+        if (event.payload.type === "leave") {
+          onDraggingChange(false);
+          return;
+        }
         if (event.payload.type === "drop") {
           onDraggingChange(false);
+          if (!activeRef.current) return;
           void addPaths(event.payload.paths);
         }
       });
@@ -684,7 +703,10 @@ export default function ConvertPage({
 
   async function onPickFiles() {
     try {
-      const paths = await pickFiles();
+      const paths = await pickFiles({
+        title: t(locale, "pick_files_title"),
+        filter: t(locale, "pick_files_filter"),
+      });
       await addPaths(paths);
     } catch (err) {
       onNotice(String(err));
@@ -693,7 +715,7 @@ export default function ConvertPage({
 
   async function onPickOutputDir() {
     try {
-      const dir = await pickOutputDir();
+      const dir = await pickOutputDir(t(locale, "pick_output_title"));
       if (dir) setOutputDir(dir);
     } catch (err) {
       onNotice(String(err));
@@ -891,6 +913,7 @@ export default function ConvertPage({
                 </button>
               </div>
               <TrimBar
+                active={active}
                 locale={locale}
                 duration={timelineDuration}
                 start={Math.min(previewSource.trimStartSecs ?? 0, timelineDuration)}

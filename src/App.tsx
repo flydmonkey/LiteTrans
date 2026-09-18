@@ -82,11 +82,11 @@ export default function App() {
     try {
       const current = await loadSessionSettings();
       await saveSessionSettings({ ...current, language: next });
-    } catch {
-      // Keep convert prefs on disk; still apply the UI language.
+      setLanguage(next);
+      setLocale(resolveLocaleTag(next, navigator.language));
+    } catch (err) {
+      setNotice(String(err));
     }
-    setLanguage(next);
-    setLocale(resolveLocaleTag(next, navigator.language));
   }
 
   return (
@@ -127,6 +127,7 @@ export default function App() {
         ) : null}
         <div className="convert-host" hidden={tab !== "convert"}>
           <ConvertPage
+            active={tab === "convert"}
             locale={locale}
             jobs={jobs}
             dragging={dragging}

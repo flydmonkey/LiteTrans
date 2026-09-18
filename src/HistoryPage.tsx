@@ -37,6 +37,38 @@ const STATUS_KEY: Record<Job["status"], string> = {
   cancelled: "status_cancelled",
 };
 
+const PRESET_TITLE_KEY: Record<string, string> = {
+  "mp4-h264": "preset_mp4_h264_title",
+  "mp4-copy": "preset_mp4_copy_title",
+  "mp4-h265": "preset_mp4_h265_title",
+  "mov-h264": "preset_mov_h264_title",
+  "mkv-copy-friendly": "preset_mkv_copy_friendly_title",
+  "mkv-h265": "preset_mkv_h265_title",
+  "webm-vp9": "preset_webm_vp9_title",
+  "avi-mpeg4": "preset_avi_mpeg4_title",
+  gif: "preset_gif_title",
+  "audio-mp3": "preset_audio_mp3_title",
+  "audio-aac": "preset_audio_aac_title",
+};
+
+const CODEC_LABELS: Record<string, string> = {
+  h264: "H.264",
+  hevc: "H.265",
+  h265: "H.265",
+  vp9: "VP9",
+  vp8: "VP8",
+  av1: "AV1",
+  mpeg4: "MPEG-4",
+  mpeg2video: "MPEG-2",
+  aac: "AAC",
+  opus: "Opus",
+  mp3: "MP3",
+  ac3: "AC3",
+  eac3: "E-AC3",
+  flac: "FLAC",
+  vorbis: "Vorbis",
+};
+
 type Dialog =
   | { kind: "clear" }
   | { kind: "delete"; job: Job }
@@ -102,9 +134,49 @@ function errorText(locale: string, error: string | null): string {
   return translated !== error ? translated : error;
 }
 
+function friendlyCodec(codec: string | null | undefined): string {
+  if (!codec) return "";
+  return CODEC_LABELS[codec] ?? codec.toUpperCase();
+}
+
+function friendlyContainer(locale: string, container: string | null | undefined, path: string): string {
+  const ext = (fileName(path).split(".").pop() ?? "").toUpperCase();
+  const name = (container ?? "").toLowerCase();
+  if (name.includes("matroska") || ext === "MKV") return "MKV";
+  if (name.includes("webm") || ext === "WEBM") return "WebM";
+  if (name.includes("mp3") || ext === "MP3") return "MP3";
+  if (name.includes("avi") || ext === "AVI") return "AVI";
+  if (ext === "TS" || ext === "M2TS" || name.includes("mpegts")) return ext || "TS";
+  if (ext === "MOV") return "MOV";
+  if (ext === "M4V") return "M4V";
+  if (name.includes("mp4") || name.includes("mov") || ext === "MP4") return "MP4";
+  return ext || t(locale, "container_video");
+}
+
+function sourceFromLabel(locale: string, job: Job): string {
+  return [
+    friendlyContainer(locale, job.media.container, job.sourcePath),
+    friendlyCodec(job.media.videoCodec) || friendlyCodec(job.media.audioCodec),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function jobRouteLabel(locale: string, job: Job): string {
+  const from = sourceFromLabel(locale, job);
+  const titleKey = PRESET_TITLE_KEY[job.config.preset];
+  const to = titleKey ? t(locale, titleKey) : job.config.preset;
+  return from ? `${from} → ${to}` : to;
+}
+
 function jobSubtitle(locale: string, job: Job, startedAt: number | undefined): string {
-  if (job.status === "failed") return errorText(locale, job.error);
-  const parts = [t(locale, STATUS_KEY[job.status])];
+  const route = jobRouteLabel(locale, job);
+  if (job.status === "failed") {
+    return [route, errorText(locale, job.error), formatHistoryDate(job.createdAtEpochMs)]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  const parts = [route, t(locale, STATUS_KEY[job.status])];
   if (job.status === "running") {
     parts.push(`${Math.round(job.progress)}%`);
     const eta = etaLabel(locale, job.progress, startedAt);

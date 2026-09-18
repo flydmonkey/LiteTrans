@@ -37,20 +37,20 @@ export function probeMedia(path: string) {
   return invoke<MediaInfo>("probe_media_command", { path });
 }
 
-export async function pickFiles() {
+export async function pickFiles(labels: { title: string; filter: string }) {
   const selected = await open({
     multiple: true,
-    title: "选择视频",
-    filters: [{ name: "视频", extensions: VIDEO_EXTENSIONS }],
+    title: labels.title,
+    filters: [{ name: labels.filter, extensions: VIDEO_EXTENSIONS }],
   });
   return normalizePickedPaths(selected);
 }
 
-export async function pickOutputDir() {
+export async function pickOutputDir(title: string) {
   const selected = await open({
     directory: true,
     multiple: false,
-    title: "选择输出目录",
+    title,
   });
   const path = normalizePickedPaths(selected)[0] ?? null;
   if (path) {
