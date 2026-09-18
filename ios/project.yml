@@ -1,0 +1,145 @@
+name: LiteTrans
+options:
+  bundleIdPrefix: com.videoconverter
+  deploymentTarget:
+    iOS: "18.0"
+  developmentLanguage: en
+settings:
+  base:
+    TARGETED_DEVICE_FAMILY: "1"
+    IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+targets:
+  LiteTrans:
+    type: application
+    platform: iOS
+    sources:
+      - LiteTrans
+    resources:
+      - LiteTrans/Resources/Assets.xcassets
+      - LiteTrans/Resources/Localizable.xcstrings
+    info:
+      path: LiteTrans/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: LiteTrans
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "3"
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSPhotoLibraryAddUsageDescription: LiteTrans saves converted videos to Photos when you choose Photos as the output.
+        NSLocalNetworkUsageDescription: LiteTrans serves finished files on your Wi‑Fi so you can open them in a computer browser.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.videoconverter.ios.process
+        UIBackgroundModes:
+          - processing
+        CFBundleURLTypes:
+          - CFBundleURLName: com.videoconverter.ios
+            CFBundleURLSchemes:
+              - litetrans
+        CFBundleLocalizations:
+          - en
+          - zh-Hans
+          - zh-Hant
+          - ja
+          - ko
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: LiteTransActivityKit
+        embed: true
+        codeSign: true
+      - target: LiteTransLiveActivity
+        embed: true
+        codeSign: true
+      - framework: Vendor/FFmpeg/ffmpegkit.xcframework
+        embed: true
+        codeSign: true
+      - framework: Vendor/FFmpeg/libavcodec.xcframework
+        embed: true
+        codeSign: true
+      - framework: Vendor/FFmpeg/libavformat.xcframework
+        embed: true
+        codeSign: true
+      - framework: Vendor/FFmpeg/libavutil.xcframework
+        embed: true
+        codeSign: true
+      - framework: Vendor/FFmpeg/libavfilter.xcframework
+        embed: true
+        codeSign: true
+      - framework: Vendor/FFmpeg/libavdevice.xcframework
+        embed: true
+        codeSign: true
+      - framework: Vendor/FFmpeg/libswscale.xcframework
+        embed: true
+        codeSign: true
+      - framework: Vendor/FFmpeg/libswresample.xcframework
+        embed: true
+        codeSign: true
+    scheme:
+      testTargets:
+        - LiteTransTests
+  LiteTransActivityKit:
+    type: framework
+    platform: iOS
+    sources:
+      - LiteTransActivityKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios.activitykit
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        GENERATE_INFOPLIST_FILE: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+  LiteTransLiveActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - LiteTransLiveActivity
+    resources:
+      - LiteTrans/Resources/Localizable.xcstrings
+    info:
+      path: LiteTransLiveActivity/Info.plist
+      properties:
+        CFBundleDisplayName: LiteTrans
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "3"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios.LiveActivity
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        GENERATE_INFOPLIST_FILE: NO
+        APPLICATION_EXTENSION_API_ONLY: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    dependencies:
+      - target: LiteTransActivityKit
+    scheme:
+      gatherCoverageData: false
+  LiteTransTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: LiteTransTests
+        excludes:
+          - "Domain/**"
+    dependencies:
+      - target: LiteTrans
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"

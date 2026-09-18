@@ -43,8 +43,7 @@
 | Windows x64 | NSIS 安装程序 `.exe` | `轻转码-windows-x64` |
 | Linux x64 | `.deb` | `轻转码-linux-x64`；包名 `qing-zhuama`，菜单显示「轻转码」 |
 | Android arm64 | Debug APK | `app-debug.apk`，需侧载 |
-
-当前没有 iOS 包。
+| iOS arm64 | Xcode 真机 / TestFlight | 无 App Store |
 
 ### macOS
 
@@ -92,6 +91,30 @@ cd android && ./gradlew connectedDebugAndroidTest
 - [ ] **裁切**：设置明确的起止时间，导出片段时长和内容正确。
 - [ ] 上述操作均在系统 PATH 无 `ffmpeg` 时成功。
 - [ ] 每次完成、失败或取消后，原片仍在且可正常播放。
+
+### iOS
+
+第 3 刀支持 Live Activity 与后台 processing 任务。Word 可转 PDF；Excel 尚未提供。许可仍按根 README 的本机处理说明。
+
+```bash
+cd ios && node scripts/fetch-ffmpeg.mjs && xcodegen generate && xcodebuild -scheme LiteTrans -destination 'generic/platform=iOS Simulator' build
+```
+
+产物通过 Xcode 真机 / TestFlight 安装，无 App Store。FFmpeg xcframework 由 `ios/scripts/fetch-ffmpeg.mjs` 拉取到 `ios/Vendor/FFmpeg/`，不入库。
+
+#### iOS 真机冒烟清单
+
+1. 浅色 / 深色外观都像系统设置页
+2. 相册加一条视频，改格式为 MOV，开始转换
+3. 自动跳历史，完成后 Quick Look
+4. 我的 → 关于含「轻转码」和版本；隐私含「不上传」
+5. 音频文件转 MP3 进下载
+6. 相册图转 JPG 进照片
+7. 小 PDF 拆分在「文件」里可见
+8. 四张主视频仍成功
+9. Word 转 PDF 进「文件」；Excel 行标红不能开始
+10. 入队后锁屏或 Dynamic Island 显示文件名与百分比；完成后立刻消失
+11. Expanded / 锁屏上的取消能停当前任务
 
 ## 从源码运行
 
