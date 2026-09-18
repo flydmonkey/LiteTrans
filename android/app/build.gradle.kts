@@ -8,7 +8,7 @@ android {
     namespace = "com.videoconverter.android"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.videoconverter.android"
+        applicationId = "io.github.flydmonkey.litetrans"
         minSdk = 29
         targetSdk = 35
         versionCode = 1
