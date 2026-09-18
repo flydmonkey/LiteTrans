@@ -63,7 +63,8 @@ public func enqueueJobs(
     outputDir: String,
     nextId: () -> String,
     exists: (String) -> Bool,
-    existingJobs: [Job] = []
+    existingJobs: [Job] = [],
+    outputKind: OutputKind = .downloads
 ) throws -> EnqueueReport {
     if outputDir.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         throw LiteTransError.blankOutputDir
@@ -74,28 +75,60 @@ public func enqueueJobs(
     var jobs: [Job] = []
     var allocated = occupiedOutputPaths(existingJobs)
     for media in accepted {
+        if documentSourceKind(media.displayName) == .word || documentSourceKind(media.displayName) == .excel {
+            skipped.append(
+                .init(
+                    sourceUri: media.sourceUri,
+                    displayName: media.displayName,
+                    reason: LiteTransError.officeNotAvailable.localizedDescription
+                )
+            )
+            continue
+        }
         do {
             try validate(resolved, media: media)
         } catch {
             skipped.append(.init(sourceUri: media.sourceUri, displayName: media.displayName, reason: error.localizedDescription))
             continue
         }
-        let outputPath = allocateOutputPath(outputDir: outputDir, stem: sourceStem(media.displayName), ext: resolved.extension) { candidate in
+        let isTaken: (String) -> Bool = { candidate in
             let partial = partialOutputPath(candidate)
             return exists(candidate) || exists(partial) || allocated.contains(candidate) || allocated.contains(partial)
         }
-        allocated.insert(outputPath)
-        allocated.insert(partialOutputPath(outputPath))
+        let stem = sourceStem(media.displayName)
+        let count = outputCount(preset: resolved.preset, media: media)
+        var outputPaths: [String] = []
+        if count > 1 {
+            for index in 1...count {
+                let numbered = numberedOutputName(stem: stem, index: index, ext: resolved.extension)
+                let path = allocateOutputPath(
+                    outputDir: outputDir,
+                    stem: sourceStem(numbered),
+                    ext: resolved.extension,
+                    exists: isTaken
+                )
+                outputPaths.append(path)
+                allocated.insert(path)
+                allocated.insert(partialOutputPath(path))
+            }
+        } else {
+            let path = allocateOutputPath(outputDir: outputDir, stem: stem, ext: resolved.extension, exists: isTaken)
+            outputPaths.append(path)
+            allocated.insert(path)
+            allocated.insert(partialOutputPath(path))
+        }
         jobs.append(Job(
             id: nextId(),
             sourceUri: media.sourceUri,
             displayName: media.displayName,
-            outputPath: outputPath,
+            outputPath: outputPaths[0],
             status: .queued,
             progress: 0,
             error: nil,
             config: configForSource(config, media: media),
-            media: media
+            media: media,
+            outputPaths: outputPaths,
+            outputKind: outputKind
         ))
     }
     return EnqueueReport(jobs: jobs, skipped: skipped)

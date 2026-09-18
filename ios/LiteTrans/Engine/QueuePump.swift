@@ -4,12 +4,18 @@ import Foundation
 final class QueuePump {
     private let exporter: VideoExporter
     private let ffmpeg: FFmpegRunner
+    private let documents: DocumentEngine
     private var task: Task<Void, Never>?
     private var exportTask: Task<Void, Error>?
 
-    init(exporter: VideoExporter = VideoExporter(), ffmpeg: FFmpegRunner = FFmpegRunner()) {
+    init(
+        exporter: VideoExporter = VideoExporter(),
+        ffmpeg: FFmpegRunner = FFmpegRunner(),
+        documents: DocumentEngine = DocumentEngine()
+    ) {
         self.exporter = exporter
         self.ffmpeg = ffmpeg
+        self.documents = documents
     }
 
     func start(model: AppModel) {
@@ -65,7 +71,11 @@ final class QueuePump {
                             try await saveVideoToPhotos(outputURL)
                         }
                     case .document:
-                        break
+                        try await documents.run(job: current) { progress in
+                            Task { @MainActor in
+                                model.updateProgress(id: jobID, progress: progress)
+                            }
+                        }
                     }
                 }
                 exportTask = export

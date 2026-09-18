@@ -229,4 +229,37 @@ struct QueueTests {
         #expect(out[0].outputPaths == ["/out/a-001.jpg", "/out/a-002.jpg"])
         #expect(out[0].outputKind == .photos)
     }
+
+    @Test func enqueuePdfSplitAllocatesNumberedPaths() throws {
+        let media = MediaInfo(
+            sourceUri: "p",
+            displayName: "scan.pdf",
+            importable: true,
+            pageCount: 2,
+            pageStart: 1,
+            pageEnd: 2
+        )
+        let report = try enqueueJobs(
+            sources: [media],
+            config: OutputConfig(preset: "pdf-split"),
+            outputDir: "/tmp",
+            nextId: { "1" },
+            exists: { _ in false }
+        )
+        #expect(report.jobs[0].outputPaths == ["/tmp/scan-001.pdf", "/tmp/scan-002.pdf"])
+        #expect(report.jobs[0].outputPath == "/tmp/scan-001.pdf")
+    }
+
+    @Test func enqueueRejectsOffice() throws {
+        let media = MediaInfo(sourceUri: "w", displayName: "a.docx", importable: true)
+        let report = try enqueueJobs(
+            sources: [media],
+            config: OutputConfig(preset: "office-pdf"),
+            outputDir: "/tmp",
+            nextId: { "1" },
+            exists: { _ in false }
+        )
+        #expect(report.jobs.isEmpty)
+        #expect(report.skipped[0].reason != String(describing: LiteTransError.officeNotAvailable))
+    }
 }

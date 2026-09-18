@@ -81,7 +81,8 @@ final class AppModel {
                 outputDir: dir,
                 nextId: { UUID().uuidString },
                 exists: { FileManager.default.fileExists(atPath: $0) },
-                existingJobs: jobs
+                existingJobs: jobs,
+                outputKind: output.kind
             )
             if report.jobs.isEmpty {
                 message = skippedSourcesMessage(report.skipped)

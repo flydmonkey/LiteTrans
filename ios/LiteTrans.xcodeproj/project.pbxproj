@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		08108CA8C37ABD5D702DE3E0 /* DocumentEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA268E9E522EC298CD843AC /* DocumentEngine.swift */; };
 		1121F651A18393E056D9E28E /* libavformat.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A26552228C498551B112105B /* libavformat.xcframework */; };
 		1E6C1922AEAB1A0CC7008A41 /* QueuePump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649853812F4A7AFB103E5865 /* QueuePump.swift */; };
 		35EACD9AB0DA81183FDC5130 /* RootTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */; };
@@ -101,6 +102,7 @@
 		465D69B8A0C532097CBDD256 /* Naming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Naming.swift; sourceTree = "<group>"; };
 		4C07CA3F7FFB92B3FCD37571 /* JobStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobStore.swift; sourceTree = "<group>"; };
 		53177D416925D7B8B98C820D /* ConvertNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertNavigation.swift; sourceTree = "<group>"; };
+		5AA268E9E522EC298CD843AC /* DocumentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentEngine.swift; sourceTree = "<group>"; };
 		6186922C3EF56B1844D77649 /* Validate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Validate.swift; sourceTree = "<group>"; };
 		649853812F4A7AFB103E5865 /* QueuePump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuePump.swift; sourceTree = "<group>"; };
 		6CFC99B15435DF9AA8824ACE /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
@@ -152,6 +154,7 @@
 		45A705A46902424CDDFD319F /* Engine */ = {
 			isa = PBXGroup;
 			children = (
+				5AA268E9E522EC298CD843AC /* DocumentEngine.swift */,
 				8805C9FD8CFDA0930ADC9631 /* FFmpegRunner.swift */,
 				72DD3198570CA635500454EA /* ProbeService.swift */,
 				649853812F4A7AFB103E5865 /* QueuePump.swift */,
@@ -371,6 +374,7 @@
 				A1860FF6621512135945F1B6 /* ConvertNavigation.swift in Sources */,
 				E68CCD4841A993D3257BEE9B /* ConvertSettingsViews.swift in Sources */,
 				DB20B343FD314DF2DF931039 /* Document.swift in Sources */,
+				08108CA8C37ABD5D702DE3E0 /* DocumentEngine.swift in Sources */,
 				66E16188C0ABF0DA6E03AF40 /* ExportPreset.swift in Sources */,
 				DA4CD55D9B8F20AF4F12C232 /* FFmpegRunner.swift in Sources */,
 				CDDDA96EFF072D21BE736F6D /* FfmpegArgs.swift in Sources */,
