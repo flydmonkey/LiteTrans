@@ -10,12 +10,16 @@ struct ConvertSettingDestination: View {
             EmptyView()
         case .format:
             FormatSettingsView()
+                .toolbar(.visible, for: .navigationBar)
         case .quality:
             QualitySettingsView()
+                .toolbar(.visible, for: .navigationBar)
         case .size:
             SizeSettingsView()
+                .toolbar(.visible, for: .navigationBar)
         case .output:
             OutputSettingsView()
+                .toolbar(.visible, for: .navigationBar)
         }
     }
 }
@@ -32,7 +36,7 @@ struct FormatSettingsView: View {
                 } label: {
                     settingChoice(
                         title: card.title,
-                        hint: card.hint,
+                        hint: text(String.LocalizationValue(stringLiteral: card.hintKey)),
                         selected: model.preset == card.id
                     )
                 }
@@ -86,7 +90,7 @@ struct FormatSettingsView: View {
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 }
 
@@ -120,7 +124,7 @@ struct QualitySettingsView: View {
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 }
 
@@ -155,7 +159,7 @@ struct SizeSettingsView: View {
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 }
 
@@ -215,7 +219,7 @@ struct OutputSettingsView: View {
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 }
 
@@ -233,7 +237,7 @@ private func settingChoice(title: String, hint: String, selected: Bool) -> some 
         Spacer()
         if selected {
             Image(systemName: "checkmark")
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.primary)
                 .accessibilityHidden(true)
         }
     }

@@ -48,6 +48,7 @@ struct ModelsTests {
         )
         #expect(job.outputPaths.isEmpty)
         #expect(job.outputKind == .downloads)
+        #expect(job.createdAtEpochMs == nil)
     }
 
     @Test func jobDecodesMissingOutputFields() throws {
@@ -58,5 +59,24 @@ struct ModelsTests {
         #expect(decoded.outputPaths.isEmpty)
         #expect(decoded.outputKind == .downloads)
         #expect(decoded.media.pageCount == nil)
+        #expect(decoded.createdAtEpochMs == nil)
+    }
+
+    @Test func jobRoundTripsCreatedAt() throws {
+        let job = Job(
+            id: "1",
+            sourceUri: "a",
+            displayName: "a",
+            outputPath: nil,
+            status: .queued,
+            progress: 0,
+            error: nil,
+            config: OutputConfig(),
+            media: MediaInfo(sourceUri: "a", displayName: "a"),
+            createdAtEpochMs: 1_779_160_980_000
+        )
+        let data = try JSONEncoder().encode(job)
+        let decoded = try JSONDecoder().decode(Job.self, from: data)
+        #expect(decoded.createdAtEpochMs == 1_779_160_980_000)
     }
 }

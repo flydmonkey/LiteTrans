@@ -36,6 +36,9 @@ struct RootView: View {
             }
             .tag(RootTab.mine)
         }
+        .tint(.primary)
+        .environment(\.locale, localizationLocale(for: model.language))
+        .id(model.language)
         .modifier(ResolvedLocaleModifier(language: model.language))
         .onChange(of: model.tab) { _, tab in
             if tab != .mine {
@@ -45,10 +48,7 @@ struct RootView: View {
     }
 
     private func tabTitle(_ key: String.LocalizationValue) -> String {
-        if let identifier = resolvedLocaleIdentifier(model.language) {
-            return String(localized: key, locale: Locale(identifier: identifier))
-        }
-        return String(localized: key)
+        localizedText(key, language: model.language)
     }
 
     private var convertPath: Binding<[ConvertPage]> {
@@ -82,10 +82,6 @@ private struct ResolvedLocaleModifier: ViewModifier {
     let language: AppLanguage
 
     func body(content: Content) -> some View {
-        if let identifier = resolvedLocaleIdentifier(language) {
-            content.environment(\.locale, Locale(identifier: identifier))
-        } else {
-            content
-        }
+        content.environment(\.locale, localizationLocale(for: language))
     }
 }

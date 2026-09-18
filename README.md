@@ -94,7 +94,7 @@ cd android && ./gradlew connectedDebugAndroidTest
 
 ### iOS
 
-第 2 刀支持音频六种、视频更多格式、图片与 PDF；Office / 局域网 / Live Activity 尚未提供。许可仍按根 README 的本机处理说明。
+第 4 刀支持局域网访问（前台 HTTP，电脑网页协议与 Android 相同）。Office / Live Activity 尚未提供。许可仍按根 README 的本机处理说明。
 
 ```bash
 cd ios && node scripts/fetch-ffmpeg.mjs && xcodegen generate && xcodebuild -scheme LiteTrans -destination 'generic/platform=iOS Simulator' build

@@ -269,9 +269,9 @@ HIG 自检目标 9/10：Safe Area、44pt、语义色、Dynamic Type、VoiceOver�
 一份设计，实现按切面写计划，不一次铺开：
 
 1. `ios/` 工程、Domain、视频转码首页 / 设置 push、历史（仅视频）、我的（协议 / 条款 / 关于 / 语言）
-2. 音频、文档、历史三分段
+2. 音频、文档、历史三分段，并捆绑 FFmpeg（详见 [第 2 刀](2026-09-18-ios-app-slice-2-design.md)）
 3. Live Activity 与后台任务
-4. 局域网访问（对齐现网页协议）
+4. 局域网访问（对齐现网页协议，详见 [第 4 刀](2026-09-18-ios-app-slice-4-design.md)）
 
 ## 明确不做
 

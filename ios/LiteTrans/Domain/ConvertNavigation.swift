@@ -3,10 +3,26 @@ import Foundation
 public enum RootTab: String, CaseIterable, Sendable { case convert, history, mine }
 public enum ConvertPage: String, Sendable, Hashable { case home, format, quality, size, output }
 public enum ConvertSetting: String, Sendable, Hashable { case format, quality, size, output }
-public enum MinePage: String, Sendable, Hashable { case root, language, privacy, terms, about }
+public enum MinePage: String, Sendable, Hashable { case root, lan, language, privacy, terms, about }
 public enum AppLanguage: String, Sendable, Codable, Hashable { case system, zhHans, zhHant, en, ja, ko }
 public enum ConvertMode: String, CaseIterable, Sendable, Codable { case video, audio, document }
 public enum HistorySegment: String, CaseIterable, Sendable, Codable { case video, audio, document }
+
+public func nextCase<Value: CaseIterable & Equatable>(_ current: Value) -> Value? {
+    adjacentCase(current, step: 1)
+}
+
+public func previousCase<Value: CaseIterable & Equatable>(_ current: Value) -> Value? {
+    adjacentCase(current, step: -1)
+}
+
+public func adjacentCase<Value: CaseIterable & Equatable>(_ current: Value, step: Int) -> Value? {
+    let all = Array(Value.allCases)
+    guard let index = all.firstIndex(of: current) else { return nil }
+    let next = index + step
+    guard all.indices.contains(next) else { return nil }
+    return all[next]
+}
 public enum EngineKind: String, Sendable { case avFoundation, ffmpeg, document }
 public enum OutputKind: String, Sendable, Codable, Hashable { case photos, downloads, custom, documents }
 
@@ -53,17 +69,17 @@ public struct OutputTarget: Equatable, Sendable, Codable {
 public struct PresetCard: Equatable, Sendable {
     public var id: String
     public var title: String
-    public var hint: String
+    public var hintKey: String
 }
 
 public let primaryPresetIDs = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"]
 
 public func collapsedPrimaryPresets() -> [PresetCard] {
     [
-        .init(id: "mp4-h264", title: "MP4 · H.264", hint: "Best compatibility"),
-        .init(id: "mp4-copy", title: "MP4 · Remux", hint: "Change the wrapper only"),
-        .init(id: "mp4-h265", title: "MP4 · H.265", hint: "Usually smaller"),
-        .init(id: "mov-h264", title: "MOV · H.264", hint: "Apple devices and editors"),
+        .init(id: "mp4-h264", title: "MP4 · H.264", hintKey: "preset_mp4_h264_desc"),
+        .init(id: "mp4-copy", title: "MP4 · Remux", hintKey: "preset_mp4_copy_desc"),
+        .init(id: "mp4-h265", title: "MP4 · H.265", hintKey: "preset_mp4_h265_desc"),
+        .init(id: "mov-h264", title: "MOV · H.264", hintKey: "preset_mov_h264_desc"),
     ]
 }
 
@@ -134,6 +150,74 @@ public func jobRowActions(_ status: JobStatus) -> [JobRowAction] {
     }
 }
 
+public func historyContextMenuActions(_ status: JobStatus) -> [JobRowAction] {
+    jobRowActions(status).filter { $0 == .retry || $0 == .share || $0 == .rename }
+}
+
+public func formatHistoryDate(_ epochMs: Int64, timeZone: TimeZone = .current) -> String {
+    let date = Date(timeIntervalSince1970: TimeInterval(epochMs) / 1000)
+    let formatter = DateFormatter()
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = timeZone
+    formatter.dateFormat = "yyyy-MM-dd HH:mm"
+    return formatter.string(from: date)
+}
+
+public func historyDateLabel(_ epochMs: Int64?, timeZone: TimeZone = .current) -> String? {
+    guard let epochMs else { return nil }
+    return formatHistoryDate(epochMs, timeZone: timeZone)
+}
+
+public func currentEpochMs(_ date: Date = Date()) -> Int64 {
+    Int64((date.timeIntervalSince1970 * 1000).rounded())
+}
+
+public func relocatedSandboxPath(
+    _ stored: String,
+    documentsDir: String,
+    applicationSupportDir: String
+) -> String {
+    guard stored.contains("/Containers/Data/Application/") else { return stored }
+    if let suffix = suffixAfter(stored, marker: "/Documents/") {
+        return joiningPath(documentsDir, suffix)
+    }
+    if let suffix = suffixAfter(stored, marker: "/Library/Application Support/") {
+        return joiningPath(applicationSupportDir, suffix)
+    }
+    return stored
+}
+
+public func relocateJobSandboxPaths(
+    _ job: Job,
+    documentsDir: String,
+    applicationSupportDir: String
+) -> Job {
+    var next = job
+    if let path = job.outputPath {
+        next.outputPath = relocatedSandboxPath(
+            path,
+            documentsDir: documentsDir,
+            applicationSupportDir: applicationSupportDir
+        )
+    }
+    next.outputPaths = job.outputPaths.map {
+        relocatedSandboxPath($0, documentsDir: documentsDir, applicationSupportDir: applicationSupportDir)
+    }
+    return next
+}
+
+private func suffixAfter(_ path: String, marker: String) -> String? {
+    guard let range = path.range(of: marker) else { return nil }
+    return String(path[range.upperBound...])
+}
+
+private func joiningPath(_ directory: String, _ suffix: String) -> String {
+    let root = directory.hasSuffix("/") ? String(directory.dropLast()) : directory
+    if suffix.isEmpty { return root }
+    return root + "/" + suffix
+}
+
 public func remainingJobsAfterClearFinished(_ jobs: [Job]) -> [Job] {
     jobs.filter { $0.status == .queued || $0.status == .running }
 }
@@ -148,7 +232,10 @@ public func resolvedLocaleIdentifier(_ language: AppLanguage) -> String? {
     switch language {
     case .system: return nil
     case .zhHans: return "zh-Hans"
-    case .en, .zhHant, .ja, .ko: return "en"
+    case .zhHant: return "zh-Hant"
+    case .en: return "en"
+    case .ja: return "ja"
+    case .ko: return "ko"
     }
 }
 
@@ -183,13 +270,13 @@ public func engineKind(_ preset: String) -> EngineKind {
 
 public func videoMorePresetCards() -> [PresetCard] {
     [
-        .init(id: "mkv-copy-friendly", title: "MKV · H.264", hint: "Good for keeping a container"),
-        .init(id: "mkv-h265", title: "MKV · H.265", hint: "Good for long-term archives"),
-        .init(id: "webm-vp9", title: "WebM · VP9", hint: "Common on the web; a bit slower than MP4"),
-        .init(id: "avi-mpeg4", title: "AVI · MPEG-4", hint: "Older PCs and projectors"),
-        .init(id: "gif", title: "GIF", hint: "Turn a short clip into a GIF"),
-        .init(id: "audio-mp3", title: "MP3", hint: "Export audio only"),
-        .init(id: "audio-aac", title: "M4A · AAC", hint: "Export audio only"),
+        .init(id: "mkv-copy-friendly", title: "MKV · H.264", hintKey: "preset_mkv_copy_friendly_desc"),
+        .init(id: "mkv-h265", title: "MKV · H.265", hintKey: "preset_mkv_h265_desc"),
+        .init(id: "webm-vp9", title: "WebM · VP9", hintKey: "preset_webm_vp9_desc"),
+        .init(id: "avi-mpeg4", title: "AVI · MPEG-4", hintKey: "preset_avi_mpeg4_desc"),
+        .init(id: "gif", title: "GIF", hintKey: "preset_gif_desc"),
+        .init(id: "audio-mp3", title: "MP3", hintKey: "preset_audio_mp3_desc"),
+        .init(id: "audio-aac", title: "M4A · AAC", hintKey: "preset_audio_aac_desc"),
     ]
 }
 
@@ -204,12 +291,12 @@ public func collapsedPresetCards(selectedId: String, showAll: Bool) -> [PresetCa
 
 public func audioPresetCards() -> [PresetCard] {
     [
-        .init(id: "audio-mp3", title: "MP3", hint: "Best compatibility"),
-        .init(id: "audio-aac", title: "M4A · AAC", hint: "Common on Apple devices and in the gallery"),
-        .init(id: "audio-wav", title: "WAV", hint: "Lossless, larger files"),
-        .init(id: "audio-flac", title: "FLAC", hint: "Lossless, smaller than WAV"),
-        .init(id: "audio-ogg", title: "OGG · Opus", hint: "Smaller files"),
-        .init(id: "audio-amr", title: "AMR", hint: "Common for call recordings"),
+        .init(id: "audio-mp3", title: "MP3", hintKey: "preset_audio_mp3_audio_desc"),
+        .init(id: "audio-aac", title: "M4A · AAC", hintKey: "preset_audio_aac_audio_desc"),
+        .init(id: "audio-wav", title: "WAV", hintKey: "preset_audio_wav_desc"),
+        .init(id: "audio-flac", title: "FLAC", hintKey: "preset_audio_flac_desc"),
+        .init(id: "audio-ogg", title: "OGG · Opus", hintKey: "preset_audio_ogg_desc"),
+        .init(id: "audio-amr", title: "AMR", hintKey: "preset_audio_amr_desc"),
     ]
 }
 
@@ -217,23 +304,23 @@ public func documentCards(for kind: DocumentSourceKind?) -> [PresetCard] {
     switch kind {
     case .pdf:
         [
-            .init(id: "pdf-image", title: "To images", hint: "One image per page; still pick JPG / PNG / WebP"),
-            .init(id: "pdf-txt", title: "To TXT", hint: "Extract text; scanned pages will fail"),
-            .init(id: "pdf-compress", title: "Compress", hint: "Shrink embedded images without rasterizing whole pages"),
-            .init(id: "pdf-split", title: "Split", hint: "One PDF per page in the range"),
+            .init(id: "pdf-image", title: "To images", hintKey: "preset_pdf_image_desc"),
+            .init(id: "pdf-txt", title: "To TXT", hintKey: "preset_pdf_txt_desc"),
+            .init(id: "pdf-compress", title: "Compress", hintKey: "preset_pdf_compress_desc"),
+            .init(id: "pdf-split", title: "Split", hintKey: "preset_pdf_split_desc"),
         ]
     case .word, .excel:
         [
-            .init(id: "office-pdf", title: "To PDF", hint: "Simple text and tables are fine; complex layouts may not line up"),
+            .init(id: "office-pdf", title: "To PDF", hintKey: "preset_office_pdf_desc"),
         ]
     case .image, nil:
         [
-            .init(id: "image-jpg", title: "JPG", hint: "Best compatibility"),
-            .init(id: "image-png", title: "PNG", hint: "Lossless, larger files"),
-            .init(id: "image-webp", title: "WebP", hint: "Same clarity, smaller files"),
-            .init(id: "image-bmp", title: "BMP", hint: "Uncompressed"),
-            .init(id: "image-gif", title: "GIF", hint: "Still image, first frame only"),
-            .init(id: "image-compress", title: "Compress", hint: "Keep the format when possible and shrink the file"),
+            .init(id: "image-jpg", title: "JPG", hintKey: "preset_image_jpg_desc"),
+            .init(id: "image-png", title: "PNG", hintKey: "preset_image_png_desc"),
+            .init(id: "image-webp", title: "WebP", hintKey: "preset_image_webp_desc"),
+            .init(id: "image-bmp", title: "BMP", hintKey: "preset_image_bmp_desc"),
+            .init(id: "image-gif", title: "GIF", hintKey: "preset_image_gif_desc"),
+            .init(id: "image-compress", title: "Compress", hintKey: "preset_image_compress_desc"),
         ]
     }
 }
@@ -296,7 +383,7 @@ public func defaultSession(_ mode: ConvertMode) -> WizardSession {
             sources: [],
             selectedUri: nil,
             preset: "mp4-h264",
-            quality: "standard",
+            quality: "original",
             size: "original",
             output: OutputTarget(kind: .downloads),
             showAllFormats: false,

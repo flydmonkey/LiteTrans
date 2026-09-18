@@ -64,7 +64,8 @@ public func enqueueJobs(
     nextId: () -> String,
     exists: (String) -> Bool,
     existingJobs: [Job] = [],
-    outputKind: OutputKind = .downloads
+    outputKind: OutputKind = .downloads,
+    nowMs: () -> Int64 = { currentEpochMs() }
 ) throws -> EnqueueReport {
     if outputDir.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         throw LiteTransError.blankOutputDir
@@ -131,7 +132,8 @@ public func enqueueJobs(
             config: configForSource(config, media: media),
             media: media,
             outputPaths: outputPaths,
-            outputKind: outputKind
+            outputKind: outputKind,
+            createdAtEpochMs: nowMs()
         ))
     }
     return EnqueueReport(jobs: jobs, skipped: skipped)
@@ -151,7 +153,8 @@ public func markInterrupted(_ jobs: [Job], interrupted: String = "Conversion was
                 config: job.config,
                 media: job.media,
                 outputPaths: job.outputPaths,
-                outputKind: job.outputKind
+                outputKind: job.outputKind,
+                createdAtEpochMs: job.createdAtEpochMs
             )
             : job
     }

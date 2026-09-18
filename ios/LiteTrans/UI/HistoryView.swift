@@ -1,5 +1,6 @@
 import QuickLook
 import SwiftUI
+import UIKit
 
 struct HistoryView: View {
     @Environment(AppModel.self) private var model
@@ -15,30 +16,45 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        Group {
-            if visibleJobs.isEmpty {
-                VStack(spacing: 8) {
-                    historySegmentPicker
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                    ContentUnavailableView {
-                        Label(text(emptyTitleKey), systemImage: "clock")
-                    } description: {
-                        Text(text("history_empty_hint"))
-                    } actions: {
-                        Button(text("history_go_convert")) {
-                            goConvert()
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: Theme.rootHeaderSpacing) {
+                HStack(alignment: .center, spacing: 8) {
+                    RootLargeTitle(title: text("tab_history"))
+                    if model.hasFinishedJobs {
+                        Button(text("action_clear")) {
+                            showClearConfirm = true
                         }
                         .frame(minHeight: 44)
                     }
                 }
+                RootSegmentedPicker(
+                    selection: historySegmentBinding,
+                    accessibilityLabel: text("segment_history"),
+                    options: [
+                        (HistorySegment.video, text("segment_video")),
+                        (HistorySegment.audio, text("segment_audio")),
+                        (HistorySegment.document, text("segment_document")),
+                    ]
+                )
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, Theme.rootTitleTop)
+            .padding(.bottom, Theme.rootHeaderBottom)
+
+            if visibleJobs.isEmpty {
+                ContentUnavailableView {
+                    Label(text(emptyTitleKey), systemImage: "clock")
+                } description: {
+                    Text(text("history_empty_hint"))
+                } actions: {
+                    Button(text("history_go_convert")) {
+                        goConvert()
+                    }
+                    .frame(minHeight: 44)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    Section {
-                        historySegmentPicker
-                    }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    .listRowBackground(Color.clear)
                     if let message = model.message {
                         Section {
                             HStack(alignment: .top, spacing: 12) {
@@ -62,32 +78,30 @@ struct HistoryView: View {
                     ForEach(visibleJobs) { job in
                         JobRow(
                             job: job,
-                            outputURL: model.outputFileURL(for: job),
                             onCancel: { model.cancelJob(job) },
                             onRetry: { model.retryJob(job) },
                             onOpen: { previewJob = job },
+                            onShare: { shareJob(job) },
                             onRename: { beginRename(job) },
                             onDelete: { pendingDelete = job }
                         )
                     }
                 }
                 .listStyle(.insetGrouped)
+                .contentMargins(.top, 0, for: .scrollContent)
+                .scrollContentBackground(.hidden)
             }
         }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .blankAreaTabSwipe(
+            onSwipeLeft: { moveHistoryTab(step: 1) },
+            onSwipeRight: { moveHistoryTab(step: -1) }
+        )
         .navigationTitle(text("tab_history"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .onDisappear {
             model.releaseHistoryOutputAccess()
-        }
-        .toolbar {
-            if model.hasFinishedJobs {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(text("action_clear")) {
-                        showClearConfirm = true
-                    }
-                    .frame(minHeight: 44)
-                }
-            }
         }
         .sheet(item: $previewJob) { job in
             if let url = model.outputFileURL(for: job) {
@@ -166,18 +180,6 @@ struct HistoryView: View {
         )
     }
 
-    private var historySegmentPicker: some View {
-        Picker("", selection: historySegmentBinding) {
-            Text(text("segment_video")).tag(HistorySegment.video)
-            Text(text("segment_audio")).tag(HistorySegment.audio)
-            Text(text("segment_document")).tag(HistorySegment.document)
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .accessibilityLabel(text("segment_history"))
-        .frame(minHeight: 44)
-    }
-
     private var historySegmentBinding: Binding<HistorySegment> {
         Binding(
             get: { model.historySegment },
@@ -195,7 +197,45 @@ struct HistoryView: View {
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
+    }
+
+    private func moveHistoryTab(step: Int) {
+        guard let next = adjacentCase(model.historySegment, step: step) else { return }
+        model.historySegment = next
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    private func shareJob(_ job: Job) {
+        guard let url = model.outputFileURL(for: job) else {
+            model.message = text("error_missing_output")
+            return
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(400))
+            presentActivityShare(url: url)
+        }
+    }
+
+    private func presentActivityShare(url: URL) {
+        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        guard let presenter = topViewController() else { return }
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        presenter.present(controller, animated: true)
+    }
+
+    private func topViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let keyWindow = scenes.flatMap(\.windows).first(where: \.isKeyWindow) ?? scenes.flatMap(\.windows).first
+        var current = keyWindow?.rootViewController
+        while let presented = current?.presentedViewController {
+            current = presented
+        }
+        return current
     }
 
     private func beginRename(_ job: Job) {

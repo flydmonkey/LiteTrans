@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.videoconverter
   deploymentTarget:
     iOS: "18.0"
+  developmentLanguage: en
 settings:
   base:
     TARGETED_DEVICE_FAMILY: "1"
@@ -21,14 +22,22 @@ targets:
       properties:
         CFBundleDisplayName: LiteTrans
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
-        UILaunchScreen: {}
+        CFBundleVersion: "3"
+        UILaunchScreen:
+          UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSPhotoLibraryAddUsageDescription: LiteTrans saves converted videos to Photos when you choose Photos as the output.
+        NSLocalNetworkUsageDescription: LiteTrans serves finished files on your Wi‑Fi so you can open them in a computer browser.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         ITSAppUsesNonExemptEncryption: false
+        CFBundleLocalizations:
+          - en
+          - zh-Hans
+          - zh-Hant
+          - ja
+          - ko
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios

@@ -3,14 +3,15 @@ import SwiftUI
 struct JobRow: View {
     @Environment(\.locale) private var locale
     let job: Job
-    var outputURL: URL?
     var onCancel: () -> Void
     var onRetry: () -> Void
     var onOpen: () -> Void
+    var onShare: () -> Void
     var onRename: () -> Void
     var onDelete: () -> Void
 
     private var actions: [JobRowAction] { jobRowActions(job.status) }
+    private var menuActions: [JobRowAction] { historyContextMenuActions(job.status) }
 
     var body: some View {
         Button(action: handleTap) {
@@ -22,9 +23,15 @@ struct JobRow: View {
                 Text(subtitle)
                     .font(.footnote)
                     .foregroundStyle(subtitleColor)
+                if let date = historyDateLabel(job.createdAtEpochMs) {
+                    Text(date)
+                        .font(.footnote)
+                        .foregroundStyle(subtitleColor)
+                        .lineLimit(1)
+                }
                 if job.status == .running {
                     ProgressView(value: min(max(job.progress, 0), 100), total: 100)
-                        .tint(Color.accentColor)
+                        .tint(Color.primary)
                         .accessibilityLabel(text("status_running"))
                         .accessibilityValue("\(Int(job.progress.rounded()))%")
                 }
@@ -37,23 +44,25 @@ struct JobRow: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if actions.contains(.cancel) {
                 Button(text("action_cancel"), role: .destructive, action: onCancel)
+                    .tint(Color(uiColor: .systemRed))
             }
             if actions.contains(.delete) {
                 Button(text("action_delete"), role: .destructive, action: onDelete)
+                    .tint(Color(uiColor: .systemRed))
             }
         }
         .contextMenu {
-            if actions.contains(.retry) {
+            if menuActions.contains(.retry) {
                 Button(action: onRetry) {
                     Label(text("action_retry"), systemImage: "arrow.clockwise")
                 }
             }
-            if actions.contains(.share), let outputURL {
-                ShareLink(item: outputURL) {
+            if menuActions.contains(.share) {
+                Button(action: onShare) {
                     Label(text("action_share"), systemImage: "square.and.arrow.up")
                 }
             }
-            if actions.contains(.rename) {
+            if menuActions.contains(.rename) {
                 Button(action: onRename) {
                     Label(text("action_rename"), systemImage: "pencil")
                 }
@@ -81,9 +90,9 @@ struct JobRow: View {
         guard job.outputPaths.count > 1 else { return nil }
         let count = job.outputPaths.count
         if documentResultIsImage(job.config.preset) {
-            return String(localized: "history_output_images \(count)", locale: locale)
+            return localizedText("history_output_images \(count)", locale: locale)
         }
-        return String(localized: "history_output_pdfs \(count)", locale: locale)
+        return localizedText("history_output_pdfs \(count)", locale: locale)
     }
 
     private var subtitleColor: Color {
@@ -101,7 +110,7 @@ struct JobRow: View {
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 
     private func handleTap() {

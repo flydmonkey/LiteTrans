@@ -64,8 +64,19 @@ final class AppModel {
     var transcoding: Bool = false
     var message: String?
     var language: AppLanguage = .system {
-        didSet { persistSession() }
+        didSet {
+            persistSession()
+            syncLanShare()
+        }
     }
+    var lanShare = LanShareSettings() {
+        didSet {
+            persistLanShare()
+            syncLanShare()
+        }
+    }
+    var lanSceneActive = true
+    let lanServer = LanShareServer()
     var documentKind: DocumentSourceKind? {
         sources.lazy.compactMap { documentSourceKind($0.displayName) }.first
     }
@@ -76,6 +87,7 @@ final class AppModel {
 
     private let jobStore: JobStore
     private let sessionStore: SessionStore
+    private let lanShareStore: LanShareStore
     private let probeService: ProbeService
     private let pump: QueuePump
     private var hydrating = true
@@ -84,15 +96,27 @@ final class AppModel {
     init(
         jobStore: JobStore = JobStore(),
         sessionStore: SessionStore = SessionStore(),
+        lanShareStore: LanShareStore = LanShareStore(),
         probeService: ProbeService = ProbeService(),
         pump: QueuePump = QueuePump()
     ) {
         self.jobStore = jobStore
         self.sessionStore = sessionStore
+        self.lanShareStore = lanShareStore
         self.probeService = probeService
         self.pump = pump
-        jobs = markInterrupted(jobStore.load())
+        jobs = markInterrupted(jobStore.load()).map {
+            relocateJobSandboxPaths(
+                $0,
+                documentsDir: sandboxDocumentsDirectory().path,
+                applicationSupportDir: sandboxApplicationSupportDirectory().path
+            )
+        }
         jobStore.save(jobs)
+        lanShare = lanShareStore.load()
+        lanServer.onDenied = { [weak self] in
+            self?.lanShare.enabled = false
+        }
         if let session = sessionStore.load() {
             language = session.language
             video = session.video
@@ -102,6 +126,7 @@ final class AppModel {
             convertMode = session.convertMode
         }
         hydrating = false
+        persistSession()
     }
 
     private var current: WizardSession { session(for: convertMode) }
@@ -220,6 +245,21 @@ final class AppModel {
 
     func persistJobs() {
         jobStore.save(jobs)
+        syncLanShare()
+    }
+
+    func syncLanShare(sceneActive: Bool? = nil) {
+        if let sceneActive {
+            lanSceneActive = sceneActive
+        }
+        guard !hydrating else { return }
+        lanServer.apply(
+            enabled: lanShare.enabled,
+            token: lanShare.token,
+            jobs: jobs,
+            sceneActive: lanSceneActive,
+            copy: lanHistoryCopy(language: language)
+        )
     }
 
     var hasFinishedJobs: Bool {
@@ -228,7 +268,12 @@ final class AppModel {
 
     func outputFileURL(for job: Job) -> URL? {
         let started = beginHistoryOutputAccess()
-        guard let path = job.outputPath, FileManager.default.fileExists(atPath: path) else {
+        let relocated = relocateJobSandboxPaths(
+            job,
+            documentsDir: sandboxDocumentsDirectory().path,
+            applicationSupportDir: sandboxApplicationSupportDirectory().path
+        )
+        guard let path = relocated.outputPath, FileManager.default.fileExists(atPath: path) else {
             endHistoryOutputAccess(started)
             return nil
         }
@@ -261,6 +306,7 @@ final class AppModel {
         next.status = .queued
         next.progress = 0
         next.error = nil
+        next.createdAtEpochMs = currentEpochMs()
         replaceJob(next)
         persistJobs()
         transcoding = true
@@ -345,9 +391,7 @@ final class AppModel {
                 probing: true
             )
             sources.append(info)
-            if selectedUri == nil {
-                selectedUri = info.sourceUri
-            }
+            selectedUri = info.sourceUri
             syncDocumentSessionToSources()
             let mode = convertMode
             let currentPreset = preset
@@ -447,10 +491,12 @@ final class AppModel {
     }
 
     private func localized(_ key: String.LocalizationValue) -> String {
-        if let identifier = resolvedLocaleIdentifier(language) {
-            return String(localized: key, locale: Locale(identifier: identifier))
-        }
-        return String(localized: key)
+        localizedText(key, language: language)
+    }
+
+    private func persistLanShare() {
+        guard !hydrating else { return }
+        lanShareStore.save(lanShare)
     }
 
     private func persistSession() {
@@ -468,9 +514,17 @@ final class AppModel {
     }
 
     private func documentsDownloadsDirectory() -> URL {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        sandboxDocumentsDirectory().appendingPathComponent("Downloads", isDirectory: true)
+    }
+
+    private func sandboxDocumentsDirectory() -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        return documents.appendingPathComponent("Downloads", isDirectory: true)
+    }
+
+    private func sandboxApplicationSupportDirectory() -> URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
     }
 
     private func copyIntoImports(_ url: URL, preferredName: String) throws -> URL {
@@ -482,7 +536,7 @@ final class AppModel {
             dest = directory.appendingPathComponent("\(UUID().uuidString)-\(name)")
         }
         try FileManager.default.copyItem(at: url, to: dest)
-        return dest
+        return dest.resolvingSymlinksInPath()
     }
 
     private func deleteOrphanedImport(sourceUri: String) {

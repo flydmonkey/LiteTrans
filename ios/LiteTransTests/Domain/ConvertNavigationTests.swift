@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import LiteTransDomain
 
@@ -27,6 +28,7 @@ struct ConvertNavigationTests {
 
     @Test func mineBackGoesRoot() {
         #expect(popMineBack(.privacy) == .root)
+        #expect(popMineBack(.lan) == .root)
         #expect(popMineBack(.root) == nil)
     }
 
@@ -60,6 +62,11 @@ struct ConvertNavigationTests {
 
     @Test func completedJobRowCanOpenShareRenameAndDelete() {
         #expect(jobRowActions(.completed) == [.open, .share, .rename, .delete])
+        #expect(historyContextMenuActions(.completed) == [.share, .rename])
+        #expect(historyContextMenuActions(.failed) == [.retry])
+        #expect(historyContextMenuActions(.cancelled) == [.retry])
+        #expect(historyContextMenuActions(.queued) == [])
+        #expect(historyContextMenuActions(.running) == [])
     }
 
     @Test func failedAndCancelledJobRowsRetryOrDelete() {
@@ -78,13 +85,13 @@ struct ConvertNavigationTests {
         #expect(remainingJobsAfterClearFinished(jobs).map(\.id) == ["q", "r"])
     }
 
-    @Test func unsupportedLanguagesFallBackToEnglishLocale() {
+    @Test func resolvedLocaleIdentifierMapsAllLanguages() {
         #expect(resolvedLocaleIdentifier(.system) == nil)
         #expect(resolvedLocaleIdentifier(.zhHans) == "zh-Hans")
+        #expect(resolvedLocaleIdentifier(.zhHant) == "zh-Hant")
         #expect(resolvedLocaleIdentifier(.en) == "en")
-        #expect(resolvedLocaleIdentifier(.zhHant) == "en")
-        #expect(resolvedLocaleIdentifier(.ja) == "en")
-        #expect(resolvedLocaleIdentifier(.ko) == "en")
+        #expect(resolvedLocaleIdentifier(.ja) == "ja")
+        #expect(resolvedLocaleIdentifier(.ko) == "ko")
     }
 
     @Test func historyFileOpsSkipScopedAccessForPhotosAndDownloads() {
@@ -97,6 +104,23 @@ struct ConvertNavigationTests {
     @Test func historyFileOpsReaccessCustomFolderUnlessAlreadyOpen() {
         #expect(historyOutputAccess(kind: .custom, alreadyAccessing: false) == .startThenStop)
         #expect(historyOutputAccess(kind: .custom, alreadyAccessing: true) == .reuseExisting)
+    }
+
+    @Test func historyDateStaysOnItsOwnLabel() {
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = TimeZone(secondsFromGMT: 0)
+        components.year = 2026
+        components.month = 9
+        components.day = 18
+        components.hour = 3
+        components.minute = 43
+        let date = components.date!
+        let epochMs = Int64((date.timeIntervalSince1970 * 1000).rounded())
+        let utc = TimeZone(secondsFromGMT: 0)!
+        #expect(formatHistoryDate(epochMs, timeZone: utc) == "2026-09-18 03:43")
+        #expect(historyDateLabel(nil) == nil)
+        #expect(historyDateLabel(epochMs, timeZone: utc) == "2026-09-18 03:43")
     }
 
     @Test func copyPresetDisallowsTrim() {
@@ -143,6 +167,18 @@ struct ConvertNavigationTests {
         #expect(!shouldShowResolution("pdf-image"))
     }
 
+    @Test func videoQualityDefaultsToOriginal() {
+        #expect(defaultSession(.video).quality == "original")
+        #expect(defaultSession(.audio).quality == "standard")
+        #expect(defaultSession(.document).quality == "standard")
+    }
+
+    @Test func formatCardsUseLocalizationKeysForHints() {
+        #expect(collapsedPrimaryPresets().first { $0.id == "mp4-h264" }?.hintKey == "preset_mp4_h264_desc")
+        #expect(audioPresetCards().first { $0.id == "audio-mp3" }?.hintKey == "preset_audio_mp3_audio_desc")
+        #expect(videoMorePresetCards().first { $0.id == "gif" }?.hintKey == "preset_gif_desc")
+    }
+
     @Test func audioDefaultsToDownloadsWithoutMusic() {
         #expect(defaultSession(.audio).preset == "audio-mp3")
         #expect(defaultSession(.audio).output.kind == .downloads)
@@ -174,6 +210,44 @@ struct ConvertNavigationTests {
         let mixed = [video, extract, pdf, sampleJob(id: "q", status: .queued)]
         #expect(remainingJobsAfterClearFinished(mixed, segment: .audio).map(\.id).contains("v"))
         #expect(!remainingJobsAfterClearFinished(mixed, segment: .audio).map(\.id).contains("a"))
+    }
+
+    @Test func swipeMovesConvertAndHistoryTabsWithoutWrapping() {
+        #expect(nextCase(ConvertMode.video) == .audio)
+        #expect(nextCase(ConvertMode.audio) == .document)
+        #expect(nextCase(ConvertMode.document) == nil)
+        #expect(previousCase(ConvertMode.video) == nil)
+        #expect(previousCase(ConvertMode.audio) == .video)
+        #expect(previousCase(ConvertMode.document) == .audio)
+        #expect(nextCase(HistorySegment.video) == .audio)
+        #expect(nextCase(HistorySegment.audio) == .document)
+        #expect(nextCase(HistorySegment.document) == nil)
+        #expect(previousCase(HistorySegment.video) == nil)
+        #expect(previousCase(HistorySegment.document) == .audio)
+    }
+
+    @Test func relocatesSandboxOutputAfterContainerUUIDChange() {
+        let oldApp = "/var/mobile/Containers/Data/Application/AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"
+        let newApp = "/var/mobile/Containers/Data/Application/BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"
+        let documents = "\(newApp)/Documents"
+        let support = "\(newApp)/Library/Application Support"
+        let stored = "\(oldApp)/Documents/Downloads/clip.mp4"
+        #expect(relocatedSandboxPath(stored, documentsDir: documents, applicationSupportDir: support) == "\(documents)/Downloads/clip.mp4")
+        #expect(
+            relocatedSandboxPath(
+                "\(oldApp)/Library/Application Support/Imports/in.mov",
+                documentsDir: documents,
+                applicationSupportDir: support
+            ) == "\(support)/Imports/in.mov"
+        )
+        let icloud = "/private/var/mobile/Library/Mobile Documents/com~apple~CloudDocs/out/a.mp4"
+        #expect(relocatedSandboxPath(icloud, documentsDir: documents, applicationSupportDir: support) == icloud)
+        var job = sampleJob(id: "v", status: .completed)
+        job.outputPath = stored
+        job.outputPaths = [stored, "\(oldApp)/Documents/Downloads/clip-002.mp4"]
+        let relocated = relocateJobSandboxPaths(job, documentsDir: documents, applicationSupportDir: support)
+        #expect(relocated.outputPath == "\(documents)/Downloads/clip.mp4")
+        #expect(relocated.outputPaths == ["\(documents)/Downloads/clip.mp4", "\(documents)/Downloads/clip-002.mp4"])
     }
 
     @Test func coercePhotosAwayWhenExtractingAudio() {

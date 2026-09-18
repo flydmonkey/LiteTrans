@@ -71,4 +71,65 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(snapshot.video.imageFormat, "png")
         XCTAssertEqual(snapshot.video.preset, defaultSession(.video).preset)
     }
+
+    func testOldDefaultVideoQualityMigratesToOriginal() throws {
+        var video = defaultSession(.video)
+        video.quality = "standard"
+        let snapshot = SessionSnapshot(
+            language: .system,
+            convertMode: .video,
+            historySegment: .video,
+            video: video,
+            audio: defaultSession(.audio),
+            document: defaultSession(.document),
+            schemaVersion: 1
+        )
+        defaults.set(try JSONEncoder().encode(snapshot), forKey: SessionStore.key)
+
+        let loaded = try XCTUnwrap(store.load())
+        XCTAssertEqual(loaded.video.quality, "original")
+        XCTAssertEqual(loaded.schemaVersion, 2)
+    }
+
+    func testMissingSchemaVersionMigratesPersistedStandardVideoQuality() throws {
+        var video = defaultSession(.video)
+        video.quality = "standard"
+        let snapshot = SessionSnapshot(
+            language: .system,
+            convertMode: .video,
+            historySegment: .video,
+            video: video,
+            audio: defaultSession(.audio),
+            document: defaultSession(.document)
+        )
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: try JSONEncoder().encode(snapshot)) as? [String: Any]
+        )
+        object.removeValue(forKey: "schemaVersion")
+        defaults.set(try JSONSerialization.data(withJSONObject: object), forKey: SessionStore.key)
+
+        let loaded = try XCTUnwrap(store.load())
+        XCTAssertEqual(loaded.video.quality, "original")
+        XCTAssertEqual(loaded.schemaVersion, 2)
+    }
+
+    func testExplicitStandardVideoQualityIsKeptAfterMigration() throws {
+        var video = defaultSession(.video)
+        video.quality = "standard"
+        store.save(
+            SessionSnapshot(
+                language: .system,
+                convertMode: .video,
+                historySegment: .video,
+                video: video,
+                audio: defaultSession(.audio),
+                document: defaultSession(.document),
+                schemaVersion: 2
+            )
+        )
+
+        let loaded = try XCTUnwrap(store.load())
+        XCTAssertEqual(loaded.video.quality, "standard")
+        XCTAssertEqual(loaded.schemaVersion, 2)
+    }
 }

@@ -7,6 +7,9 @@ struct SessionSnapshot: Equatable, Codable, Sendable {
     var video: WizardSession
     var audio: WizardSession
     var document: WizardSession
+    var schemaVersion: Int
+
+    static let currentSchemaVersion = 2
 
     init(
         language: AppLanguage = .system,
@@ -14,7 +17,8 @@ struct SessionSnapshot: Equatable, Codable, Sendable {
         historySegment: HistorySegment = .video,
         video: WizardSession = defaultSession(.video),
         audio: WizardSession = defaultSession(.audio),
-        document: WizardSession = defaultSession(.document)
+        document: WizardSession = defaultSession(.document),
+        schemaVersion: Int = SessionSnapshot.currentSchemaVersion
     ) {
         self.language = language
         self.convertMode = convertMode
@@ -22,16 +26,19 @@ struct SessionSnapshot: Equatable, Codable, Sendable {
         self.video = Self.withoutSources(video)
         self.audio = Self.withoutSources(audio)
         self.document = Self.withoutSources(document)
+        self.schemaVersion = schemaVersion
     }
 
     enum CodingKeys: String, CodingKey {
         case language, convertMode, historySegment, video, audio, document
         case preset, quality, size, output
+        case schemaVersion
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .system
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         if container.contains(.video) {
             video = Self.withoutSources(try container.decode(WizardSession.self, forKey: .video))
             audio = Self.withoutSources(
@@ -54,6 +61,12 @@ struct SessionSnapshot: Equatable, Codable, Sendable {
             convertMode = .video
             historySegment = .video
         }
+        if schemaVersion < 2 {
+            if video.quality == "standard" {
+                video.quality = "original"
+            }
+            schemaVersion = 2
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -64,6 +77,7 @@ struct SessionSnapshot: Equatable, Codable, Sendable {
         try container.encode(Self.withoutSources(video), forKey: .video)
         try container.encode(Self.withoutSources(audio), forKey: .audio)
         try container.encode(Self.withoutSources(document), forKey: .document)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
     }
 
     static func withoutSources(_ session: WizardSession) -> WizardSession {
@@ -94,7 +108,8 @@ struct SessionStore {
             historySegment: snapshot.historySegment,
             video: snapshot.video,
             audio: snapshot.audio,
-            document: snapshot.document
+            document: snapshot.document,
+            schemaVersion: snapshot.schemaVersion
         )
         guard let data = try? JSONEncoder().encode(persistable) else { return }
         defaults.set(data, forKey: Self.key)

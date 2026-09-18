@@ -209,10 +209,11 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
     public var media: MediaInfo
     public var outputPaths: [String]
     public var outputKind: OutputKind
+    public var createdAtEpochMs: Int64?
 
     enum CodingKeys: String, CodingKey {
         case id, sourceUri, displayName, outputPath, status, progress, error, config, media
-        case outputPaths, outputKind
+        case outputPaths, outputKind, createdAtEpochMs
     }
 
     public init(
@@ -226,7 +227,8 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
         config: OutputConfig,
         media: MediaInfo,
         outputPaths: [String] = [],
-        outputKind: OutputKind = .downloads
+        outputKind: OutputKind = .downloads,
+        createdAtEpochMs: Int64? = nil
     ) {
         self.id = id
         self.sourceUri = sourceUri
@@ -239,6 +241,7 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
         self.media = media
         self.outputPaths = outputPaths
         self.outputKind = outputKind
+        self.createdAtEpochMs = createdAtEpochMs
     }
 
     public init(from decoder: Decoder) throws {
@@ -254,6 +257,7 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
         media = try container.decode(MediaInfo.self, forKey: .media)
         outputPaths = try container.decodeIfPresent([String].self, forKey: .outputPaths) ?? []
         outputKind = try container.decodeIfPresent(OutputKind.self, forKey: .outputKind) ?? .downloads
+        createdAtEpochMs = try container.decodeIfPresent(Int64.self, forKey: .createdAtEpochMs)
     }
 }
 

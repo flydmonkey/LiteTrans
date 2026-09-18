@@ -272,10 +272,7 @@ private func blocked(url: URL, displayName: String, container: String?, error: S
 }
 
 private func localized(_ key: String.LocalizationValue, language: AppLanguage) -> String {
-    if let identifier = resolvedLocaleIdentifier(language) {
-        return String(localized: key, locale: Locale(identifier: identifier))
-    }
-    return String(localized: key)
+    localizedText(key, language: language)
 }
 
 private func intProperty(_ value: Any?) -> Int? {

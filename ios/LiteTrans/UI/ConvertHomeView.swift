@@ -1,8 +1,8 @@
 import AVFoundation
-import AVKit
 import PDFKit
 import PhotosUI
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct ConvertHomeView: View {
@@ -22,21 +22,24 @@ struct ConvertHomeView: View {
 
     var body: some View {
         @Bindable var model = model
-        List {
-            Section {
-                Picker("", selection: $model.convertMode) {
-                    Text(text("segment_video")).tag(ConvertMode.video)
-                    Text(text("segment_audio")).tag(ConvertMode.audio)
-                    Text(text("segment_document")).tag(ConvertMode.document)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .accessibilityLabel(text("segment_convert"))
-                .frame(minHeight: 44)
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                .listRowBackground(Color.clear)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: Theme.rootHeaderSpacing) {
+                RootLargeTitle(title: text("tab_convert"))
+                RootSegmentedPicker(
+                    selection: $model.convertMode,
+                    accessibilityLabel: text("segment_convert"),
+                    options: [
+                        (ConvertMode.video, text("segment_video")),
+                        (ConvertMode.audio, text("segment_audio")),
+                        (ConvertMode.document, text("segment_document")),
+                    ]
+                )
             }
+            .padding(.horizontal, 16)
+            .padding(.top, Theme.rootTitleTop)
+            .padding(.bottom, Theme.rootHeaderBottom)
 
+            List {
             if let message = model.message {
                 Section {
                     HStack(alignment: .top, spacing: 12) {
@@ -59,7 +62,11 @@ struct ConvertHomeView: View {
             }
 
             if let selected, selected.importable {
-                previewSection(selected)
+                Section {
+                    previewSection(selected)
+                        .listRowSeparator(.hidden)
+                        .buttonStyle(.plain)
+                }
             }
 
             Section {
@@ -77,6 +84,7 @@ struct ConvertHomeView: View {
                                 } label: {
                                     Text(text("action_remove"))
                                 }
+                                .tint(Color(uiColor: .systemRed))
                             }
                         }
                 }
@@ -95,19 +103,21 @@ struct ConvertHomeView: View {
                     }
                 }
             }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(text("tab_convert"))
-        .navigationBarTitleDisplayMode(.large)
-        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy, value: model.convertMode)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(text("action_convert")) {
-                    model.startConversion()
-                }
-                .disabled(!model.startEnabled)
             }
+            .listStyle(.insetGrouped)
+            .contentMargins(.top, 0, for: .scrollContent)
+            .scrollContentBackground(.hidden)
+            .background(EnclosingScrollTouchTuner())
         }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .blankAreaTabSwipe(
+            onSwipeLeft: { moveConvertTab(step: 1) },
+            onSwipeRight: { moveConvertTab(step: -1) }
+        )
+        .navigationTitle(text("tab_convert"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy, value: model.convertMode)
         .safeAreaInset(edge: .bottom) {
             Button {
                 model.startConversion()
@@ -170,33 +180,31 @@ struct ConvertHomeView: View {
 
     @ViewBuilder
     private func previewSection(_ selected: MediaInfo) -> some View {
-        Section {
-            switch model.convertMode {
-            case .video:
-                if selected.durationSecs != nil, allowsTrim(preset: model.preset) {
-                    ConvertTrimCard(source: selected, showsVideo: true)
-                        .id(selected.sourceUri)
-                        .transition(.opacity)
-                }
-            case .audio:
-                if selected.durationSecs != nil, allowsTrim(preset: model.preset) {
-                    ConvertTrimCard(source: selected, showsVideo: hasVideoTrack(selected))
-                        .id(selected.sourceUri)
-                        .transition(.opacity)
-                }
-            case .document:
-                switch documentSourceKind(selected.displayName) {
-                case .pdf:
-                    ConvertPDFCard(source: selected)
-                        .id(selected.sourceUri)
-                        .transition(.opacity)
-                case .image:
-                    ConvertImageCard(source: selected)
-                        .id(selected.sourceUri)
-                        .transition(.opacity)
-                default:
-                    EmptyView()
-                }
+        switch model.convertMode {
+        case .video:
+            if itemHasDuration(selected), allowsTrim(preset: model.preset) {
+                ConvertTrimCard(source: selected, showsVideo: true)
+                    .id(selected.sourceUri)
+                    .transition(.opacity)
+            }
+        case .audio:
+            if itemHasDuration(selected), allowsTrim(preset: model.preset) {
+                ConvertTrimCard(source: selected, showsVideo: hasVideoTrack(selected))
+                    .id(selected.sourceUri)
+                    .transition(.opacity)
+            }
+        case .document:
+            switch documentSourceKind(selected.displayName) {
+            case .pdf:
+                ConvertPDFCard(source: selected)
+                    .id(selected.sourceUri)
+                    .transition(.opacity)
+            case .image:
+                ConvertImageCard(source: selected)
+                    .id(selected.sourceUri)
+                    .transition(.opacity)
+            default:
+                EmptyView()
             }
         }
     }
@@ -348,8 +356,14 @@ struct ConvertHomeView: View {
             ?? preset
     }
 
+    private func moveConvertTab(step: Int) {
+        guard let next = adjacentCase(model.convertMode, step: step) else { return }
+        model.convertMode = next
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 }
 
@@ -376,7 +390,7 @@ private struct ConvertSourceRow: View {
                 if selected {
                     Spacer()
                     Image(systemName: "checkmark")
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.primary)
                         .accessibilityHidden(true)
                 }
             }
@@ -413,14 +427,14 @@ private struct ConvertSourceRow: View {
         if let duration = source.durationSecs {
             parts.append(formatDuration(duration))
         }
-        if allowsTrim(preset: model.preset), source.trimStartSecs != nil || source.trimEndSecs != nil {
+        if allowsTrim(preset: model.preset), isTrimmed(source) {
             parts.append(text("wizard_trimmed"))
         }
         return parts.isEmpty ? text("wizard_kind_video") : parts.joined(separator: " · ")
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 
     private func formatDuration(_ seconds: Double) -> String {
@@ -443,44 +457,65 @@ private struct ConvertTrimCard: View {
     @State private var playhead = 0.0
     @State private var player: AVPlayer?
     @State private var isSeeking = false
+    @State private var isPlaying = false
     @State private var timeObserver: Any?
 
     private var duration: Double { max(source.durationSecs ?? 0, 0.001) }
+    private var trimStart: Double { min(max(source.trimStartSecs ?? 0, 0), duration) }
+    private var trimEnd: Double { min(max(source.trimEndSecs ?? duration, 0), duration) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(text("trim_title"))
+                        .font(.headline)
+                    Text(text("trim_hint"))
+                        .font(.footnote)
+                        .foregroundStyle(Color(uiColor: .secondaryLabel))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Button(text("trim_reset")) {
+                    resetTrim()
+                }
+                .frame(minHeight: 44)
+            }
+
             if showsVideo {
                 preview
             }
-            Slider(
-                value: Binding(
-                    get: { playhead },
-                    set: { newValue in
-                        playhead = newValue
-                        seekPlayer(to: newValue)
-                    }
-                ),
-                in: 0...duration,
-                onEditingChanged: { editing in
-                    isSeeking = editing
-                    if !editing {
-                        seekPlayer(to: playhead)
-                    }
-                }
-            )
-                .frame(minHeight: 44)
-                .accessibilityLabel(text("trim_title"))
-                .accessibilityValue(formatClock(playhead))
-            HStack {
+
+            HStack(spacing: 8) {
                 Button(text("trim_set_start")) { setStart() }
-                    .frame(minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                 Button(text("trim_set_end")) { setEnd() }
-                    .frame(minHeight: 44)
-                Button(text("trim_reset")) { resetTrim() }
-                    .frame(minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.bordered)
-            if source.trimStartSecs != nil || source.trimEndSecs != nil {
+
+            TrimTrack(
+                duration: duration,
+                start: trimStart,
+                end: trimEnd,
+                playhead: playhead,
+                onStart: { applyTrim(start: $0, end: trimEnd) },
+                onEnd: { applyTrim(start: trimStart, end: $0) },
+                onPlayhead: { seekPlayhead($0) }
+            )
+            .accessibilityLabel(text("trim_title"))
+            .accessibilityValue(formatClock(playhead))
+
+            HStack {
+                Text(formatClock(trimStart))
+                Spacer()
+                Text(formatClock(playhead))
+                Spacer()
+                Text(formatClock(trimEnd))
+            }
+            .font(.footnote)
+            .foregroundStyle(Color(uiColor: .secondaryLabel))
+
+            if isTrimmed(source) {
                 Text(text("wizard_trimmed"))
                     .font(.footnote)
                     .foregroundStyle(Color(uiColor: .secondaryLabel))
@@ -492,25 +527,39 @@ private struct ConvertTrimCard: View {
 
     @ViewBuilder
     private var preview: some View {
-        if let player {
-            VideoPlayer(player: player)
-                .frame(minHeight: 180)
-                .accessibilityLabel(text("wizard_preview_video"))
-        } else {
-            Text(text("trim_no_preview"))
-                .font(.footnote)
-                .foregroundStyle(Color(uiColor: .secondaryLabel))
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        ZStack {
+            if let player {
+                TrimPlayerView(player: player)
+                    .accessibilityLabel(text("wizard_preview_video"))
+            } else {
+                Text(text("trim_no_preview"))
+                    .font(.footnote)
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .padding(.horizontal, 12)
+            }
+            Button(action: togglePlayback) {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title2)
+                    .frame(width: 56, height: 56)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(player == nil)
+            .accessibilityLabel(text(isPlaying ? "trim_pause" : "trim_play_selection"))
         }
+        .frame(maxWidth: .infinity, minHeight: 180)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 
     private func setupPlayer() {
         teardownPlayer()
-        guard let url = URL(string: source.sourceUri), url.isFileURL,
+        guard let url = mediaFileURL(from: source.sourceUri),
               FileManager.default.fileExists(atPath: url.path)
         else { return }
         let player = AVPlayer(url: url)
@@ -520,8 +569,18 @@ private struct ConvertTrimCard: View {
             let seconds = CMTimeGetSeconds(time)
             guard seconds.isFinite else { return }
             playhead = min(max(seconds, 0), duration)
+            if player.timeControlStatus == .playing, playhead >= trimEnd - 0.04 {
+                player.pause()
+                seekPlayer(to: trimStart)
+                playhead = trimStart
+                isPlaying = false
+            } else {
+                isPlaying = player.timeControlStatus == .playing
+            }
         }
         self.player = player
+        seekPlayer(to: trimStart)
+        playhead = trimStart
     }
 
     private func teardownPlayer() {
@@ -531,6 +590,7 @@ private struct ConvertTrimCard: View {
         timeObserver = nil
         player?.pause()
         player = nil
+        isPlaying = false
     }
 
     private func seekPlayer(to seconds: Double) {
@@ -540,22 +600,41 @@ private struct ConvertTrimCard: View {
         player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
     }
 
-    private func setStart() {
-        var next = source
-        next.trimStartSecs = playhead
-        if let end = next.trimEndSecs, end < playhead {
-            next.trimEndSecs = nil
+    private func seekPlayhead(_ seconds: Double) {
+        isSeeking = true
+        playhead = min(max(seconds, 0), duration)
+        seekPlayer(to: playhead)
+        isSeeking = false
+    }
+
+    private func togglePlayback() {
+        guard let player else { return }
+        if player.timeControlStatus == .playing {
+            player.pause()
+            isPlaying = false
+            return
         }
+        if playhead < trimStart || playhead >= trimEnd - 0.04 {
+            seekPlayhead(trimStart)
+        }
+        player.play()
+        isPlaying = true
+    }
+
+    private func applyTrim(start: Double, end: Double) {
+        let clamped = clampTrim(start: start, end: end, duration: duration)
+        var next = source
+        next.trimStartSecs = clamped.start
+        next.trimEndSecs = clamped.end
         model.replaceSource(next)
     }
 
+    private func setStart() {
+        applyTrim(start: playhead, end: trimEnd)
+    }
+
     private func setEnd() {
-        var next = source
-        next.trimEndSecs = playhead
-        if let start = next.trimStartSecs, start > playhead {
-            next.trimStartSecs = nil
-        }
-        model.replaceSource(next)
+        applyTrim(start: trimStart, end: playhead)
     }
 
     private func resetTrim() {
@@ -563,11 +642,265 @@ private struct ConvertTrimCard: View {
         next.trimStartSecs = nil
         next.trimEndSecs = nil
         model.replaceSource(next)
+        seekPlayhead(0)
     }
 
     private func formatClock(_ seconds: Double) -> String {
         let total = Int(seconds.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+private struct TrimTrack: View {
+    let duration: Double
+    let start: Double
+    let end: Double
+    let playhead: Double
+    let onStart: (Double) -> Void
+    let onEnd: (Double) -> Void
+    let onPlayhead: (Double) -> Void
+
+    var body: some View {
+        GeometryReader { geo in
+            let inset: CGFloat = 11
+            let width = max(geo.size.width - inset * 2, 1)
+            let startX = (start / duration) * width
+            let endX = (end / duration) * width
+            let playX = (playhead / duration) * width
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color(uiColor: .tertiarySystemFill))
+                    .frame(height: 8)
+                Capsule()
+                    .fill(Color(uiColor: .label).opacity(0.35))
+                    .frame(width: max(endX - startX, 2), height: 8)
+                    .offset(x: startX)
+                Capsule()
+                    .fill(Color.primary)
+                    .frame(width: 2, height: 28)
+                    .offset(x: playX - 1)
+                handle.offset(x: startX - 11)
+                handle.offset(x: endX - 11)
+            }
+            .padding(.horizontal, inset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .overlay {
+                TrimTrackDragOverlay(
+                    duration: duration,
+                    start: start,
+                    end: end,
+                    inset: inset,
+                    onStart: onStart,
+                    onEnd: onEnd,
+                    onPlayhead: onPlayhead
+                )
+            }
+        }
+        .frame(minHeight: 44)
+        .accessibilityAdjustableAction { direction in
+            let step = duration / 50
+            switch direction {
+            case .increment: onPlayhead(min(playhead + step, duration))
+            case .decrement: onPlayhead(max(playhead - step, 0))
+            default: break
+            }
+        }
+    }
+
+    private var handle: some View {
+        Circle()
+            .fill(Color.primary)
+            .overlay(Circle().stroke(Color(uiColor: .systemBackground), lineWidth: 2))
+            .frame(width: 22, height: 22)
+    }
+}
+
+private struct TrimTrackDragOverlay: UIViewRepresentable {
+    var duration: Double
+    var start: Double
+    var end: Double
+    var inset: CGFloat
+    var onStart: (Double) -> Void
+    var onEnd: (Double) -> Void
+    var onPlayhead: (Double) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> TrimTrackHitView {
+        let view = TrimTrackHitView()
+        context.coordinator.bind(view: view, representable: self)
+        return view
+    }
+
+    func updateUIView(_ uiView: TrimTrackHitView, context: Context) {
+        context.coordinator.bind(view: uiView, representable: self)
+    }
+
+    final class Coordinator {
+        var duration = 0.001
+        var start = 0.0
+        var end = 1.0
+        var inset: CGFloat = 11
+        var onStart: (Double) -> Void = { _ in }
+        var onEnd: (Double) -> Void = { _ in }
+        var onPlayhead: (Double) -> Void = { _ in }
+        var dragging: TrimDragTarget?
+
+        func bind(view: TrimTrackHitView, representable: TrimTrackDragOverlay) {
+            duration = representable.duration
+            start = representable.start
+            end = representable.end
+            inset = representable.inset
+            onStart = representable.onStart
+            onEnd = representable.onEnd
+            onPlayhead = representable.onPlayhead
+            view.onDown = { [weak self] point in
+                self?.handle(point, began: true, width: view.bounds.width)
+            }
+            view.onMove = { [weak self] point in
+                self?.handle(point, began: false, width: view.bounds.width)
+            }
+            view.onUp = { [weak self] in
+                self?.dragging = nil
+            }
+        }
+
+        func handle(_ point: CGPoint, began: Bool, width: CGFloat) {
+            let trackWidth = max(Double(width - inset * 2), 1)
+            let x = Double(point.x - inset)
+            if began || dragging == nil {
+                dragging = trimDragTarget(
+                    x: x,
+                    width: trackWidth,
+                    duration: duration,
+                    start: start,
+                    end: end,
+                    hitSlop: 22
+                )
+            }
+            let time = timeAt(x: x, width: trackWidth, duration: duration)
+            switch dragging {
+            case .start: onStart(time)
+            case .end: onEnd(time)
+            case .playhead, .none: onPlayhead(time)
+            }
+        }
+    }
+}
+
+private final class TrimTrackHitView: UIView {
+    var onDown: ((CGPoint) -> Void)?
+    var onMove: ((CGPoint) -> Void)?
+    var onUp: (() -> Void)?
+    private weak var scrollView: UIScrollView?
+    private var savedScrollEnabled = true
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isMultipleTouchEnabled = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        scrollView = enclosingScrollView()
+        scrollView?.delaysContentTouches = false
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        savedScrollEnabled = scrollView?.isScrollEnabled ?? true
+        scrollView?.isScrollEnabled = false
+        if let point = touches.first?.location(in: self) {
+            onDown?(point)
+        }
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let point = touches.first?.location(in: self) {
+            onMove?(point)
+        }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        finishTouch()
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        finishTouch()
+    }
+
+    private func finishTouch() {
+        onUp?()
+        scrollView?.isScrollEnabled = savedScrollEnabled
+    }
+
+    private func enclosingScrollView() -> UIScrollView? {
+        var current: UIView? = superview
+        while let node = current {
+            if let scroll = node as? UIScrollView {
+                return scroll
+            }
+            current = node.superview
+        }
+        return nil
+    }
+}
+
+private struct EnclosingScrollTouchTuner: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = TunerView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    private final class TunerView: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            var current: UIView? = self
+            while let node = current {
+                if let scroll = node as? UIScrollView {
+                    scroll.delaysContentTouches = false
+                    return
+                }
+                current = node.superview
+            }
+        }
+    }
+}
+
+private struct TrimPlayerView: UIViewRepresentable {
+    let player: AVPlayer
+
+    func makeUIView(context: Context) -> TrimPlayerLayerView {
+        let view = TrimPlayerLayerView()
+        view.backgroundColor = .tertiarySystemFill
+        view.player = player
+        return view
+    }
+
+    func updateUIView(_ uiView: TrimPlayerLayerView, context: Context) {
+        uiView.player = player
+    }
+}
+
+private final class TrimPlayerLayerView: UIView {
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
+
+    var player: AVPlayer? {
+        get { (layer as? AVPlayerLayer)?.player }
+        set {
+            (layer as? AVPlayerLayer)?.player = newValue
+            (layer as? AVPlayerLayer)?.videoGravity = .resizeAspect
+        }
     }
 }
 
@@ -597,8 +930,7 @@ private struct ConvertPDFCard: View {
     }
 
     private var fileURL: URL? {
-        guard let url = URL(string: source.sourceUri), url.isFileURL else { return nil }
-        return url
+        mediaFileURL(from: source.sourceUri)
     }
 
     private var startBinding: Binding<Int> {
@@ -624,7 +956,7 @@ private struct ConvertPDFCard: View {
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 }
 
@@ -653,18 +985,19 @@ private struct ConvertImageCard: View {
     let source: MediaInfo
 
     var body: some View {
-        if let url = URL(string: source.sourceUri), url.isFileURL,
+        if let url = mediaFileURL(from: source.sourceUri),
            let image = UIImage(contentsOfFile: url.path) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
                 .frame(maxHeight: 240)
+                .frame(maxWidth: .infinity)
                 .accessibilityLabel(text("wizard_preview_image"))
         }
     }
 
     private func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+        localizedText(key, locale: locale)
     }
 }
 

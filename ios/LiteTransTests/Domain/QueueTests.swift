@@ -35,12 +35,32 @@ struct QueueTests {
     }
 
     @Test func markInterruptedFailsRunningOnly() {
-        let running = Job(id: "1", sourceUri: "a", displayName: "a", outputPath: nil, status: .running, progress: 10, error: nil, config: OutputConfig(), media: MediaInfo(sourceUri: "a", displayName: "a"))
+        let running = Job(id: "1", sourceUri: "a", displayName: "a", outputPath: nil, status: .running, progress: 10, error: nil, config: OutputConfig(), media: MediaInfo(sourceUri: "a", displayName: "a"), createdAtEpochMs: 99)
         let queued = Job(id: "2", sourceUri: "b", displayName: "b", outputPath: nil, status: .queued, progress: 0, error: nil, config: OutputConfig(), media: MediaInfo(sourceUri: "b", displayName: "b"))
         let out = markInterrupted([running, queued], interrupted: "interrupted")
         #expect(out[0].status == .failed)
         #expect(out[0].error == "interrupted")
+        #expect(out[0].createdAtEpochMs == 99)
         #expect(out[1].status == .queued)
+    }
+
+    @Test func enqueueStampsCreatedAt() throws {
+        let media = MediaInfo(
+            sourceUri: "b",
+            displayName: "b.mp4",
+            videoCodec: "h264",
+            audioCodec: "aac",
+            importable: true
+        )
+        let report = try enqueueJobs(
+            sources: [media],
+            config: OutputConfig(),
+            outputDir: "/tmp",
+            nextId: { "1" },
+            exists: { _ in false },
+            nowMs: { 1_779_160_980_000 }
+        )
+        #expect(report.jobs[0].createdAtEpochMs == 1_779_160_980_000)
     }
 
     @Test func cancelledJobOccupiesPathSoReenqueueGetsAnother() throws {
