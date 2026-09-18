@@ -10,6 +10,12 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
 }
@@ -20,15 +26,101 @@ select {
   font: inherit;
 }
 
-.app {
-  min-height: 100vh;
-  padding: 24px 28px 108px;
+.shell {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  min-height: 100%;
+}
+
+.sidebar {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  width: 176px;
+  min-width: 148px;
+  max-width: 240px;
+  padding: 18px 12px;
+  background: #e2e2dc;
+}
+
+.sidebar-brand {
+  margin: 0 8px 12px;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.sidebar button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: transparent;
+  text-align: left;
+}
+
+.sidebar button.on {
+  background: #1f2428;
+  color: #f7f7f4;
+}
+
+.sidebar button em {
+  font-style: normal;
+  min-width: 1.4em;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #c45a2a;
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
+}
+
+.sidebar button.on em {
+  background: #e7b56a;
+  color: #1f2428;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content > .notice {
+  flex-shrink: 0;
+  margin: 16px 16px 0;
+}
+
+.content > p {
+  margin: 20px;
+}
+
+.convert-host {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 20px 108px;
+}
+
+.convert-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-.app.dragging .dropzone {
+.convert-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.shell.dragging .dropzone {
   border-color: #c45a2a;
   background: #fff4ea;
 }
@@ -302,7 +394,7 @@ select {
 
 .presets {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
@@ -533,9 +625,9 @@ button:disabled {
 }
 
 .dock {
-  position: fixed;
-  left: 20px;
-  right: 20px;
+  position: absolute;
+  left: 16px;
+  right: 16px;
   bottom: 16px;
   display: flex;
   justify-content: space-between;
@@ -552,7 +644,11 @@ button:disabled {
   color: #c9cfcb;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 960px) {
+  .convert-grid {
+    grid-template-columns: 1fr;
+  }
+
   .presets {
     grid-template-columns: 1fr 1fr;
   }
