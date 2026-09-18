@@ -118,6 +118,13 @@ cd ios && node scripts/fetch-ffmpeg.mjs && xcodegen generate && xcodebuild -sche
 
 ## 从源码运行
 
+源码仓库：[`git@github.com:flydmonkey/LiteTrans.git`](https://github.com/flydmonkey/LiteTrans)
+
+```bash
+git clone git@github.com:flydmonkey/LiteTrans.git
+cd LiteTrans
+```
+
 需要：
 
 - Node.js 20+
