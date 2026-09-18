@@ -26,6 +26,13 @@ class MainActivityStateTest {
         assertEquals("Conversion was interrupted", updated.single().error)
     }
 
+    @Test
+    fun recreateSkipsSplashSoLocaleChangeDoesNotFlashLauncherBlack() {
+        assertEquals(true, shouldSkipSplashOnRecreate(savedInstanceStatePresent = true, sdkInt = 31))
+        assertEquals(false, shouldSkipSplashOnRecreate(savedInstanceStatePresent = false, sdkInt = 31))
+        assertEquals(false, shouldSkipSplashOnRecreate(savedInstanceStatePresent = true, sdkInt = 30))
+    }
+
     private fun job() = Job(
         id = "job-1",
         sourceUri = "content://video",

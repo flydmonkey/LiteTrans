@@ -1,6 +1,9 @@
 package com.videoconverter.android
 
+import android.app.Activity.OVERRIDE_TRANSITION_CLOSE
+import android.app.Activity.OVERRIDE_TRANSITION_OPEN
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -24,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        skipSplashOnRecreate(savedInstanceState)
         if (LanShareStore(this).load().enabled) {
             LanShareService.start(this)
         }
@@ -49,10 +53,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun recreate() {
+        suppressRecreateTransition()
+        super.recreate()
+        suppressRecreateTransition()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         applyOpenLanShare(intent)
+    }
+
+    private fun skipSplashOnRecreate(savedInstanceState: Bundle?) {
+        if (!shouldSkipSplashOnRecreate(savedInstanceState != null, Build.VERSION.SDK_INT)) return
+        splashScreen.setOnExitAnimationListener { splash -> splash.remove() }
+    }
+
+    private fun suppressRecreateTransition() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
     }
 
     private fun applyOpenLanShare(intent: Intent?) {
@@ -66,6 +91,9 @@ class MainActivity : AppCompatActivity() {
         intent?.removeExtra(LanShareService.EXTRA_OPEN_LAN_SHARE)
     }
 }
+
+internal fun shouldSkipSplashOnRecreate(savedInstanceStatePresent: Boolean, sdkInt: Int): Boolean =
+    savedInstanceStatePresent && sdkInt >= Build.VERSION_CODES.S
 
 internal fun recoverInterruptedOnAppStart(
     jobs: List<Job>,

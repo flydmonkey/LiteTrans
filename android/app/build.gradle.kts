@@ -79,6 +79,7 @@ dependencies {
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation("org.apache.poi:poi-ooxml:5.2.5")
     implementation("com.fasterxml:aalto-xml:1.3.3")
+    implementation("javax.xml.stream:stax-api:1.0-2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     testImplementation("org.robolectric:robolectric:4.14.1")

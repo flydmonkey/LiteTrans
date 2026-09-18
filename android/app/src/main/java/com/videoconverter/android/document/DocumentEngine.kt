@@ -112,7 +112,7 @@ class DocumentEngine(
             } else {
                 job.copy(status = JobStatus.Failed, error = error.message)
             }
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             if (wasCancelled(job.id)) {
                 job.copy(status = JobStatus.Cancelled, error = null)
             } else {

@@ -1,6 +1,7 @@
 package com.videoconverter.android.ui
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -53,5 +54,21 @@ class AppLanguageTest {
         assertEquals(AppLanguage.En, fallbackLanguageForSystemTag("en-US"))
         assertEquals(AppLanguage.Ja, fallbackLanguageForSystemTag("ja-JP"))
         assertEquals(AppLanguage.Ko, fallbackLanguageForSystemTag("ko-KR"))
+    }
+
+    @Test
+    fun switchingLanguageAppliesLocalesWithoutASecondActivityRecreate() {
+        val effect = languageSelectionEffect(AppLanguage.ZhCn, AppLanguage.En)
+
+        assertEquals(AppLanguage.En, effect.apply)
+        assertFalse(effect.extraRecreate)
+    }
+
+    @Test
+    fun tappingTheCurrentLanguageDoesNothing() {
+        val effect = languageSelectionEffect(AppLanguage.Ja, AppLanguage.Ja)
+
+        assertNull(effect.apply)
+        assertFalse(effect.extraRecreate)
     }
 }

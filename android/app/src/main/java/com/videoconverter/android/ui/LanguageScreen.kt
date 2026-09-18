@@ -1,6 +1,5 @@
 package com.videoconverter.android.ui
 
-import android.app.Activity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,13 +12,11 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun LanguageScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
     val selected = currentAppLanguage()
     val options = languageOptions()
     Column(modifier = Modifier.fillMaxSize()) {
@@ -38,8 +35,7 @@ fun LanguageScreen(onBack: () -> Unit) {
                         .fillMaxWidth()
                         .heightIn(min = 56.dp)
                         .clickable {
-                            applyAppLanguage(language)
-                            (context as? Activity)?.recreate()
+                            languageSelectionEffect(selected, language).apply?.let(::applyAppLanguage)
                         },
                 )
                 if (index < options.lastIndex) HorizontalDivider(modifier = Modifier.padding(start = 16.dp))

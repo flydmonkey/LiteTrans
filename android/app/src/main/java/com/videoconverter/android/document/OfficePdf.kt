@@ -3,21 +3,36 @@ package com.videoconverter.android.document
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import org.apache.poi.ss.usermodel.DataFormatter
+import org.apache.poi.ss.usermodel.Row
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.coroutines.cancellation.CancellationException
+
+/** Android has no StAX; POI reads xlsx/docx through Aalto. */
 
 sealed class OfficeBlock {
     data class Paragraph(val text: String) : OfficeBlock()
     data class Table(val rows: List<List<String>>) : OfficeBlock()
 }
 
+fun poiStaxFactoryProperties(): Map<String, String> = mapOf(
+    "org.apache.poi.javax.xml.stream.XMLInputFactory" to "com.fasterxml.aalto.stax.InputFactoryImpl",
+    "org.apache.poi.javax.xml.stream.XMLOutputFactory" to "com.fasterxml.aalto.stax.OutputFactoryImpl",
+    "org.apache.poi.javax.xml.stream.XMLEventFactory" to "com.fasterxml.aalto.stax.EventFactoryImpl",
+)
+
+fun installPoiStaxFactories() {
+    poiStaxFactoryProperties().forEach { (key, value) -> System.setProperty(key, value) }
+}
+
 fun officeBlocksFromDocx(
     bytes: ByteArray,
     cannotConvert: String = "Could not convert this document",
 ): List<OfficeBlock> = officeOrFail(cannotConvert) {
+    installPoiStaxFactories()
     XWPFDocument(ByteArrayInputStream(bytes)).use { document ->
         val blocks = mutableListOf<OfficeBlock>()
         document.paragraphs.map { it.text }.forEach { blocks.add(OfficeBlock.Paragraph(it)) }
@@ -36,21 +51,23 @@ fun officeBlocksFromXlsx(
     bytes: ByteArray,
     cannotConvert: String = "Could not convert this document",
 ): List<OfficeBlock> = officeOrFail(cannotConvert) {
+    installPoiStaxFactories()
     XSSFWorkbook(ByteArrayInputStream(bytes)).use { workbook ->
         val sheet = workbook.getSheetAt(0)
         val formatter = DataFormatter()
         var lastCell = 0
+        val usedRows = mutableListOf<Row>()
         for (r in sheet.firstRowNum..sheet.lastRowNum) {
             val row = sheet.getRow(r) ?: continue
             lastCell = maxOf(lastCell, row.lastCellNum.toInt().coerceAtLeast(0))
+            usedRows += row
         }
-        val rows = (sheet.firstRowNum..sheet.lastRowNum).map { r ->
-            val row = sheet.getRow(r)
+        val rows = usedRows.map { row ->
             (0 until lastCell).map { c ->
-                row?.getCell(c)?.let { formatter.formatCellValue(it) }.orEmpty()
+                row.getCell(c)?.let { formatter.formatCellValue(it) }.orEmpty()
             }
         }
-        listOf(OfficeBlock.Table(rows)).also { if (sheet.physicalNumberOfRows == 0) error(cannotConvert) }
+        listOf(OfficeBlock.Table(rows)).also { if (usedRows.isEmpty()) error(cannotConvert) }
     }
 }
 
@@ -103,10 +120,12 @@ private const val FONT_SIZE = 11f
 private fun pageInfo(number: Int): PdfDocument.PageInfo =
     PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, number).create()
 
-private inline fun <T> officeOrFail(cannotConvert: String, block: () -> T): T = try {
+internal inline fun <T> officeOrFail(cannotConvert: String, block: () -> T): T = try {
     block()
 } catch (e: IllegalStateException) {
     throw e
-} catch (e: Exception) {
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Throwable) {
     throw IllegalStateException(cannotConvert, e)
 }

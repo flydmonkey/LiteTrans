@@ -94,6 +94,56 @@ class OfficePdfTest {
     }
 
     @Test
+    fun xlsxSkipsUnusedRowsBetweenData() {
+        val workbook = XSSFWorkbook()
+        val sheet = workbook.createSheet()
+        sheet.createRow(0).createCell(0).setCellValue("头")
+        sheet.createRow(20).createCell(0).setCellValue("尾")
+        val bytes = ByteArrayOutputStream().use { out ->
+            workbook.write(out)
+            workbook.close()
+            out.toByteArray()
+        }
+
+        val table = officeBlocksFromXlsx(bytes).filterIsInstance<OfficeBlock.Table>().single()
+
+        org.junit.Assert.assertEquals(2, table.rows.size)
+        org.junit.Assert.assertEquals("头", table.rows[0][0])
+        org.junit.Assert.assertEquals("尾", table.rows[1][0])
+    }
+
+    @Test
+    fun poiStaxFactoriesPointAtAalto() {
+        val factories = poiStaxFactoryProperties()
+        org.junit.Assert.assertEquals(
+            "com.fasterxml.aalto.stax.InputFactoryImpl",
+            factories["org.apache.poi.javax.xml.stream.XMLInputFactory"],
+        )
+        org.junit.Assert.assertEquals(
+            "com.fasterxml.aalto.stax.OutputFactoryImpl",
+            factories["org.apache.poi.javax.xml.stream.XMLOutputFactory"],
+        )
+        org.junit.Assert.assertEquals(
+            "com.fasterxml.aalto.stax.EventFactoryImpl",
+            factories["org.apache.poi.javax.xml.stream.XMLEventFactory"],
+        )
+        factories.values.forEach { Class.forName(it) }
+        Class.forName("javax.xml.stream.XMLEventFactory")
+    }
+
+    @Test
+    fun officeLinkageErrorsBecomeConvertFailures() {
+        try {
+            officeOrFail("Could not convert this document") {
+                throw NoClassDefFoundError("javax.xml.stream.XMLEventFactory")
+            }
+            org.junit.Assert.fail("expected")
+        } catch (e: IllegalStateException) {
+            org.junit.Assert.assertEquals("Could not convert this document", e.message)
+        }
+    }
+
+    @Test
     fun emptyBlocksFail() {
         val dest = kotlin.io.path.createTempFile("e", ".pdf").toFile()
         try {

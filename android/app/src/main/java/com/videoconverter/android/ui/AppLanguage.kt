@@ -72,6 +72,16 @@ fun appLanguageFromLocaleTags(tags: List<String>): AppLanguage {
     return AppLanguage.fromTag(canonicalizeAppLanguageTag(tags.firstOrNull().orEmpty()))
 }
 
+data class LanguageSelectionEffect(
+    val apply: AppLanguage?,
+    val extraRecreate: Boolean,
+)
+
+fun languageSelectionEffect(current: AppLanguage, selected: AppLanguage): LanguageSelectionEffect {
+    if (current == selected) return LanguageSelectionEffect(apply = null, extraRecreate = false)
+    return LanguageSelectionEffect(apply = selected, extraRecreate = false)
+}
+
 fun applyAppLanguage(language: AppLanguage) {
     val locales = language.languageTag()
         ?.let(LocaleListCompat::forLanguageTags)
