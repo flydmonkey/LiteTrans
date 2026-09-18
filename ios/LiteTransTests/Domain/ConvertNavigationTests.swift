@@ -159,6 +159,12 @@ struct ConvertNavigationTests {
         #expect(!usesPersistentSandboxOutput(.custom))
     }
 
+    @Test func avFoundationPresetIDsExcludeConcat() {
+        #expect(avFoundationPresetIDs == ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"])
+        #expect(!avFoundationPresetIDs.contains("video-concat"))
+        #expect(engineKind("video-concat") == .ffmpeg)
+    }
+
     @Test func engineKindSplitsThreeWays() {
         #expect(engineKind("mp4-h264") == .avFoundation)
         #expect(engineKind("mp4-copy") == .avFoundation)

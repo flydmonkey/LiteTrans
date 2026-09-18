@@ -35,7 +35,7 @@ struct VideoExporter {
         saveToPhotos: Bool,
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws {
-        guard primaryPresetIDs.contains(job.config.preset) else {
+        guard avFoundationPresetIDs.contains(job.config.preset) else {
             throw VideoExportError.unsupportedPreset(job.config.preset)
         }
         guard let source = URL(string: job.sourceUri) else {

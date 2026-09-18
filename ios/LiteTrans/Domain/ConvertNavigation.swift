@@ -83,7 +83,7 @@ public struct PresetCard: Equatable, Sendable {
 public let videoConcatPresetID = "video-concat"
 public let videoConcatMaxSources = 20
 public let primaryPresetIDs = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264", videoConcatPresetID]
-private let avFoundationPresetIDs = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"]
+public let avFoundationPresetIDs = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"]
 
 public func isVideoConcatPreset(_ preset: String) -> Bool { preset == videoConcatPresetID }
 
