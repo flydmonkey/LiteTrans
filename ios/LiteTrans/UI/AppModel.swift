@@ -1,5 +1,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import UIKit
+import UserNotifications
+import BackgroundTasks
+import LiteTransActivityKit
 
 @MainActor
 @Observable
@@ -90,8 +94,11 @@ final class AppModel {
     private let lanShareStore: LanShareStore
     private let probeService: ProbeService
     private let pump: QueuePump
+    private let liveActivity = LiveActivityController()
+    private let backgroundProcessing = BackgroundProcessingController()
     private var hydrating = true
     private var outputAccessStop: (() -> Void)?
+    private static let didAskNotificationsKey = "liteTrans.didAskNotifications"
 
     init(
         jobStore: JobStore = JobStore(),
@@ -127,6 +134,66 @@ final class AppModel {
         }
         hydrating = false
         persistSession()
+        syncLiveActivity()
+    }
+
+    func registerBackgroundProcessing() {
+        backgroundProcessing.register { [weak self] task in
+            self?.handleBackgroundProcessing(task)
+        }
+    }
+
+    func syncScene(sceneActive: Bool) {
+        lanSceneActive = sceneActive
+        syncLanShare()
+        backgroundProcessing.sync(jobs: jobs, sceneActive: sceneActive)
+        if sceneActive {
+            consumePendingCancel()
+        }
+    }
+
+    func consumePendingCancel() {
+        let defaults = UserDefaults.standard
+        guard let id = defaults.string(forKey: pendingCancelJobDefaultsKey), !id.isEmpty else { return }
+        defaults.removeObject(forKey: pendingCancelJobDefaultsKey)
+        if let job = jobs.first(where: { $0.id == id }) {
+            cancelJob(job)
+        }
+    }
+
+    func openHistoryJob(id: String) {
+        guard let job = jobs.first(where: { $0.id == id }) else { return }
+        tab = .history
+        historySegment = historySegmentFor(job)
+    }
+
+    private func syncLiveActivity() {
+        guard !hydrating else { return }
+        liveActivity.sync(jobs: jobs)
+    }
+
+    private func requestNotificationsIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: Self.didAskNotificationsKey) else { return }
+        defaults.set(true, forKey: Self.didAskNotificationsKey)
+        UNUserNotificationCenter.current().requestAuthorization(options: [.badge, .sound, .alert]) { _, _ in }
+    }
+
+    private func handleBackgroundProcessing(_ task: BGTask) {
+        pump.start(model: self)
+        let box = BackgroundTaskCompletion()
+        task.expirationHandler = { [weak self] in
+            Task { @MainActor in
+                self?.pump.cancelCurrentExport()
+                box.finish(task, success: false)
+            }
+        }
+        Task { @MainActor in
+            while shouldSubmitBackgroundProcessing(self.jobs) {
+                try? await Task.sleep(for: .milliseconds(400))
+            }
+            box.finish(task, success: true)
+        }
     }
 
     private var current: WizardSession { session(for: convertMode) }
@@ -207,6 +274,9 @@ final class AppModel {
             persistJobs()
             persistSession()
             pump.start(model: self)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            requestNotificationsIfNeeded()
+            syncLiveActivity()
         } catch {
             message = error.localizedDescription
             releaseOutputAccess()
@@ -235,17 +305,21 @@ final class AppModel {
     func replaceJob(_ job: Job) {
         guard let index = jobs.firstIndex(where: { $0.id == job.id }) else { return }
         jobs[index] = job
+        syncLiveActivity()
     }
 
     func updateProgress(id: String, progress: Double) {
         guard let index = jobs.firstIndex(where: { $0.id == id }) else { return }
         guard shouldApplyJobProgress(jobs[index].status) else { return }
         jobs[index].progress = min(max(progress, 0), 100)
+        syncLiveActivity()
     }
 
     func persistJobs() {
         jobStore.save(jobs)
         syncLanShare()
+        syncLiveActivity()
+        backgroundProcessing.sync(jobs: jobs, sceneActive: lanSceneActive)
     }
 
     func syncLanShare(sceneActive: Bool? = nil) {
