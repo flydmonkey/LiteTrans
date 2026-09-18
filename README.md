@@ -94,13 +94,13 @@ cd android && ./gradlew connectedDebugAndroidTest
 
 ### iOS
 
-第 1 刀只支持四张视频主预设；音频 / 文档 / 局域网尚未提供。许可仍按根 README 的本机处理说明。
+第 2 刀支持音频六种、视频更多格式、图片与 PDF；Office / 局域网 / Live Activity 尚未提供。许可仍按根 README 的本机处理说明。
 
 ```bash
-cd ios && xcodegen generate && xcodebuild -scheme LiteTrans -destination 'generic/platform=iOS Simulator' build
+cd ios && node scripts/fetch-ffmpeg.mjs && xcodegen generate && xcodebuild -scheme LiteTrans -destination 'generic/platform=iOS Simulator' build
 ```
 
-产物通过 Xcode 真机 / TestFlight 安装，无 App Store。
+产物通过 Xcode 真机 / TestFlight 安装，无 App Store。FFmpeg xcframework 由 `ios/scripts/fetch-ffmpeg.mjs` 拉取到 `ios/Vendor/FFmpeg/`，不入库。
 
 #### iOS 真机冒烟清单
 
@@ -108,6 +108,11 @@ cd ios && xcodegen generate && xcodebuild -scheme LiteTrans -destination 'generi
 2. 相册加一条视频，改格式为 MOV，开始转换
 3. 自动跳历史，完成后 Quick Look
 4. 我的 → 关于含「轻转码」和版本；隐私含「不上传」
+5. 音频文件转 MP3 进下载
+6. 相册图转 JPG 进照片
+7. 小 PDF 拆分在「文件」里可见
+8. 四张主视频仍成功
+9. Office 行标红不能开始
 
 ## 从源码运行
 
