@@ -127,7 +127,7 @@ private func replaceOutput(original: URL, with partial: URL) throws {
     }
 }
 
-private func saveVideoToPhotos(_ url: URL) async throws {
+func saveVideoToPhotos(_ url: URL) async throws {
     let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
     guard status == .authorized || status == .limited else {
         throw VideoExportError.photosDenied

@@ -37,3 +37,6 @@ ios/.build/
 ios/*.xcodeproj/xcuserdata/
 ios/*.xcworkspace/xcuserdata/
 ios/DerivedData/
+ios/Vendor/FFmpeg/*
+!ios/Vendor/FFmpeg/.gitkeep
+ios/.ffmpeg-cache/

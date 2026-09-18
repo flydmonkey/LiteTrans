@@ -3,24 +3,26 @@ import Foundation
 @MainActor
 final class QueuePump {
     private let exporter: VideoExporter
+    private let ffmpeg: FFmpegRunner
     private var task: Task<Void, Never>?
     private var exportTask: Task<Void, Error>?
 
-    init(exporter: VideoExporter = VideoExporter()) {
+    init(exporter: VideoExporter = VideoExporter(), ffmpeg: FFmpegRunner = FFmpegRunner()) {
         self.exporter = exporter
+        self.ffmpeg = ffmpeg
     }
 
     func start(model: AppModel) {
         guard task == nil else { return }
-        let saveToPhotos = shouldSaveToPhotos(model.output.kind)
-        task = Task { await run(model: model, saveToPhotos: saveToPhotos) }
+        task = Task { await run(model: model) }
     }
 
     func cancelCurrentExport() {
+        ffmpeg.cancel()
         exportTask?.cancel()
     }
 
-    private func run(model: AppModel, saveToPhotos: Bool) async {
+    private func run(model: AppModel) async {
         defer {
             task = nil
             exportTask = nil
@@ -42,14 +44,28 @@ final class QueuePump {
                 let outputURL = URL(fileURLWithPath: path)
                 let jobID = current.id
                 let export = Task {
-                    try await exporter.export(
-                        job: current,
-                        outputURL: outputURL,
-                        saveToPhotos: saveToPhotos
-                    ) { progress in
-                        Task { @MainActor in
-                            model.updateProgress(id: jobID, progress: progress)
+                    switch engineKind(current.config.preset) {
+                    case .avFoundation:
+                        try await exporter.export(
+                            job: current,
+                            outputURL: outputURL,
+                            saveToPhotos: shouldSaveToPhotos(current.outputKind)
+                        ) { progress in
+                            Task { @MainActor in
+                                model.updateProgress(id: jobID, progress: progress)
+                            }
                         }
+                    case .ffmpeg:
+                        try await ffmpeg.run(job: current) { progress in
+                            Task { @MainActor in
+                                model.updateProgress(id: jobID, progress: progress)
+                            }
+                        }
+                        if shouldSaveToPhotos(current.outputKind) {
+                            try await saveVideoToPhotos(outputURL)
+                        }
+                    case .document:
+                        break
                     }
                 }
                 exportTask = export
