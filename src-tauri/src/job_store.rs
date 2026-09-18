@@ -6,15 +6,26 @@ pub fn jobs_file(config_dir: &Path) -> PathBuf {
     config_dir.join("jobs.json")
 }
 
+fn quarantine_jobs_file(path: &Path) {
+    let bad_path = path.with_file_name("jobs.json.bad");
+    let _ = std::fs::rename(path, &bad_path);
+}
+
 pub fn load_jobs(path: &Path) -> Vec<Job> {
-    let Ok(text) = std::fs::read_to_string(path) else {
+    if !path.exists() {
         return vec![];
+    }
+    let text = match std::fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(_) => {
+            quarantine_jobs_file(path);
+            return vec![];
+        }
     };
     match serde_json::from_str::<Vec<Job>>(&text) {
         Ok(jobs) => jobs,
         Err(_) => {
-            let bad_path = path.with_file_name("jobs.json.bad");
-            let _ = std::fs::rename(path, &bad_path);
+            quarantine_jobs_file(path);
             vec![]
         }
     }
@@ -106,6 +117,49 @@ mod tests {
         std::fs::write(&path, "{nope").unwrap();
         assert!(load_jobs(&path).is_empty());
         assert!(dir.join("jobs.json.bad").exists() || !path.exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_file_is_quarantined_not_replaced() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = std::env::temp_dir().join(format!(
+            "lt-jobs-unreadable-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = jobs_file(&dir);
+        let original = r#"[{"id":"keep-me"}]"#;
+        std::fs::write(&path, original).unwrap();
+
+        let mut perms = std::fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o000);
+        std::fs::set_permissions(&path, perms).unwrap();
+
+        let loaded = load_jobs(&path);
+        assert!(loaded.is_empty());
+
+        let bad = dir.join("jobs.json.bad");
+        assert!(
+            bad.exists(),
+            "unreadable jobs.json should be quarantined to jobs.json.bad"
+        );
+        assert!(
+            !path.exists(),
+            "quarantine must move the original instead of leaving it to be overwritten"
+        );
+
+        let mut restore = std::fs::metadata(&bad).unwrap().permissions();
+        restore.set_mode(0o644);
+        std::fs::set_permissions(&bad, restore).unwrap();
+        assert_eq!(std::fs::read_to_string(&bad).unwrap(), original);
+
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

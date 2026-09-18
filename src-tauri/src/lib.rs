@@ -406,9 +406,9 @@ fn rename_job(
     raw_name: String,
 ) -> Result<(), String> {
     let stem = sanitized_rename_stem(&raw_name).ok_or_else(|| "文件名不能为空".to_string())?;
-    {
-        let mut jobs = lock_err(state.jobs.lock())?;
-        let Some(job) = jobs.iter_mut().find(|job| job.id == id) else {
+    let (current_path, dest, dest_str, display_name) = {
+        let jobs = lock_err(state.jobs.lock())?;
+        let Some(job) = jobs.iter().find(|job| job.id == id) else {
             return Err("找不到该任务".into());
         };
         if job.status != JobStatus::Completed {
@@ -429,15 +429,22 @@ fn rename_job(
         let dest = allocate_output_path(parent, &stem, ext, |path| {
             path.exists() && path != current_path.as_path()
         });
-        if dest != current_path {
-            std::fs::rename(&current_path, &dest).map_err(|err| format!("无法重命名：{err}"))?;
-        }
         let dest_str = dest.to_string_lossy().to_string();
         let display_name = dest
             .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or(&dest_str)
             .to_string();
+        (current_path, dest, dest_str, display_name)
+    };
+    if dest != current_path {
+        std::fs::rename(&current_path, &dest).map_err(|err| format!("无法重命名：{err}"))?;
+    }
+    {
+        let mut jobs = lock_err(state.jobs.lock())?;
+        let Some(job) = jobs.iter_mut().find(|job| job.id == id) else {
+            return Err("找不到该任务".into());
+        };
         job.output_path = Some(dest_str.clone());
         if job.output_paths.is_empty() {
             job.output_paths.push(dest_str);
