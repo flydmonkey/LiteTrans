@@ -15,12 +15,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.videoconverter.android.ui.theme.ShapeTokens
@@ -193,37 +190,3 @@ fun AppGlyphIcon(
         }
     }
 }
-
-private var convertTabIcon: ImageVector? = null
-
-val ConvertTabIcon: ImageVector
-    get() {
-        convertTabIcon?.let { return it }
-        convertTabIcon = ImageVector.Builder(
-            name = "Convert",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f,
-        ).apply {
-            path(fill = SolidColor(Color.Black)) {
-                moveTo(20f, 8f)
-                lineToRelative(-4f, -4f)
-                verticalLineToRelative(3f)
-                horizontalLineTo(5f)
-                verticalLineToRelative(2f)
-                horizontalLineToRelative(11f)
-                verticalLineToRelative(3f)
-                close()
-                moveTo(4f, 16f)
-                lineToRelative(4f, 4f)
-                verticalLineToRelative(-3f)
-                horizontalLineToRelative(11f)
-                verticalLineToRelative(-2f)
-                horizontalLineTo(8f)
-                verticalLineToRelative(-3f)
-                close()
-            }
-        }.build()
-        return convertTabIcon!!
-    }
