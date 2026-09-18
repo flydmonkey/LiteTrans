@@ -80,7 +80,12 @@ public struct PresetCard: Equatable, Sendable {
     }
 }
 
-public let primaryPresetIDs = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"]
+public let videoConcatPresetID = "video-concat"
+public let videoConcatMaxSources = 20
+public let primaryPresetIDs = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264", videoConcatPresetID]
+private let avFoundationPresetIDs = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"]
+
+public func isVideoConcatPreset(_ preset: String) -> Bool { preset == videoConcatPresetID }
 
 public func collapsedPrimaryPresets() -> [PresetCard] {
     [
@@ -88,12 +93,15 @@ public func collapsedPrimaryPresets() -> [PresetCard] {
         .init(id: "mp4-copy", title: "MP4 · Remux", hintKey: "preset_mp4_copy_desc"),
         .init(id: "mp4-h265", title: "MP4 · H.265", hintKey: "preset_mp4_h265_desc"),
         .init(id: "mov-h264", title: "MOV · H.264", hintKey: "preset_mov_h264_desc"),
+        .init(id: videoConcatPresetID, title: "Merge", hintKey: "preset_video_concat_desc", titleKey: "preset_video_concat_title"),
     ]
 }
 
 public func isCopyPreset(_ preset: String) -> Bool { preset == "mp4-copy" }
 
-public func allowsTrim(preset: String) -> Bool { !isCopyPreset(preset) }
+public func allowsTrim(preset: String) -> Bool {
+    !isCopyPreset(preset) && !isVideoConcatPreset(preset)
+}
 
 public func usesPersistentSandboxOutput(_ kind: OutputKind) -> Bool {
     kind == .photos || kind == .downloads || kind == .documents
@@ -110,7 +118,7 @@ public func shouldShowQualityRow(_ preset: String) -> Bool {
 }
 
 public func shouldShowResolution(_ preset: String) -> Bool {
-    !preset.hasPrefix("audio-") && preset != "mp4-copy" && !isDocumentPreset(preset)
+    !preset.hasPrefix("audio-") && preset != "mp4-copy" && !isDocumentPreset(preset) && !isVideoConcatPreset(preset)
 }
 
 public func convertSettingsFor(preset: String) -> [ConvertSetting] {
@@ -137,7 +145,26 @@ public func shouldApplyJobProgress(_ status: JobStatus) -> Bool {
 }
 
 public func canStart(importable: Int, probing: Bool, transcoding: Bool, output: OutputTarget) -> Bool {
-    importable > 0 && !probing && !transcoding && outputReadyToStart(output)
+    canStart(importable: importable, probing: probing, transcoding: transcoding, output: output, preset: defaultPreset, sourceCount: importable)
+}
+
+public func canStart(
+    importable: Int,
+    probing: Bool,
+    transcoding: Bool,
+    output: OutputTarget,
+    preset: String,
+    sourceCount: Int
+) -> Bool {
+    let minimum = isVideoConcatPreset(preset) ? 2 : 1
+    let maximum = isVideoConcatPreset(preset) ? videoConcatMaxSources : Int.max
+    let noRejects = !isVideoConcatPreset(preset) || importable == sourceCount
+    return importable >= minimum
+        && importable <= maximum
+        && noRejects
+        && !probing
+        && !transcoding
+        && outputReadyToStart(output)
 }
 
 public func popConvertBack(_ page: ConvertPage) -> ConvertPage? {
@@ -271,7 +298,7 @@ private let audioPresetIDs = ["audio-mp3", "audio-aac", "audio-wav", "audio-flac
 private let audioHistoryContainers: Set<String> = ["mp3", "m4a", "wav", "ogg", "flac", "amr"]
 
 public func engineKind(_ preset: String) -> EngineKind {
-    if primaryPresetIDs.contains(preset) { return .avFoundation }
+    if avFoundationPresetIDs.contains(preset) { return .avFoundation }
     if isDocumentPreset(preset) { return .document }
     return .ffmpeg
 }
