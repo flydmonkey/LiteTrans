@@ -32,6 +32,16 @@ targets:
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.videoconverter.ios.process
+        UIBackgroundModes:
+          - processing
+        CFBundleURLTypes:
+          - CFBundleURLName: com.videoconverter.ios
+            CFBundleURLSchemes:
+              - litetrans
         CFBundleLocalizations:
           - en
           - zh-Hans
@@ -45,6 +55,12 @@ targets:
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
     dependencies:
+      - target: LiteTransActivityKit
+        embed: true
+        codeSign: true
+      - target: LiteTransLiveActivity
+        embed: true
+        codeSign: true
       - framework: Vendor/FFmpeg/ffmpegkit.xcframework
         embed: true
         codeSign: true
@@ -72,6 +88,48 @@ targets:
     scheme:
       testTargets:
         - LiteTransTests
+  LiteTransActivityKit:
+    type: framework
+    platform: iOS
+    sources:
+      - LiteTransActivityKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios.activitykit
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        GENERATE_INFOPLIST_FILE: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+  LiteTransLiveActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - LiteTransLiveActivity
+    resources:
+      - LiteTrans/Resources/Localizable.xcstrings
+    info:
+      path: LiteTransLiveActivity/Info.plist
+      properties:
+        CFBundleDisplayName: LiteTrans
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "3"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.videoconverter.ios.LiveActivity
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        GENERATE_INFOPLIST_FILE: NO
+        APPLICATION_EXTENSION_API_ONLY: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    dependencies:
+      - target: LiteTransActivityKit
+    scheme:
+      gatherCoverageData: false
   LiteTransTests:
     type: bundle.unit-test
     platform: iOS

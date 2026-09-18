@@ -8,10 +8,15 @@
 
 /* Begin PBXBuildFile section */
 		08108CA8C37ABD5D702DE3E0 /* DocumentEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA268E9E522EC298CD843AC /* DocumentEngine.swift */; };
+		0B14E71679D83AC699767C3A /* LiteTransActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6F2A57E6B768F23326BC15A /* LiteTransActivityKit.framework */; };
 		1121F651A18393E056D9E28E /* libavformat.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A26552228C498551B112105B /* libavformat.xcframework */; };
+		115FBAE97933F68EDA310A00 /* LiteTransLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B231DFB7A98456FE6FA0204E /* LiteTransLiveActivity.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1BFFEDEA7F3F43F0A2D167B5 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78DAAAC8BEC8725FCCD9F249 /* LocalizationTests.swift */; };
 		1E6C1922AEAB1A0CC7008A41 /* QueuePump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649853812F4A7AFB103E5865 /* QueuePump.swift */; };
+		1F5A48B9688B96D5C329F796 /* BackgroundProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7019577E8480BE1A42EE87E /* BackgroundProcessing.swift */; };
+		2537D4296E0AAC2F95A88E06 /* LiteTransLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D6C5BC6F0421485FDEDCDBA /* LiteTransLiveActivityBundle.swift */; };
 		2EC777D78F2A0633D517E964 /* LanShareStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD697DE596EB2BD8C1E453C0 /* LanShareStoreTests.swift */; };
+		3544EAF0046E5E2BCC0D51B0 /* LiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B5BE3984367E7E941A88A1 /* LiveActivity.swift */; };
 		35EACD9AB0DA81183FDC5130 /* RootTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89CBDE919B7F71B0A79E775 /* RootTabTests.swift */; };
 		37EAD7EDC58FF278BFB02A5E /* VideoExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 323EA2195BE1E67A612A8329 /* VideoExporter.swift */; };
 		390DEAA9D3311D53FEF0E67B /* libswresample.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0E212F731FD70A3698A29A44 /* libswresample.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -26,8 +31,10 @@
 		6BBEC8630504BE21E60953C2 /* libavutil.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7E19011C027DBA528DF8CD7F /* libavutil.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7004919D069AAF8652B024B3 /* LanMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7231C4CA8E91BD3BB531FB73 /* LanMedia.swift */; };
 		705C0BED4BDF8DB281340D29 /* Progress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD8209150E98AAD72ECE2FE /* Progress.swift */; };
+		723C0BE7B71BD12D4F20F6B9 /* ConvertActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 687091090D8DF8DC5FB1742A /* ConvertActivityAttributes.swift */; };
 		7783A142A273E108A2A3660E /* ffmpegkit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C070567FA01DE13AD0B66242 /* ffmpegkit.xcframework */; };
 		7BE19849568956D6C0DC823C /* libavdevice.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B63CAAE452A34FD3E88E0D6 /* libavdevice.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7D2D243DE88EAAC2B5D967E6 /* ConvertLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25D49F644B2CAB33BFCC1B1E /* ConvertLiveActivityWidget.swift */; };
 		7EB743FC3605DB0AD2615021 /* LanHistoryPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18E4C39D5BA595C7976BDFB8 /* LanHistoryPage.swift */; };
 		7F7F4F958B954E1987F7C703 /* libswscale.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6E76AF098843FC66F3169DEA /* libswscale.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		805B87A1CFAF32772B6FF29A /* libswresample.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E212F731FD70A3698A29A44 /* libswresample.xcframework */; };
@@ -37,18 +44,21 @@
 		8689E96CB8EABEE7CB1B36A3 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438F0538358FDF4B223E1FE1 /* HistoryView.swift */; };
 		878A7B2117F314EE86BC0E25 /* ffmpegkit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C070567FA01DE13AD0B66242 /* ffmpegkit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		87AF12E43DAB2C26A085CBEB /* ConvertHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98630E3AD2AE3D908BAFC718 /* ConvertHomeView.swift */; };
+		8D33F3D031945C7D1F5C5883 /* CancelConvertIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BE37CE2FEDE518E37E48037 /* CancelConvertIntent.swift */; };
 		8E36E051B974C0DA9FF779E5 /* LanLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B1C38AFCBE388E14054DF2 /* LanLibrary.swift */; };
 		923EA6576EFE61C7F2734A48 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B12DC144713D4CD33997EBBC /* Localizable.xcstrings */; };
 		95507C759724AADED508BF4A /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B9D7EFA792D618E6AF0F72 /* SessionStoreTests.swift */; };
 		97E5F0476977D9F8CF0CF842 /* RootLargeTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504AAEAA8C3793A365F04026 /* RootLargeTitle.swift */; };
 		98AF9C9B920AB1F758B7E20B /* LanShareStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5404FFBF5B698BAC0C69AECA /* LanShareStore.swift */; };
 		99AEBFEF60DAB3B6CC322FE5 /* libavutil.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E19011C027DBA528DF8CD7F /* libavutil.xcframework */; };
+		9F0915F4E191F10917816DD5 /* LiteTransActivityKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B6F2A57E6B768F23326BC15A /* LiteTransActivityKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A142A3204061E4E444A027BF /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B5527E8CED5BC0FBEAA8487 /* Theme.swift */; };
 		A1860FF6621512135945F1B6 /* ConvertNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53177D416925D7B8B98C820D /* ConvertNavigation.swift */; };
 		A57B2CFA514208F29288AD04 /* libswscale.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E76AF098843FC66F3169DEA /* libswscale.xcframework */; };
 		A99905DB388EC3B3D0245A28 /* LanShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EC6ADD57EE05CDD9573AE0B /* LanShare.swift */; };
 		AFC0F33F7404227EC91B1B32 /* LanShareServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DA1EA160A7B4F27032CCDEE /* LanShareServer.swift */; };
 		B244675E10EF643A34A6C839 /* JobStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C07CA3F7FFB92B3FCD37571 /* JobStore.swift */; };
+		BE1FF1A36D9FC8AAD6331004 /* LiteTransActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6F2A57E6B768F23326BC15A /* LiteTransActivityKit.framework */; };
 		CCBB825CA3723FD442728C2A /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BF55720EDB615BF022B3E03 /* AppModel.swift */; };
 		CD09D654E6F9319D38C27363 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8FBC17CC404972191A2A3347 /* Assets.xcassets */; };
 		CDDDA96EFF072D21BE736F6D /* FfmpegArgs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3349D7AFC2DF38CCDE32A073 /* FfmpegArgs.swift */; };
@@ -77,6 +87,27 @@
 			remoteGlobalIDString = 4502DA024E5B3AF700F3B9E1;
 			remoteInfo = LiteTrans;
 		};
+		4E7AD7E2515D9085B8359D15 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 397C68EE4C50B7D414DCDA54 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B9111E8EC8AD6E855D7D17FE;
+			remoteInfo = LiteTransLiveActivity;
+		};
+		5DC9F6C194B1540AC0FBBEDF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 397C68EE4C50B7D414DCDA54 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BD53F5DF3687CFC1827811C3;
+			remoteInfo = LiteTransActivityKit;
+		};
+		A467A01736B6CCF9714010B5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 397C68EE4C50B7D414DCDA54 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BD53F5DF3687CFC1827811C3;
+			remoteInfo = LiteTransActivityKit;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -86,6 +117,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				9F0915F4E191F10917816DD5 /* LiteTransActivityKit.framework in Embed Frameworks */,
 				878A7B2117F314EE86BC0E25 /* ffmpegkit.xcframework in Embed Frameworks */,
 				F7E4F1884BD57F80548D88F4 /* libavcodec.xcframework in Embed Frameworks */,
 				DB8D7986EF831B9871214903 /* libavformat.xcframework in Embed Frameworks */,
@@ -98,6 +130,17 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C830560C4E21666BF5F6368D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				115FBAE97933F68EDA310A00 /* LiteTransLiveActivity.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -106,10 +149,13 @@
 		18E4C39D5BA595C7976BDFB8 /* LanHistoryPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanHistoryPage.swift; sourceTree = "<group>"; };
 		1BF55720EDB615BF022B3E03 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		2156F0B7C9EB4E762BAC090C /* JobRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRow.swift; sourceTree = "<group>"; };
+		25D49F644B2CAB33BFCC1B1E /* ConvertLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertLiveActivityWidget.swift; sourceTree = "<group>"; };
 		2B5527E8CED5BC0FBEAA8487 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		2BE37CE2FEDE518E37E48037 /* CancelConvertIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancelConvertIntent.swift; sourceTree = "<group>"; };
 		31457203F12B09B74BD7643E /* ProbeParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeParser.swift; sourceTree = "<group>"; };
 		323EA2195BE1E67A612A8329 /* VideoExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoExporter.swift; sourceTree = "<group>"; };
 		3349D7AFC2DF38CCDE32A073 /* FfmpegArgs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FfmpegArgs.swift; sourceTree = "<group>"; };
+		34B5BE3984367E7E941A88A1 /* LiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivity.swift; sourceTree = "<group>"; };
 		3D6EFB5057E109D9C167BD8A /* Presets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Presets.swift; sourceTree = "<group>"; };
 		3E30A92DBC131C30ECEF1A23 /* libavfilter.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libavfilter.xcframework; path = Vendor/FFmpeg/libavfilter.xcframework; sourceTree = "<group>"; };
 		438F0538358FDF4B223E1FE1 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
@@ -122,6 +168,8 @@
 		5EC6ADD57EE05CDD9573AE0B /* LanShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanShare.swift; sourceTree = "<group>"; };
 		6186922C3EF56B1844D77649 /* Validate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Validate.swift; sourceTree = "<group>"; };
 		649853812F4A7AFB103E5865 /* QueuePump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuePump.swift; sourceTree = "<group>"; };
+		687091090D8DF8DC5FB1742A /* ConvertActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertActivityAttributes.swift; sourceTree = "<group>"; };
+		688FBE27C1241508A766A120 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		69B9D7EFA792D618E6AF0F72 /* SessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStoreTests.swift; sourceTree = "<group>"; };
 		6CFC99B15435DF9AA8824ACE /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		6DF31B1EED0DA21AB9158C44 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
@@ -134,6 +182,7 @@
 		7CB07C96BA9578C2CB2149DB /* Trim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trim.swift; sourceTree = "<group>"; };
 		7E19011C027DBA528DF8CD7F /* libavutil.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libavutil.xcframework; path = Vendor/FFmpeg/libavutil.xcframework; sourceTree = "<group>"; };
 		8805C9FD8CFDA0930ADC9631 /* FFmpegRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FFmpegRunner.swift; sourceTree = "<group>"; };
+		8D6C5BC6F0421485FDEDCDBA /* LiteTransLiveActivityBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiteTransLiveActivityBundle.swift; sourceTree = "<group>"; };
 		8DA89A876D36BEEFADD874DE /* ExportPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportPreset.swift; sourceTree = "<group>"; };
 		8FBC17CC404972191A2A3347 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		98630E3AD2AE3D908BAFC718 /* ConvertHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertHomeView.swift; sourceTree = "<group>"; };
@@ -143,10 +192,13 @@
 		B0CDEC2DEDFA2E1CC38309A3 /* RootSegmentedPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootSegmentedPicker.swift; sourceTree = "<group>"; };
 		B12DC144713D4CD33997EBBC /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B1B1C38AFCBE388E14054DF2 /* LanLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanLibrary.swift; sourceTree = "<group>"; };
+		B231DFB7A98456FE6FA0204E /* LiteTransLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LiteTransLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B3829401B1B84DEB75DADFE7 /* FfmpegCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FfmpegCodec.swift; sourceTree = "<group>"; };
 		B5D2BB4585D6674D04CCB4F2 /* MineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MineView.swift; sourceTree = "<group>"; };
+		B6F2A57E6B768F23326BC15A /* LiteTransActivityKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LiteTransActivityKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD525B2FA107C96DEAB166C5 /* ConvertSettingsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertSettingsViews.swift; sourceTree = "<group>"; };
 		C070567FA01DE13AD0B66242 /* ffmpegkit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = ffmpegkit.xcframework; path = Vendor/FFmpeg/ffmpegkit.xcframework; sourceTree = "<group>"; };
+		C7019577E8480BE1A42EE87E /* BackgroundProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundProcessing.swift; sourceTree = "<group>"; };
 		CA7B3BDF67B7FF488FF98D81 /* LiteTransTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LiteTransTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB6A5778D22766C5522FCC42 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		D493963E185A66CA597C9F18 /* LiteTransApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiteTransApp.swift; sourceTree = "<group>"; };
@@ -159,10 +211,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		4551B417EEC791B11B255135 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE1FF1A36D9FC8AAD6331004 /* LiteTransActivityKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D9EFBF95AF502C5CE27CAC39 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0B14E71679D83AC699767C3A /* LiteTransActivityKit.framework in Frameworks */,
 				7783A142A273E108A2A3660E /* ffmpegkit.xcframework in Frameworks */,
 				8582D808DC928350667CA6B5 /* libavcodec.xcframework in Frameworks */,
 				1121F651A18393E056D9E28E /* libavformat.xcframework in Frameworks */,
@@ -193,6 +254,7 @@
 		5833386EE8F0F0793DFBE6FA /* Domain */ = {
 			isa = PBXGroup;
 			children = (
+				C7019577E8480BE1A42EE87E /* BackgroundProcessing.swift */,
 				53177D416925D7B8B98C820D /* ConvertNavigation.swift */,
 				D6982BE104BDEA5E62C33A98 /* Document.swift */,
 				8DA89A876D36BEEFADD874DE /* ExportPreset.swift */,
@@ -202,6 +264,7 @@
 				B1B1C38AFCBE388E14054DF2 /* LanLibrary.swift */,
 				7231C4CA8E91BD3BB531FB73 /* LanMedia.swift */,
 				5EC6ADD57EE05CDD9573AE0B /* LanShare.swift */,
+				34B5BE3984367E7E941A88A1 /* LiveActivity.swift */,
 				CB6A5778D22766C5522FCC42 /* Models.swift */,
 				465D69B8A0C532097CBDD256 /* Naming.swift */,
 				3D6EFB5057E109D9C167BD8A /* Presets.swift */,
@@ -246,6 +309,8 @@
 			isa = PBXGroup;
 			children = (
 				D7423A294D7375092B5DFDD7 /* LiteTrans */,
+				E79AB3BE7601D52E9539526C /* LiteTransActivityKit */,
+				D82C79D954F757BC95F6F690 /* LiteTransLiveActivity */,
 				87B59E883839BBC72231C584 /* LiteTransTests */,
 				B631E7D9016DDB49DD323119 /* Frameworks */,
 				F37A19B39626E4DF6D05E093 /* Products */,
@@ -309,10 +374,31 @@
 			path = LiteTrans;
 			sourceTree = "<group>";
 		};
+		D82C79D954F757BC95F6F690 /* LiteTransLiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				25D49F644B2CAB33BFCC1B1E /* ConvertLiveActivityWidget.swift */,
+				688FBE27C1241508A766A120 /* Info.plist */,
+				8D6C5BC6F0421485FDEDCDBA /* LiteTransLiveActivityBundle.swift */,
+			);
+			path = LiteTransLiveActivity;
+			sourceTree = "<group>";
+		};
+		E79AB3BE7601D52E9539526C /* LiteTransActivityKit */ = {
+			isa = PBXGroup;
+			children = (
+				2BE37CE2FEDE518E37E48037 /* CancelConvertIntent.swift */,
+				687091090D8DF8DC5FB1742A /* ConvertActivityAttributes.swift */,
+			);
+			path = LiteTransActivityKit;
+			sourceTree = "<group>";
+		};
 		F37A19B39626E4DF6D05E093 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				DE3853C67BE1C51F5877CC8D /* LiteTrans.app */,
+				B6F2A57E6B768F23326BC15A /* LiteTransActivityKit.framework */,
+				B231DFB7A98456FE6FA0204E /* LiteTransLiveActivity.appex */,
 				CA7B3BDF67B7FF488FF98D81 /* LiteTransTests.xctest */,
 			);
 			name = Products;
@@ -328,11 +414,14 @@
 				1C46CC95EC3E5141B349A899 /* Sources */,
 				5FB51B1D6DF563C1ECD77B42 /* Resources */,
 				D9EFBF95AF502C5CE27CAC39 /* Frameworks */,
+				C830560C4E21666BF5F6368D /* Embed Foundation Extensions */,
 				A88AB34ACD56B6FC765D658B /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				9CC05492A6AF1AEB85D1AEB7 /* PBXTargetDependency */,
+				1111085481B1B3622A02B388 /* PBXTargetDependency */,
 			);
 			name = LiteTrans;
 			packageProductDependencies = (
@@ -340,6 +429,42 @@
 			productName = LiteTrans;
 			productReference = DE3853C67BE1C51F5877CC8D /* LiteTrans.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B9111E8EC8AD6E855D7D17FE /* LiteTransLiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 69B43088A7B5CEAD2417757D /* Build configuration list for PBXNativeTarget "LiteTransLiveActivity" */;
+			buildPhases = (
+				829E87FA48688B100B2B9BDC /* Sources */,
+				4551B417EEC791B11B255135 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				62D6C48E0B3C934326A456D8 /* PBXTargetDependency */,
+			);
+			name = LiteTransLiveActivity;
+			packageProductDependencies = (
+			);
+			productName = LiteTransLiveActivity;
+			productReference = B231DFB7A98456FE6FA0204E /* LiteTransLiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		BD53F5DF3687CFC1827811C3 /* LiteTransActivityKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E5CE85ECA3CEF10201340E6D /* Build configuration list for PBXNativeTarget "LiteTransActivityKit" */;
+			buildPhases = (
+				698902A11D1ADD0A99998CDA /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LiteTransActivityKit;
+			packageProductDependencies = (
+			);
+			productName = LiteTransActivityKit;
+			productReference = B6F2A57E6B768F23326BC15A /* LiteTransActivityKit.framework */;
+			productType = "com.apple.product-type.framework";
 		};
 		CA60B05F11FCDCE1D0E18FBE /* LiteTransTests */ = {
 			isa = PBXNativeTarget;
@@ -389,6 +514,8 @@
 			projectRoot = "";
 			targets = (
 				4502DA024E5B3AF700F3B9E1 /* LiteTrans */,
+				BD53F5DF3687CFC1827811C3 /* LiteTransActivityKit */,
+				B9111E8EC8AD6E855D7D17FE /* LiteTransLiveActivity */,
 				CA60B05F11FCDCE1D0E18FBE /* LiteTransTests */,
 			);
 		};
@@ -412,6 +539,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CCBB825CA3723FD442728C2A /* AppModel.swift in Sources */,
+				1F5A48B9688B96D5C329F796 /* BackgroundProcessing.swift in Sources */,
 				87AF12E43DAB2C26A085CBEB /* ConvertHomeView.swift in Sources */,
 				A1860FF6621512135945F1B6 /* ConvertNavigation.swift in Sources */,
 				E68CCD4841A993D3257BEE9B /* ConvertSettingsViews.swift in Sources */,
@@ -431,6 +559,7 @@
 				AFC0F33F7404227EC91B1B32 /* LanShareServer.swift in Sources */,
 				98AF9C9B920AB1F758B7E20B /* LanShareStore.swift in Sources */,
 				6820A862DE083CB36C5C7C05 /* LiteTransApp.swift in Sources */,
+				3544EAF0046E5E2BCC0D51B0 /* LiveActivity.swift in Sources */,
 				CF3899FAA11487612FBAB47B /* Localization.swift in Sources */,
 				CE59B4247C2708FB200DC716 /* MineView.swift in Sources */,
 				8611C48001DC587F51292F54 /* Models.swift in Sources */,
@@ -463,9 +592,42 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		698902A11D1ADD0A99998CDA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8D33F3D031945C7D1F5C5883 /* CancelConvertIntent.swift in Sources */,
+				723C0BE7B71BD12D4F20F6B9 /* ConvertActivityAttributes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		829E87FA48688B100B2B9BDC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D2D243DE88EAAC2B5D967E6 /* ConvertLiveActivityWidget.swift in Sources */,
+				2537D4296E0AAC2F95A88E06 /* LiteTransLiveActivityBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		1111085481B1B3622A02B388 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B9111E8EC8AD6E855D7D17FE /* LiteTransLiveActivity */;
+			targetProxy = 4E7AD7E2515D9085B8359D15 /* PBXContainerItemProxy */;
+		};
+		62D6C48E0B3C934326A456D8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BD53F5DF3687CFC1827811C3 /* LiteTransActivityKit */;
+			targetProxy = A467A01736B6CCF9714010B5 /* PBXContainerItemProxy */;
+		};
+		9CC05492A6AF1AEB85D1AEB7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BD53F5DF3687CFC1827811C3 /* LiteTransActivityKit */;
+			targetProxy = 5DC9F6C194B1540AC0FBBEDF /* PBXContainerItemProxy */;
+		};
 		B49B654C70EBC5DFF4B5E695 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 4502DA024E5B3AF700F3B9E1 /* LiteTrans */;
@@ -474,6 +636,32 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		2231865245A0B8FABE88DCA0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios.activitykit;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
 		26A3241E141BE2A961AD30D8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -538,6 +726,21 @@
 			};
 			name = Debug;
 		};
+		38B267014CF12728CCF41724 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LiteTransLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios.LiveActivity;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		61AA4DD6877336F75260E7B6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -553,6 +756,21 @@
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LiteTrans.app/LiteTrans";
+			};
+			name = Debug;
+		};
+		A2965B9DE45CA44EAE4C941B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LiteTransLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios.LiveActivity;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -675,6 +893,32 @@
 			};
 			name = Release;
 		};
+		FF4D40061805C31D8C566F21 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.videoconverter.ios.activitykit;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -683,6 +927,15 @@
 			buildConfigurations = (
 				26A3241E141BE2A961AD30D8 /* Debug */,
 				FB2880FB3BC817B391397044 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		69B43088A7B5CEAD2417757D /* Build configuration list for PBXNativeTarget "LiteTransLiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A2965B9DE45CA44EAE4C941B /* Debug */,
+				38B267014CF12728CCF41724 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -701,6 +954,15 @@
 			buildConfigurations = (
 				61AA4DD6877336F75260E7B6 /* Debug */,
 				B3F0CD51FDB04416088224B7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E5CE85ECA3CEF10201340E6D /* Build configuration list for PBXNativeTarget "LiteTransActivityKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FF4D40061805C31D8C566F21 /* Debug */,
+				2231865245A0B8FABE88DCA0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
