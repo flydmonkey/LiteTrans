@@ -20,8 +20,7 @@ const LANGUAGE_KEY: Record<AppLanguage, string> = {
 const PRIVACY_URL = "https://flydmonkey.github.io/LiteTrans/docs/privacy.html";
 const TERMS_URL = "https://flydmonkey.github.io/LiteTrans/docs/terms.html";
 
-const NAV_PRIMARY: MinePageId[] = ["language"];
-const NAV_LEGAL: MinePageId[] = ["privacy", "terms", "about"];
+const NAV_GROUPS: MinePageId[][] = [["language"], ["privacy", "terms"], ["about"]];
 
 const NAV_KEY: Record<MinePageId, string> = {
   language: "mine_language",
@@ -67,32 +66,21 @@ export default function MinePage({
     <div className="mine-page">
       <div className="mine-columns">
         <nav className="mine-nav" aria-label={t(locale, "tab_mine")}>
-          <div className="mine-nav-group">
-            {NAV_PRIMARY.map((id) => (
-              <button
-                key={id}
-                type="button"
-                className={minePage === id ? "on" : ""}
-                aria-current={minePage === id ? "page" : undefined}
-                onClick={() => setMinePage(id)}
-              >
-                {t(locale, NAV_KEY[id])}
-              </button>
-            ))}
-          </div>
-          <div className="mine-nav-group">
-            {NAV_LEGAL.map((id) => (
-              <button
-                key={id}
-                type="button"
-                className={minePage === id ? "on" : ""}
-                aria-current={minePage === id ? "page" : undefined}
-                onClick={() => setMinePage(id)}
-              >
-                {t(locale, NAV_KEY[id])}
-              </button>
-            ))}
-          </div>
+          {NAV_GROUPS.map((group) => (
+            <div key={group.join("-")} className="mine-nav-group">
+              {group.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={minePage === id ? "on" : ""}
+                  aria-current={minePage === id ? "page" : undefined}
+                  onClick={() => setMinePage(id)}
+                >
+                  {t(locale, NAV_KEY[id])}
+                </button>
+              ))}
+            </div>
+          ))}
         </nav>
 
         <section className="mine-pane" aria-labelledby="mine-pane-title">
