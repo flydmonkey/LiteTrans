@@ -1,6 +1,7 @@
 mod args;
 mod engine;
 mod history;
+mod job_store;
 mod naming;
 mod presets;
 mod probe;
