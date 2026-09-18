@@ -112,6 +112,13 @@ public struct OutputConfig: Equatable, Sendable, Codable {
     public var quality: String?
     public var trimStartSecs: Double?
     public var trimEndSecs: Double?
+    public var concatSourceUris: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case preset, container, videoEncoder, maxWidth, maxHeight, videoBitrateKbps, frameRate
+        case audioEncoder, audioBitrateKbps, keepAudio, quality, trimStartSecs, trimEndSecs
+        case concatSourceUris
+    }
 
     public init(
         preset: String = defaultPreset,
@@ -126,7 +133,8 @@ public struct OutputConfig: Equatable, Sendable, Codable {
         keepAudio: Bool? = nil,
         quality: String? = nil,
         trimStartSecs: Double? = nil,
-        trimEndSecs: Double? = nil
+        trimEndSecs: Double? = nil,
+        concatSourceUris: [String] = []
     ) {
         self.preset = preset
         self.container = container
@@ -141,6 +149,25 @@ public struct OutputConfig: Equatable, Sendable, Codable {
         self.quality = quality
         self.trimStartSecs = trimStartSecs
         self.trimEndSecs = trimEndSecs
+        self.concatSourceUris = concatSourceUris
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        preset = try container.decode(String.self, forKey: .preset)
+        self.container = try container.decodeIfPresent(String.self, forKey: .container)
+        videoEncoder = try container.decodeIfPresent(String.self, forKey: .videoEncoder)
+        maxWidth = try container.decodeIfPresent(Int.self, forKey: .maxWidth)
+        maxHeight = try container.decodeIfPresent(Int.self, forKey: .maxHeight)
+        videoBitrateKbps = try container.decodeIfPresent(Int.self, forKey: .videoBitrateKbps)
+        frameRate = try container.decodeIfPresent(Double.self, forKey: .frameRate)
+        audioEncoder = try container.decodeIfPresent(String.self, forKey: .audioEncoder)
+        audioBitrateKbps = try container.decodeIfPresent(Int.self, forKey: .audioBitrateKbps)
+        keepAudio = try container.decodeIfPresent(Bool.self, forKey: .keepAudio)
+        quality = try container.decodeIfPresent(String.self, forKey: .quality)
+        trimStartSecs = try container.decodeIfPresent(Double.self, forKey: .trimStartSecs)
+        trimEndSecs = try container.decodeIfPresent(Double.self, forKey: .trimEndSecs)
+        concatSourceUris = try container.decodeIfPresent([String].self, forKey: .concatSourceUris) ?? []
     }
 }
 
@@ -210,10 +237,11 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
     public var outputPaths: [String]
     public var outputKind: OutputKind
     public var createdAtEpochMs: Int64?
+    public var concatMedias: [MediaInfo]
 
     enum CodingKeys: String, CodingKey {
         case id, sourceUri, displayName, outputPath, status, progress, error, config, media
-        case outputPaths, outputKind, createdAtEpochMs
+        case outputPaths, outputKind, createdAtEpochMs, concatMedias
     }
 
     public init(
@@ -228,7 +256,8 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
         media: MediaInfo,
         outputPaths: [String] = [],
         outputKind: OutputKind = .downloads,
-        createdAtEpochMs: Int64? = nil
+        createdAtEpochMs: Int64? = nil,
+        concatMedias: [MediaInfo] = []
     ) {
         self.id = id
         self.sourceUri = sourceUri
@@ -242,6 +271,7 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
         self.outputPaths = outputPaths
         self.outputKind = outputKind
         self.createdAtEpochMs = createdAtEpochMs
+        self.concatMedias = concatMedias
     }
 
     public init(from decoder: Decoder) throws {
@@ -258,6 +288,7 @@ public struct Job: Equatable, Sendable, Identifiable, Codable {
         outputPaths = try container.decodeIfPresent([String].self, forKey: .outputPaths) ?? []
         outputKind = try container.decodeIfPresent(OutputKind.self, forKey: .outputKind) ?? .downloads
         createdAtEpochMs = try container.decodeIfPresent(Int64.self, forKey: .createdAtEpochMs)
+        concatMedias = try container.decodeIfPresent([MediaInfo].self, forKey: .concatMedias) ?? []
     }
 }
 

@@ -41,7 +41,7 @@ class StringsResourceTest {
     fun requiredCatalogMatchesBrief() {
         val zh = zhCn()
         val expected = listOf(
-            Triple(R.string.app_name, "LiteTrans", "轻转码"),
+            Triple(R.string.app_name, "LiteTrans", "LiteTrans"),
             Triple(R.string.tab_convert, "Transcode", "转码"),
             Triple(R.string.tab_transcode, "Video", "视频转码"),
             Triple(R.string.tab_audio, "Audio", "音频转换"),
@@ -413,8 +413,8 @@ class StringsResourceTest {
         assertTrue(twFolders.contains("資料夾"))
         assertTrue(twConvert.contains("轉檔"))
 
-        assertEquals("輕轉碼", tw.getString(R.string.app_name))
-        assertEquals("輕轉碼", hk.getString(R.string.app_name))
+        assertEquals("LiteTrans", tw.getString(R.string.app_name))
+        assertEquals("LiteTrans", hk.getString(R.string.app_name))
         assertEquals("LiteTrans", ja.getString(R.string.app_name))
         assertEquals("LiteTrans", ko.getString(R.string.app_name))
         for (ctx in listOf(tw, hk, ja, ko)) {

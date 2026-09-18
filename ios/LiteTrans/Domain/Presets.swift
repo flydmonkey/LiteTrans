@@ -16,6 +16,9 @@ public enum LiteTransError: Error, Equatable, LocalizedError {
     case blankOutputDir
     case cannotTranscode
     case officeNotAvailable
+    case concatNeedsTwo
+    case concatTooMany
+    case concatMissingVideo
 
     public var errorDescription: String? {
         switch self {
@@ -45,6 +48,12 @@ public enum LiteTransError: Error, Equatable, LocalizedError {
             return "Could not convert this file"
         case .officeNotAvailable:
             return "Office conversion is not available yet / Office 转换将在后续版本提供"
+        case .concatNeedsTwo:
+            return "Add at least two videos"
+        case .concatTooMany:
+            return "You can merge up to 20 videos"
+        case .concatMissingVideo:
+            return "Each clip needs a video track"
         }
     }
 }
@@ -101,6 +110,7 @@ public func resolveConfig(_ config: OutputConfig) throws -> ResolvedConfig {
     let defaults: PresetDefaults
     switch preset {
     case "mp4-h264": defaults = .init(container: "mp4", videoEncoder: "h264", audioEncoder: "aac", keepAudio: true)
+    case "video-concat": defaults = .init(container: "mp4", videoEncoder: "h264", audioEncoder: "aac", keepAudio: true)
     case "mp4-h265": defaults = .init(container: "mp4", videoEncoder: "h265", audioEncoder: "aac", keepAudio: true)
     case "mp4-copy": defaults = .init(container: "mp4", videoEncoder: "copy", audioEncoder: "copy", keepAudio: true)
     case "mov-h264": defaults = .init(container: "mov", videoEncoder: "h264", audioEncoder: "aac", keepAudio: true)

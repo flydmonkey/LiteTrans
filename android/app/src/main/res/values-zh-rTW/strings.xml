@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">輕轉碼</string>
+    <string name="app_name">LiteTrans</string>
     <string name="privacy_capsule">只在本機</string>
     <string name="tab_convert">轉碼</string>
     <string name="tab_transcode">影片轉檔</string>

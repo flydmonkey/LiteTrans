@@ -87,7 +87,20 @@ final class AppModel {
 
     var importableCount: Int { sources.filter(\.importable).count }
     var probing: Bool { sources.contains(where: \.probing) }
-    var startEnabled: Bool { canStart(importable: importableCount, probing: probing, transcoding: transcoding, output: output) }
+    var startEnabled: Bool {
+        canStart(
+            importable: importableCount,
+            probing: probing,
+            transcoding: transcoding,
+            output: output,
+            preset: preset,
+            sourceCount: sources.count
+        )
+    }
+
+    func moveSources(from offsets: IndexSet, to destination: Int) {
+        sources.move(fromOffsets: offsets, toOffset: destination)
+    }
 
     private let jobStore: JobStore
     private let sessionStore: SessionStore
@@ -397,7 +410,9 @@ final class AppModel {
         }
         jobs.removeAll { $0.id == job.id }
         persistJobs()
-        deleteOrphanedImport(sourceUri: job.sourceUri)
+        for sourceUri in jobSourceURIs(job) {
+            deleteOrphanedImport(sourceUri: sourceUri)
+        }
     }
 
     func renameJob(_ job: Job, rawName: String) {
@@ -427,7 +442,9 @@ final class AppModel {
         jobs = remaining
         persistJobs()
         for job in removed {
-            deleteOrphanedImport(sourceUri: job.sourceUri)
+            for sourceUri in jobSourceURIs(job) {
+                deleteOrphanedImport(sourceUri: sourceUri)
+            }
         }
     }
 

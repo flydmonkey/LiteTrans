@@ -8,8 +8,31 @@ struct ConvertNavigationTests {
         #expect(convertSettingsFor(preset: "mp4-h264") == [.format, .quality, .size, .output])
     }
 
-    @Test func primaryPresetsAreFour() {
-        #expect(collapsedPrimaryPresets().map(\.id) == ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"])
+    @Test func primaryPresetsIncludeConcat() {
+        #expect(primaryPresetIDs == ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264", "video-concat"])
+        #expect(collapsedPrimaryPresets().map(\.id) == primaryPresetIDs)
+        #expect(collapsedPrimaryPresets().first { $0.id == "video-concat" }?.titleKey == "preset_video_concat_title")
+        #expect(collapsedPrimaryPresets().first { $0.id == "video-concat" }?.hintKey == "preset_video_concat_desc")
+    }
+
+    @Test func concatIsFfmpegWithoutTrimOrResolution() {
+        #expect(engineKind("video-concat") == .ffmpeg)
+        #expect(engineKind("mp4-h264") == .avFoundation)
+        #expect(!allowsTrim(preset: "video-concat"))
+        #expect(!shouldShowResolution("video-concat"))
+        #expect(shouldShowQualityRow("video-concat"))
+        #expect(convertSettingsFor(preset: "video-concat") == [.format, .quality, .output])
+        #expect(outputChoices(mode: .video, preset: "video-concat") == [.photos, .downloads, .custom])
+        #expect(historySegmentAfterEnqueue(mode: .video, preset: "video-concat") == .video)
+    }
+
+    @Test func concatStartNeedsTwoReadyClips() {
+        let ready = OutputTarget(kind: .downloads)
+        #expect(!canStart(importable: 1, probing: false, transcoding: false, output: ready, preset: "video-concat", sourceCount: 1))
+        #expect(canStart(importable: 2, probing: false, transcoding: false, output: ready, preset: "video-concat", sourceCount: 2))
+        #expect(!canStart(importable: 2, probing: false, transcoding: false, output: ready, preset: "video-concat", sourceCount: 3))
+        #expect(!canStart(importable: 21, probing: false, transcoding: false, output: ready, preset: "video-concat", sourceCount: 21))
+        #expect(canStart(importable: 1, probing: false, transcoding: false, output: ready))
     }
 
     @Test func startRequiresImportableReadyOutputAndIdle() {
@@ -134,6 +157,12 @@ struct ConvertNavigationTests {
         #expect(usesPersistentSandboxOutput(.photos))
         #expect(usesPersistentSandboxOutput(.downloads))
         #expect(!usesPersistentSandboxOutput(.custom))
+    }
+
+    @Test func avFoundationPresetIDsExcludeConcat() {
+        #expect(avFoundationPresetIDs == ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"])
+        #expect(!avFoundationPresetIDs.contains("video-concat"))
+        #expect(engineKind("video-concat") == .ffmpeg)
     }
 
     @Test func engineKindSplitsThreeWays() {

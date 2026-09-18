@@ -67,8 +67,12 @@ final class QueuePump {
                                 model.updateProgress(id: jobID, progress: progress)
                             }
                         }
-                        if shouldSaveToPhotos(current.outputKind), current.config.preset == "gif" {
-                            try await saveImageToPhotos(outputURL)
+                        if shouldSaveToPhotos(current.outputKind) {
+                            if current.config.preset == "gif" {
+                                try await saveImageToPhotos(outputURL)
+                            } else if isVideoConcatPreset(current.config.preset) {
+                                try await saveVideoToPhotos(outputURL)
+                            }
                         }
                     case .document:
                         try await documents.run(job: current) { progress in
