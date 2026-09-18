@@ -22,12 +22,14 @@ targets:
       properties:
         CFBundleDisplayName: LiteTrans
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "4"
+        CFBundleVersion: "5"
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSPhotoLibraryAddUsageDescription: LiteTrans saves converted videos to Photos when you choose Photos as the output.
+        NSCameraUsageDescription: LiteTrans does not take photos or record new video. Conversion libraries on this device may reference camera APIs while processing files you pick.
+        NSMicrophoneUsageDescription: LiteTrans does not record new audio with the microphone. Conversion libraries on this device may reference microphone APIs while processing files you pick.
         NSLocalNetworkUsageDescription: LiteTrans serves finished files on your Wi‑Fi so you can open them in a computer browser.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
@@ -101,7 +103,7 @@ targets:
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         GENERATE_INFOPLIST_FILE: YES
         MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "4"
+        CURRENT_PROJECT_VERSION: "5"
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES
   LiteTransLiveActivity:
@@ -116,7 +118,7 @@ targets:
       properties:
         CFBundleDisplayName: LiteTrans
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "4"
+        CFBundleVersion: "5"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

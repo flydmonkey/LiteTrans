@@ -42,13 +42,17 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>4</string>
+	<string>5</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>LiteTrans does not take photos or record new video. Conversion libraries on this device may reference camera APIs while processing files you pick.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>LiteTrans serves finished files on your Wi‑Fi so you can open them in a computer browser.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>LiteTrans does not record new audio with the microphone. Conversion libraries on this device may reference microphone APIs while processing files you pick.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>LiteTrans saves converted videos to Photos when you choose Photos as the output.</string>
 	<key>NSSupportsLiveActivities</key>
