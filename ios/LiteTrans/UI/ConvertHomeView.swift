@@ -71,6 +71,9 @@ struct ConvertHomeView: View {
 
             Section {
                 sourcePickers
+            }
+
+            Section {
                 ForEach(model.sources, id: \.sourceUri) { source in
                     ConvertSourceRow(source: source, selected: model.selectedUri == source.sourceUri)
                         .contentShape(Rectangle())

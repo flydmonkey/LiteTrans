@@ -410,7 +410,9 @@ final class AppModel {
         }
         jobs.removeAll { $0.id == job.id }
         persistJobs()
-        deleteOrphanedImport(sourceUri: job.sourceUri)
+        for sourceUri in jobSourceURIs(job) {
+            deleteOrphanedImport(sourceUri: sourceUri)
+        }
     }
 
     func renameJob(_ job: Job, rawName: String) {
@@ -440,7 +442,9 @@ final class AppModel {
         jobs = remaining
         persistJobs()
         for job in removed {
-            deleteOrphanedImport(sourceUri: job.sourceUri)
+            for sourceUri in jobSourceURIs(job) {
+                deleteOrphanedImport(sourceUri: sourceUri)
+            }
         }
     }
 
