@@ -1,5 +1,6 @@
 mod args;
 mod engine;
+mod history;
 mod naming;
 mod presets;
 mod probe;
@@ -266,6 +267,10 @@ fn enqueue_jobs(
             error: None,
             config: job_config,
             media,
+            display_name: String::new(),
+            output_paths: vec![],
+            created_at_epoch_ms: None,
+            concat_source_paths: vec![],
         });
     }
 

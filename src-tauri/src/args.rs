@@ -462,6 +462,9 @@ mod tests {
             error: None,
             trim_start_secs: None,
             trim_end_secs: None,
+            page_count: None,
+            page_start: None,
+            page_end: None,
         }
     }
 

@@ -18,6 +18,12 @@ pub struct MediaInfo {
     pub trim_start_secs: Option<f64>,
     #[serde(default)]
     pub trim_end_secs: Option<f64>,
+    #[serde(default)]
+    pub page_count: Option<u32>,
+    #[serde(default)]
+    pub page_start: Option<u32>,
+    #[serde(default)]
+    pub page_end: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,6 +66,9 @@ pub fn parse_ffprobe_json(path: &str, json: &str) -> MediaInfo {
             error: Some("无法解析媒体信息".into()),
             trim_start_secs: None,
             trim_end_secs: None,
+            page_count: None,
+            page_start: None,
+            page_end: None,
         },
     }
 }
@@ -92,6 +101,9 @@ fn map_probe(path: &str, probe: ProbeJson) -> MediaInfo {
         },
         trim_start_secs: None,
         trim_end_secs: None,
+        page_count: None,
+        page_start: None,
+        page_end: None,
     }
 }
 
@@ -123,6 +135,9 @@ pub fn unreadable(path: &str, reason: impl Into<String>) -> MediaInfo {
         error: Some(reason.into()),
         trim_start_secs: None,
         trim_end_secs: None,
+        page_count: None,
+        page_start: None,
+        page_end: None,
     }
 }
 

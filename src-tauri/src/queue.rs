@@ -24,6 +24,14 @@ pub struct Job {
     pub error: Option<String>,
     pub config: OutputConfig,
     pub media: MediaInfo,
+    #[serde(default)]
+    pub display_name: String,
+    #[serde(default)]
+    pub output_paths: Vec<String>,
+    #[serde(default)]
+    pub created_at_epoch_ms: Option<i64>,
+    #[serde(default)]
+    pub concat_source_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,6 +95,9 @@ mod tests {
             error: error.map(|s| s.into()),
             trim_start_secs: None,
             trim_end_secs: None,
+            page_count: None,
+            page_start: None,
+            page_end: None,
         }
     }
 
