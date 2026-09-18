@@ -22,7 +22,7 @@ targets:
       properties:
         CFBundleDisplayName: LiteTrans
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "3"
+        CFBundleVersion: "4"
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
@@ -100,6 +100,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         GENERATE_INFOPLIST_FILE: YES
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "4"
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES
   LiteTransLiveActivity:
@@ -114,7 +116,7 @@ targets:
       properties:
         CFBundleDisplayName: LiteTrans
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "3"
+        CFBundleVersion: "4"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
