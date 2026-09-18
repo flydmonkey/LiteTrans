@@ -19,6 +19,7 @@
   "action_collapse": "收起",
   "action_save": "保存",
   "action_pick_files": "选择文件",
+  "action_open_in_browser": "在浏览器中打开",
   "status_queued": "排队中",
   "status_running": "正在转码",
   "status_completed": "已完成",

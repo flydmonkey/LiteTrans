@@ -19,6 +19,7 @@
   "action_collapse": "Show less",
   "action_save": "Save",
   "action_pick_files": "Choose files",
+  "action_open_in_browser": "Open in browser",
   "status_queued": "Queued",
   "status_running": "Converting",
   "status_completed": "Done",

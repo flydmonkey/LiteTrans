@@ -19,6 +19,7 @@
   "action_collapse": "收起",
   "action_save": "儲存",
   "action_pick_files": "選擇檔案",
+  "action_open_in_browser": "在瀏覽器中開啟",
   "status_queued": "排隊中",
   "status_running": "正在轉檔",
   "status_completed": "已完成",

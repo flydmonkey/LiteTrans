@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { listJobs, loadSessionSettings } from "./api";
+import { listJobs, loadSessionSettings, saveSessionSettings } from "./api";
 import ConvertPage from "./ConvertPage";
 import HistoryPage from "./HistoryPage";
+import MinePage, { type MinePageId } from "./MinePage";
 import { historySegmentAfterEnqueue } from "./history";
 import { resolveLocaleTag, t } from "./i18n";
 import type { AppLanguage, HistorySegment, Job } from "./types";
@@ -27,6 +28,8 @@ function asAppLanguage(value: string | null | undefined): AppLanguage {
 export default function App() {
   const [tab, setTab] = useState<Tab>("convert");
   const [historySegment, setHistorySegment] = useState<HistorySegment>("video");
+  const [minePage, setMinePage] = useState<MinePageId>("language");
+  const [language, setLanguage] = useState<AppLanguage>("system");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [locale, setLocale] = useState(() => resolveLocaleTag("system", navigator.language));
   const [notice, setNotice] = useState<string | null>(null);
@@ -39,8 +42,11 @@ export default function App() {
     void (async () => {
       try {
         const saved = await loadSessionSettings();
-        setLocale(resolveLocaleTag(asAppLanguage(saved.language), navigator.language));
+        const next = asAppLanguage(saved.language);
+        setLanguage(next);
+        setLocale(resolveLocaleTag(next, navigator.language));
       } catch {
+        setLanguage("system");
         setLocale(resolveLocaleTag("system", navigator.language));
       }
     })();
@@ -71,6 +77,17 @@ export default function App() {
       void unlistenProgress.then((fn) => fn());
     };
   }, []);
+
+  async function applyLanguage(next: AppLanguage) {
+    try {
+      const current = await loadSessionSettings();
+      await saveSessionSettings({ ...current, language: next });
+    } catch {
+      // Keep convert prefs on disk; still apply the UI language.
+    }
+    setLanguage(next);
+    setLocale(resolveLocaleTag(next, navigator.language));
+  }
 
   return (
     <div className={dragging && tab === "convert" ? "shell dragging" : "shell"}>
@@ -129,7 +146,16 @@ export default function App() {
             onNotice={setNotice}
           />
         ) : null}
-        {tab === "mine" ? <p>{t(locale, "tab_mine")}</p> : null}
+        {tab === "mine" ? (
+          <MinePage
+            locale={locale}
+            language={language}
+            setLanguage={(next) => void applyLanguage(next)}
+            minePage={minePage}
+            setMinePage={setMinePage}
+            onNotice={setNotice}
+          />
+        ) : null}
       </div>
     </div>
   );

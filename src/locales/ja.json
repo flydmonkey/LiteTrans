@@ -19,6 +19,7 @@
   "action_collapse": "閉じる",
   "action_save": "保存",
   "action_pick_files": "ファイルを選択",
+  "action_open_in_browser": "ブラウザで開く",
   "status_queued": "待機中",
   "status_running": "変換中",
   "status_completed": "完了",

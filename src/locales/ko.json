@@ -19,6 +19,7 @@
   "action_collapse": "접기",
   "action_save": "저장",
   "action_pick_files": "파일 선택",
+  "action_open_in_browser": "브라우저에서 열기",
   "status_queued": "대기 중",
   "status_running": "변환 중",
   "status_completed": "완료",

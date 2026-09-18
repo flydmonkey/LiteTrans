@@ -96,10 +96,6 @@ select {
   margin: 16px 16px 0;
 }
 
-.content > p {
-  margin: 20px;
-}
-
 .history-page {
   flex: 1;
   min-height: 0;
@@ -108,6 +104,149 @@ select {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.mine-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mine-columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(168px, 220px) 1fr;
+  gap: 16px;
+  padding: 20px 20px 0;
+  overflow: hidden;
+}
+
+.mine-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.mine-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #e2e2dc;
+  border-radius: 14px;
+}
+
+.mine-nav button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  text-align: left;
+}
+
+.mine-nav button.on {
+  background: #1f2428;
+  color: #f7f7f4;
+}
+
+.mine-pane {
+  min-width: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mine-pane h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.03em;
+}
+
+.mine-pane h1.mine-about-title {
+  font-size: 32px;
+}
+
+.mine-version,
+.mine-pane > p:not(.mine-legal) {
+  margin: 0;
+  color: #5c6460;
+}
+
+.mine-legal {
+  margin: 0;
+  padding: 16px;
+  width: 100%;
+  background: #f7f7f4;
+  border: 1px solid #e4e4de;
+  border-radius: 12px;
+  color: #1f2428;
+  white-space: pre-wrap;
+}
+
+.mine-radios {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.mine-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #f7f7f4;
+  border: 1px solid #e4e4de;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.mine-radio input {
+  accent-color: #c45a2a;
+  margin: 0;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mine-radio.on {
+  background: #1f2428;
+  color: #f7f7f4;
+  border-color: #1f2428;
+}
+
+.mine-radio.on input {
+  accent-color: #e7b56a;
+}
+
+.mine-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px 16px;
+}
+
+.mine-footer strong {
+  font-size: 14px;
+}
+
+.mine-footer > span {
+  color: #5c6460;
+  font-size: 13px;
 }
 
 .history-head {
@@ -800,6 +939,11 @@ button:disabled {
 
   .tune-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mine-columns {
+    grid-template-columns: 1fr;
+    overflow: auto;
   }
 
   .dropzone,
