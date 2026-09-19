@@ -20,12 +20,16 @@ use tauri_plugin_dialog::DialogExt;
 
 use args::validate;
 use concat::{concat_enqueue_report, concat_job};
-use convert::{concat_output_stem, is_video_concat_preset};
+use convert::{
+    allocate_document_output_paths, clamp_page_range, concat_output_stem, is_video_concat_preset,
+};
 use engine::{
     cancel_active, extract_preview_frame, prepare_preview, probe_media, transcode_job,
     ActiveTranscode,
 };
-use history::{mark_interrupted, parse_history_segment, remaining_jobs_after_clear_finished};
+use history::{
+    is_document_preset, mark_interrupted, parse_history_segment, remaining_jobs_after_clear_finished,
+};
 use job_store::{jobs_file, load_jobs, save_jobs};
 use naming::{allocate_output_path, partial_output_path, sanitized_rename_stem, source_stem};
 use presets::{list_presets, resolve_config, OutputConfig, PresetInfo};
@@ -272,41 +276,81 @@ fn enqueue_jobs(
     }
 
     let (accepted, mut skipped) = split_importable(sources);
+    let document = is_document_preset(&resolved.preset);
 
     let mut created = Vec::new();
-    for media in accepted {
-        if let Err(reason) = validate(&resolved, &media) {
+    let mut reserved = std::collections::HashSet::<PathBuf>::new();
+    for mut media in accepted {
+        if !document {
+            if let Err(reason) = validate(&resolved, &media) {
+                skipped.push(SkippedSource {
+                    path: media.path,
+                    reason,
+                });
+                continue;
+            }
+        } else if needs_pdf_page_count(&resolved.preset) && media.page_count.is_none() {
             skipped.push(SkippedSource {
                 path: media.path,
-                reason,
+                reason: "无法读取页数".into(),
             });
             continue;
         }
         let job_config = config_for_source(&config, &media);
         let stem = source_stem(&media.path);
-        let output_path = allocate_output_path(
-            Path::new(&output_dir),
-            &stem,
-            &resolved.extension,
-            path_or_partial_exists,
-        );
-        let output_path_str = output_path.to_string_lossy().to_string();
-        let display_name = output_path
-            .file_name()
+        let exists = |path: &Path| path_or_partial_exists(path) || reserved.contains(path);
+        let output_paths = if document {
+            let pages = media.page_count.unwrap_or(1);
+            let (start, end) = clamp_page_range(
+                media.page_start.unwrap_or(1),
+                media.page_end.unwrap_or(pages),
+                pages,
+            );
+            media.page_start = Some(start);
+            media.page_end = Some(end);
+            allocate_document_output_paths(
+                Path::new(&output_dir),
+                &stem,
+                &resolved.preset,
+                config.container.as_deref(),
+                start,
+                end,
+                exists,
+            )
+        } else {
+            vec![allocate_output_path(
+                Path::new(&output_dir),
+                &stem,
+                &resolved.extension,
+                exists,
+            )]
+        };
+        reserved.extend(output_paths.iter().cloned());
+        let output_path_strs: Vec<String> = output_paths
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect();
+        let output_path_str = output_path_strs
+            .first()
+            .cloned()
+            .unwrap_or_else(|| output_dir.clone());
+        let display_name = output_paths
+            .first()
+            .and_then(|path| path.file_name())
             .and_then(|s| s.to_str())
             .unwrap_or("output")
             .to_string();
         created.push(Job {
             id: format!("job-{}", NEXT_JOB_ID.fetch_add(1, Ordering::Relaxed)),
             source_path: media.path.clone(),
-            output_path: Some(output_path_str.clone()),
+            output_path: Some(output_path_str),
             status: JobStatus::Queued,
             progress: 0.0,
             error: None,
             config: job_config,
             media,
             display_name,
-            output_paths: vec![output_path_str],
+            output_paths: output_path_strs,
             created_at_epoch_ms: Some(now_epoch_ms()),
             concat_source_paths: vec![],
         });
@@ -371,23 +415,45 @@ fn retry_job(app: AppHandle, state: State<AppState>, id: String) -> Result<(), S
             .map(Path::to_path_buf)
             .or(remembered)
             .ok_or_else(|| "没有输出目录".to_string())?;
-        let output_path = allocate_output_path(
-            &output_dir,
-            &stem,
-            &resolved.extension,
-            path_or_partial_exists,
-        );
-        let output_path_str = output_path.to_string_lossy().to_string();
+        let output_paths = if is_document_preset(&job.config.preset) {
+            let pages = job.media.page_count.unwrap_or(1);
+            let (start, end) = clamp_page_range(
+                job.media.page_start.unwrap_or(1),
+                job.media.page_end.unwrap_or(pages),
+                pages,
+            );
+            allocate_document_output_paths(
+                &output_dir,
+                &stem,
+                &resolved.preset,
+                job.config.container.as_deref(),
+                start,
+                end,
+                path_or_partial_exists,
+            )
+        } else {
+            vec![allocate_output_path(
+                &output_dir,
+                &stem,
+                &resolved.extension,
+                path_or_partial_exists,
+            )]
+        };
+        let output_path_strs: Vec<String> = output_paths
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect();
         job.status = JobStatus::Queued;
         job.progress = 0.0;
         job.error = None;
-        job.output_path = Some(output_path_str.clone());
-        job.output_paths = vec![output_path_str];
-        job.display_name = output_path
-            .file_name()
+        job.output_path = output_path_strs.first().cloned();
+        job.display_name = output_paths
+            .first()
+            .and_then(|path| path.file_name())
             .and_then(|s| s.to_str())
             .unwrap_or("output")
             .to_string();
+        job.output_paths = output_path_strs;
     }
     emit_jobs(&app, &state)?;
     start_pump(app);
@@ -498,6 +564,13 @@ fn path_or_partial_exists(path: &Path) -> bool {
     path.exists() || partial_output_path(path).exists()
 }
 
+fn needs_pdf_page_count(preset: &str) -> bool {
+    matches!(
+        preset,
+        "pdf-image" | "pdf-txt" | "pdf-compress" | "pdf-split"
+    )
+}
+
 fn now_epoch_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -600,9 +673,11 @@ async fn pump_queue(app: AppHandle) {
             }
         };
 
-        if let Err(reason) = validate(&resolved, &job.media) {
-            mark_job(&app, &job.id, JobStatus::Failed, None, Some(reason));
-            continue;
+        if !is_document_preset(&job.config.preset) {
+            if let Err(reason) = validate(&resolved, &job.media) {
+                mark_job(&app, &job.id, JobStatus::Failed, None, Some(reason));
+                continue;
+            }
         }
 
         let active = app.state::<AppState>().active.clone();

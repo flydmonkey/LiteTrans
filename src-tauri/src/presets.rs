@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::convert::VIDEO_CONCAT_PRESET;
+use crate::convert::{document_extension, VIDEO_CONCAT_PRESET};
 
 pub const DEFAULT_PRESET: &str = "mp4-h264";
 
@@ -145,6 +145,27 @@ pub fn resolve_config(config: &OutputConfig) -> Result<ResolvedConfig, String> {
         config.preset.clone()
     };
 
+    if is_document_preset_id(&preset) {
+        let ext = document_extension(&preset, config.container.as_deref());
+        let quality = normalize_quality(config.quality.as_deref());
+        return Ok(ResolvedConfig {
+            extension: ext.to_string(),
+            preset,
+            container: ext.to_string(),
+            video_encoder: None,
+            audio_encoder: None,
+            max_width: None,
+            max_height: None,
+            video_bitrate_kbps: None,
+            frame_rate: None,
+            audio_bitrate_kbps: None,
+            keep_audio: false,
+            quality,
+            trim_start_secs: config.trim_start_secs,
+            trim_end_secs: config.trim_end_secs,
+        });
+    }
+
     let (container, video, audio, keep_audio) = match preset.as_str() {
         "mp4-h264" => ("mp4", Some("h264"), Some("aac"), true),
         "mp4-h265" => ("mp4", Some("h265"), Some("aac"), true),
@@ -235,6 +256,23 @@ pub fn resolve_config(config: &OutputConfig) -> Result<ResolvedConfig, String> {
         trim_start_secs: config.trim_start_secs,
         trim_end_secs: config.trim_end_secs,
     })
+}
+
+fn is_document_preset_id(preset: &str) -> bool {
+    matches!(
+        preset,
+        "image-jpg"
+            | "image-png"
+            | "image-webp"
+            | "image-bmp"
+            | "image-gif"
+            | "image-compress"
+            | "pdf-image"
+            | "pdf-txt"
+            | "pdf-compress"
+            | "pdf-split"
+            | "office-pdf"
+    )
 }
 
 pub fn normalize_quality(value: Option<&str>) -> String {
@@ -336,5 +374,31 @@ mod tests {
             ..Default::default()
         })
         .is_err());
+    }
+
+    #[test]
+    fn resolves_all_document_presets() {
+        use crate::convert::document_extension;
+        use crate::history::DOCUMENT_PRESETS;
+
+        for id in DOCUMENT_PRESETS {
+            let resolved = resolve_config(&OutputConfig {
+                preset: (*id).into(),
+                ..Default::default()
+            })
+            .expect(id);
+            assert_eq!(resolved.preset, *id);
+            assert_eq!(resolved.extension, document_extension(id, None));
+            assert_eq!(resolved.container, document_extension(id, None));
+        }
+
+        let png = resolve_config(&OutputConfig {
+            preset: "pdf-image".into(),
+            container: Some("png".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(png.extension, "png");
+        assert_eq!(png.container, "png");
     }
 }

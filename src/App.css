@@ -583,6 +583,38 @@ select {
   border-radius: 12px;
 }
 
+.files li .file-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #e4e4de;
+  flex: 0 0 auto;
+}
+
+.files li > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.page-range {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.page-range label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.page-range input {
+  width: 5.5em;
+}
+
 .files li.bad {
   background: #fdece6;
   border-color: #f0c9bc;

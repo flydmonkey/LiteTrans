@@ -29,7 +29,7 @@ const AUDIO_PRESETS: &[&str] = &[
     "audio-amr",
 ];
 
-const DOCUMENT_PRESETS: &[&str] = &[
+pub const DOCUMENT_PRESETS: &[&str] = &[
     "image-jpg",
     "image-png",
     "image-webp",

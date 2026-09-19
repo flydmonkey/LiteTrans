@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -130,6 +130,68 @@ pub fn document_output_file_name(stem: &str, index: usize, total: usize, ext: &s
     }
 }
 
+/// How many output files a document preset will write for an inclusive 1-based page range.
+pub fn planned_output_count(preset: &str, page_start: u32, page_end: u32) -> usize {
+    match preset {
+        "pdf-image" | "pdf-split" => {
+            let (lo, hi) = if page_end >= page_start {
+                (page_start, page_end)
+            } else {
+                (page_end, page_start)
+            };
+            (hi.saturating_sub(lo) + 1) as usize
+        }
+        _ => 1,
+    }
+}
+
+pub fn document_output_names(
+    stem: &str,
+    preset: &str,
+    image_format: Option<&str>,
+    page_start: u32,
+    page_end: u32,
+) -> Vec<String> {
+    let ext = document_extension(preset, image_format);
+    let total = planned_output_count(preset, page_start, page_end).max(1);
+    (1..=total)
+        .map(|i| document_output_file_name(stem, i, total, ext))
+        .collect()
+}
+
+pub fn allocate_document_output_paths(
+    output_dir: &Path,
+    stem: &str,
+    preset: &str,
+    image_format: Option<&str>,
+    page_start: u32,
+    page_end: u32,
+    exists: impl Fn(&Path) -> bool,
+) -> Vec<PathBuf> {
+    let mut n = 0u32;
+    loop {
+        let candidate = if n == 0 {
+            stem.to_string()
+        } else {
+            format!("{stem}-{n}")
+        };
+        let paths: Vec<PathBuf> = document_output_names(
+            &candidate,
+            preset,
+            image_format,
+            page_start,
+            page_end,
+        )
+        .into_iter()
+        .map(|name| output_dir.join(name))
+        .collect();
+        if paths.iter().all(|path| !exists(path)) {
+            return paths;
+        }
+        n += 1;
+    }
+}
+
 pub fn even_dimension(value: u32) -> u32 {
     value.max(2) - (value % 2)
 }
@@ -168,5 +230,22 @@ mod tests {
         assert!(!allows_trim("video-concat"));
         assert!(!allows_trim("mp4-copy"));
         assert!(allows_trim("audio-mp3"));
+    }
+
+    #[test]
+    fn planned_output_count_pdf_split_pages() {
+        assert_eq!(planned_output_count("pdf-split", 1, 4), 4);
+        assert_eq!(planned_output_count("pdf-image", 1, 4), 4);
+        assert_eq!(planned_output_count("pdf-txt", 1, 4), 1);
+        assert_eq!(planned_output_count("image-jpg", 1, 4), 1);
+        assert_eq!(
+            document_output_names("scan", "pdf-split", None, 1, 4),
+            vec![
+                "scan-001.pdf".to_string(),
+                "scan-002.pdf".to_string(),
+                "scan-003.pdf".to_string(),
+                "scan-004.pdf".to_string(),
+            ]
+        );
     }
 }

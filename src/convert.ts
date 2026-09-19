@@ -160,6 +160,41 @@ export function documentExtension(preset: string, imageFormat?: string | null): 
   }
 }
 
+const IMAGE_DOCUMENT_PRESETS = [
+  "image-jpg",
+  "image-png",
+  "image-webp",
+  "image-bmp",
+  "image-gif",
+  "image-compress",
+] as const;
+
+const PDF_DOCUMENT_PRESETS = ["pdf-image", "pdf-txt", "pdf-compress", "pdf-split"] as const;
+
+const WORD_DOCUMENT_PRESETS = ["office-pdf"] as const;
+
+export function documentCardsFor(kind: DocumentSourceKind): readonly string[] {
+  switch (kind) {
+    case "image":
+      return IMAGE_DOCUMENT_PRESETS;
+    case "pdf":
+      return PDF_DOCUMENT_PRESETS;
+    case "word":
+      return WORD_DOCUMENT_PRESETS;
+    case "excel":
+      return [];
+  }
+}
+
+export function plannedOutputCount(preset: string, pageStart: number, pageEnd: number): number {
+  if (preset === "pdf-image" || preset === "pdf-split") {
+    const lo = Math.min(pageStart, pageEnd);
+    const hi = Math.max(pageStart, pageEnd);
+    return Math.max(1, hi - lo + 1);
+  }
+  return 1;
+}
+
 export function documentOutputFileName(
   stem: string,
   index: number,

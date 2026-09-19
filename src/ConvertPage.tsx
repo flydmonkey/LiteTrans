@@ -15,8 +15,10 @@ import {
 import {
   allowsTrim,
   canStart,
+  clampPageRange,
   clampVideoPreset,
   defaultDocumentPreset,
+  documentCardsFor,
   documentSourceKind,
   isVideoConcatPreset,
   sameDocumentKind,
@@ -271,6 +273,16 @@ function sourceFormat(locale: string, item: SourceItem) {
     .join(" · ");
 }
 
+function documentSourceLine(locale: string, item: SourceItem) {
+  if (item.probing) return t(locale, "source_reading_format");
+  if (!item.importable) return localizedError(locale, item.error);
+  const kind = documentSourceKind(item.path);
+  if (kind === "pdf" && item.pageCount != null) {
+    return t(locale, "document_pages", { count: item.pageCount });
+  }
+  return "";
+}
+
 function sourceFromLabel(locale: string, item: MediaInfo) {
   return [
     friendlyContainer(locale, item.container, item.path),
@@ -304,10 +316,16 @@ function isCopyPreset(preset: string) {
   return preset === "mp4-copy";
 }
 
+function isCompressDocumentPreset(preset: string) {
+  return preset === "image-compress" || preset === "pdf-compress";
+}
+
 function shouldShowQuality(preset: string, mode: ConvertMode) {
-  if (mode === "document") return false;
+  if (mode === "document") return isCompressDocumentPreset(preset);
   return !isCopyPreset(preset) && !isLosslessAudioPreset(preset);
 }
+
+const PDF_IMAGE_FORMATS = ["jpg", "png", "webp"] as const;
 
 function shouldShowResolution(preset: string, mode: ConvertMode) {
   return mode === "video" && !isCopyPreset(preset) && !isVideoConcatPreset(preset);
@@ -814,7 +832,12 @@ export default function ConvertPage({
     if (modeNow === "document" && current.sources.length === 0) {
       const kind = documentSourceKind(allowed[0]);
       if (kind && kind !== "excel") {
-        nextConfig = { ...current.config, preset: defaultDocumentPreset(kind) };
+        const preset = defaultDocumentPreset(kind);
+        nextConfig = {
+          ...current.config,
+          preset,
+          container: preset === "pdf-image" ? current.config.container ?? "jpg" : current.config.container,
+        };
       }
     }
 
@@ -835,6 +858,8 @@ export default function ConvertPage({
                   probing: false,
                   trimStartSecs: 0,
                   trimEndSecs: info.durationSecs,
+                  pageStart: info.pageStart ?? (info.pageCount != null ? 1 : null),
+                  pageEnd: info.pageEnd ?? info.pageCount ?? null,
                 }
               : item,
           ),
@@ -958,6 +983,12 @@ export default function ConvertPage({
       config: {
         preset,
         quality: current.config.quality ?? "standard",
+        container:
+          preset === "pdf-image"
+            ? PDF_IMAGE_FORMATS.includes((current.config.container ?? "jpg") as (typeof PDF_IMAGE_FORMATS)[number])
+              ? current.config.container ?? "jpg"
+              : "jpg"
+            : null,
         maxWidth:
           isCopyPreset(preset) || isVideoConcatPreset(preset) || mode === "audio" || mode === "document"
             ? null
@@ -967,6 +998,17 @@ export default function ConvertPage({
             ? null
             : current.config.maxHeight,
       },
+    }));
+  }
+
+  function applyPageRange(start: number, end: number) {
+    patchSession(mode, (current) => ({
+      ...current,
+      sources: current.sources.map((item) => {
+        const pages = item.pageCount ?? 1;
+        const [lo, hi] = clampPageRange(start, end, pages);
+        return { ...item, pageStart: lo, pageEnd: hi };
+      }),
     }));
   }
 
@@ -1017,14 +1059,26 @@ export default function ConvertPage({
   const selectedTitle = selectedCard
     ? t(locale, selectedCard.titleKey)
     : t(locale, mode === "audio" ? "preset_audio_mp3_title" : "preset_mp4_h264_title");
+  const documentKind = sources[0] ? documentSourceKind(sources[0].path) : null;
   const shownPresets =
     mode === "audio"
       ? AUDIO_PRESET_CARDS
       : mode === "document"
-        ? []
+        ? documentKind
+          ? DOCUMENT_PRESET_CARDS.filter((card) => documentCardsFor(documentKind).includes(card.id))
+          : []
         : showAllFormats
           ? VIDEO_PRESET_CARDS
           : collapsedPresetCards(config.preset);
+  const showPdfImageFormat = mode === "document" && config.preset === "pdf-image";
+  const showPageRange = mode === "document" && documentKind === "pdf";
+  const pageRangeSource = sources.find((item) => item.importable && item.pageCount != null) ?? sources[0];
+  const pageRangePages = pageRangeSource?.pageCount ?? 1;
+  const [pageRangeStart, pageRangeEnd] = clampPageRange(
+    pageRangeSource?.pageStart ?? 1,
+    pageRangeSource?.pageEnd ?? pageRangePages,
+    pageRangePages,
+  );
   const audioOnly = mode === "audio" || isAudioPreset(config.preset);
   const showQuality = shouldShowQuality(config.preset, mode);
   const showResolution = shouldShowResolution(config.preset, mode);
@@ -1124,7 +1178,11 @@ export default function ConvertPage({
                   key={item.path}
                   draggable={concatOnly}
                   className={[
-                    item.importable || item.probing ? "" : "bad",
+                    item.importable || item.probing
+                      ? documentSourceKind(item.path) === "excel"
+                        ? "bad"
+                        : ""
+                      : "bad",
                     item.path === selectedPath ? "on" : "",
                     concatOnly ? "sortable" : "",
                     concatOnly && dragFrom === index ? "dragging" : "",
@@ -1154,11 +1212,15 @@ export default function ConvertPage({
                     if (allowsTrim(config.preset) && itemHasDuration(item)) setSelectedPath(item.path);
                   }}
                 >
+                  {mode === "document" && documentSourceKind(item.path) === "image" ? (
+                    <img className="file-thumb" src={localMediaUrl(item.path)} alt="" />
+                  ) : null}
                   <div>
                     <strong>{fileName(item.path)}</strong>
                     <p>
-                      {sourceFormat(locale, item)}
-                      {isTrimmed(item) ? ` · ${t(locale, "source_trimmed")}` : ""}
+                      {mode === "document"
+                        ? documentSourceLine(locale, item)
+                        : `${sourceFormat(locale, item)}${isTrimmed(item) ? ` · ${t(locale, "source_trimmed")}` : ""}`}
                     </p>
                   </div>
                   <button
@@ -1272,10 +1334,64 @@ export default function ConvertPage({
             ) : null}
             {copyOnly ? (
               <p className="tune-intro">{t(locale, "hint_copy_mp4")}</p>
-            ) : showQuality || showResolution ? (
+            ) : showQuality || showResolution || showPdfImageFormat || showPageRange ? (
               <div className="tune">
                 {showResolution ? <p className="tune-intro">{t(locale, "tune_intro")}</p> : null}
                 <div className="tune-grid">
+                  {showPdfImageFormat ? (
+                    <div>
+                      <p className="tune-label">{t(locale, "preset_pdf_image_title")}</p>
+                      <p className="tune-desc">{t(locale, "preset_pdf_image_hint")}</p>
+                      <div className="chips">
+                        {PDF_IMAGE_FORMATS.map((id) => (
+                          <button
+                            key={id}
+                            type="button"
+                            className={(config.container ?? "jpg") === id ? "chip on" : "chip"}
+                            onClick={() => applyConfig({ ...config, container: id })}
+                          >
+                            <strong>{id.toUpperCase()}</strong>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {showPageRange ? (
+                    <div>
+                      <p className="tune-label">{t(locale, "document_page_range")}</p>
+                      <p className="tune-desc">{t(locale, "document_pages", { count: pageRangePages })}</p>
+                      <div className="page-range">
+                        <label>
+                          {t(locale, "document_start_page")}
+                          <input
+                            type="number"
+                            min={1}
+                            max={pageRangePages}
+                            value={pageRangeStart}
+                            onChange={(event) => {
+                              const next = Number(event.target.value);
+                              if (!Number.isFinite(next)) return;
+                              applyPageRange(next, pageRangeEnd);
+                            }}
+                          />
+                        </label>
+                        <label>
+                          {t(locale, "document_end_page")}
+                          <input
+                            type="number"
+                            min={1}
+                            max={pageRangePages}
+                            value={pageRangeEnd}
+                            onChange={(event) => {
+                              const next = Number(event.target.value);
+                              if (!Number.isFinite(next)) return;
+                              applyPageRange(pageRangeStart, next);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ) : null}
                   {showQuality ? (
                     <div>
                       <p className="tune-label">{t(locale, audioOnly ? "quality_audio_title" : "quality_title")}</p>
