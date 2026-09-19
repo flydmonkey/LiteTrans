@@ -6,6 +6,26 @@ export type DocumentSourceKind = "image" | "pdf" | "word" | "excel";
 
 export const VIDEO_CONCAT_PRESET = "video-concat";
 export const VIDEO_CONCAT_MAX_SOURCES = 20;
+export const DEFAULT_VIDEO_PRESET = "mp4-h264";
+
+/** Video-mode cards (primary + More). Covered by tsc; no frontend test runner. */
+export const VIDEO_PRESETS = [
+  "mp4-h264",
+  "mp4-copy",
+  "mp4-h265",
+  "mov-h264",
+  VIDEO_CONCAT_PRESET,
+  "mkv-copy-friendly",
+  "mkv-h265",
+  "webm-vp9",
+  "avi-mpeg4",
+  "gif",
+] as const;
+
+export function clampVideoPreset(preset: string): string {
+  const id = preset.trim();
+  return (VIDEO_PRESETS as readonly string[]).includes(id) ? id : DEFAULT_VIDEO_PRESET;
+}
 
 export function canStart(
   importable: number,

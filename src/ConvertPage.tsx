@@ -15,6 +15,7 @@ import {
 import {
   allowsTrim,
   canStart,
+  clampVideoPreset,
   defaultDocumentPreset,
   documentSourceKind,
   isVideoConcatPreset,
@@ -354,11 +355,13 @@ function sessionFromSettings(
   saved: ModeSettings | undefined,
   fallbackPreset: string,
   fallbackDir: string,
+  mode: ConvertMode,
 ): WizardSession {
+  const raw = saved?.preset || fallbackPreset;
   return {
     sources: [],
     config: {
-      preset: saved?.preset || fallbackPreset,
+      preset: mode === "video" ? clampVideoPreset(raw) : raw,
       quality: saved?.quality || "standard",
       maxWidth: saved?.maxWidth ?? null,
       maxHeight: saved?.maxHeight ?? null,
@@ -866,9 +869,9 @@ export default function ConvertPage({
           maxHeight: saved.maxHeight,
         };
         setSessions({
-          video: sessionFromSettings(videoSaved, DEFAULT_PRESET.video, fallbackDir),
-          audio: sessionFromSettings(saved.audio, DEFAULT_PRESET.audio, fallbackDir),
-          document: sessionFromSettings(saved.document, DEFAULT_PRESET.document, fallbackDir),
+          video: sessionFromSettings(videoSaved, DEFAULT_PRESET.video, fallbackDir, "video"),
+          audio: sessionFromSettings(saved.audio, DEFAULT_PRESET.audio, fallbackDir, "audio"),
+          document: sessionFromSettings(saved.document, DEFAULT_PRESET.document, fallbackDir, "document"),
         });
       } catch {
         setSessions({
