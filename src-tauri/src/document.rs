@@ -131,7 +131,7 @@ fn convert_image(job: &Job, dest: &Path, is_cancelled: &impl Fn() -> bool) -> Re
     let quality = quality_label(job);
     let compressing = job.config.preset == "image-compress";
     let ext = dest_extension(dest, "jpg");
-    let lossless = matches!(ext.as_str(), "png" | "bmp");
+    let lossless = matches!(ext.as_str(), "png" | "bmp" | "webp");
     if compressing && lossless {
         let scale = scale_for_quality(&quality, true);
         if scale < 1.0 {
@@ -359,27 +359,46 @@ fn pdfium_candidate_names() -> Vec<String> {
     names
 }
 
+fn pdfium_search_dirs(exe_dir: &Path) -> Vec<PathBuf> {
+    let bundled_resources = exe_dir.join("..").join("Resources");
+    let bundled_resources_lc = exe_dir.join("..").join("resources");
+    vec![
+        exe_dir.to_path_buf(),
+        exe_dir.join("binaries"),
+        exe_dir.join("resources"),
+        exe_dir.join("resources").join("binaries"),
+        exe_dir.join("Resources"),
+        exe_dir.join("Resources").join("binaries"),
+        bundled_resources.join("binaries"),
+        bundled_resources.clone(),
+        bundled_resources_lc.join("binaries"),
+        bundled_resources_lc,
+    ]
+}
+
+fn find_pdfium_in_dirs(dirs: &[PathBuf], names: &[String]) -> Option<PathBuf> {
+    for dir in dirs {
+        for name in names {
+            let path = dir.join(name);
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
 fn resolve_pdfium() -> Result<PathBuf, String> {
     let names = pdfium_candidate_names();
     let mut dirs = Vec::new();
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            dirs.push(dir.to_path_buf());
-            dirs.push(dir.join("binaries"));
-            dirs.push(dir.join("resources"));
-            dirs.push(dir.join("resources").join("binaries"));
+            dirs.extend(pdfium_search_dirs(dir));
         }
     }
     dirs.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries"));
-    for dir in dirs {
-        for name in &names {
-            let path = dir.join(name);
-            if path.is_file() {
-                return Ok(path);
-            }
-        }
-    }
-    Err("找不到打包的 pdfium。请先运行 npm run fetch-pdfium".into())
+    find_pdfium_in_dirs(&dirs, &names)
+        .ok_or_else(|| "找不到打包的 pdfium。请先运行 npm run fetch-pdfium".into())
 }
 
 fn convert_office(source: &str, dest: &Path, is_cancelled: &impl Fn() -> bool) -> Result<(), String> {
@@ -507,11 +526,15 @@ mod tests {
     use std::fs;
     use std::io::Write;
     use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
     fn temp_dir() -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "video-converter-doc-{}-{}",
+            "video-converter-doc-{}-{}-{}",
             std::process::id(),
+            TEMP_DIR_SEQ.fetch_add(1, Ordering::Relaxed),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -727,6 +750,94 @@ mod tests {
         assert_eq!(paths.len(), 1);
         assert!(fs::metadata(&dest).unwrap().len() > 0);
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn image_compress_webp_small_changes_bytes_and_dimensions() {
+        let dir = temp_dir();
+        let source = dir.join("photo.png");
+        let mut img = image::RgbImage::new(80, 80);
+        for (x, y, pixel) in img.enumerate_pixels_mut() {
+            let n = x.wrapping_mul(37).wrapping_add(y.wrapping_mul(91)).wrapping_add(13);
+            *pixel = image::Rgb([
+                (n % 256) as u8,
+                ((n / 3) % 256) as u8,
+                ((x.wrapping_mul(y) + 17) % 256) as u8,
+            ]);
+        }
+        img.save(&source).unwrap();
+
+        let original_out = dir.join("orig.webp");
+        let small_out = dir.join("small.webp");
+
+        let mut original = job(
+            "image-compress",
+            &source,
+            &[original_out.clone()],
+            None,
+            None,
+            None,
+            Some("webp"),
+        );
+        original.config.quality = Some("original".into());
+        run_job(&original, |_| {}, || false).unwrap();
+
+        let mut small = job(
+            "image-compress",
+            &source,
+            &[small_out.clone()],
+            None,
+            None,
+            None,
+            Some("webp"),
+        );
+        small.config.quality = Some("small".into());
+        run_job(&small, |_| {}, || false).unwrap();
+
+        let original_bytes = fs::read(&original_out).unwrap();
+        let small_bytes = fs::read(&small_out).unwrap();
+        assert_ne!(
+            original_bytes, small_bytes,
+            "webp quality chips must change the compressed file"
+        );
+        let decoded = image::open(&small_out).unwrap();
+        assert!(
+            decoded.width() < 80 || decoded.height() < 80,
+            "small quality should shrink webp dimensions"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn resolve_pdfium_finds_library_in_macos_resources_binaries() {
+        let root = temp_dir();
+        let macos = root.join("Contents").join("MacOS");
+        let resources_bin = root.join("Contents").join("Resources").join("binaries");
+        fs::create_dir_all(&macos).unwrap();
+        fs::create_dir_all(&resources_bin).unwrap();
+        let expected = resources_bin.join(format!("pdfium-{}", current_target_triple()));
+        fs::write(&expected, b"pdfium").unwrap();
+
+        let found = find_pdfium_in_dirs(&pdfium_search_dirs(&macos), &pdfium_candidate_names())
+            .expect("should find pdfium under Contents/Resources/binaries");
+        assert_eq!(found.canonicalize().unwrap(), expected.canonicalize().unwrap());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn resolve_pdfium_finds_library_in_macos_resources_root() {
+        let root = temp_dir();
+        let macos = root.join("Contents").join("MacOS");
+        let resources = root.join("Contents").join("Resources");
+        fs::create_dir_all(&macos).unwrap();
+        fs::create_dir_all(&resources).unwrap();
+        let expected = resources.join(format!("pdfium-{}", current_target_triple()));
+        fs::write(&expected, b"pdfium").unwrap();
+
+        let found = find_pdfium_in_dirs(&pdfium_search_dirs(&macos), &pdfium_candidate_names())
+            .expect("should find pdfium under Contents/Resources");
+        assert_eq!(found.canonicalize().unwrap(), expected.canonicalize().unwrap());
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]
