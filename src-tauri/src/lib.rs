@@ -1,4 +1,5 @@
 mod lan;
+mod lan_server;
 mod lan_page;
 mod args;
 mod concat;
@@ -14,11 +15,12 @@ mod probe;
 mod queue;
 mod settings;
 
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 use tauri_plugin_dialog::DialogExt;
 
 use args::validate;
@@ -32,6 +34,11 @@ use engine::{
 };
 use history::{
     is_document_preset, mark_interrupted, parse_history_segment, remaining_jobs_after_clear_finished,
+};
+use lan::{collect_ifaces, normalize_lan_token, LanShareSettings};
+use lan_server::{
+    serve_lan_listener, status_from_runtime, stop_lan_runtime, sync_lan_runtime, LanRuntime,
+    LanStatus,
 };
 use job_store::{jobs_file, load_jobs, save_jobs};
 use naming::{allocate_output_path, partial_output_path, sanitized_rename_stem, source_stem};
@@ -51,6 +58,7 @@ pub struct AppState {
     pub active: Arc<Mutex<Option<ActiveTranscode>>>,
     pub pumping: Mutex<bool>,
     pub config_dir: Mutex<PathBuf>,
+    pub lan: Mutex<LanRuntime>,
 }
 
 impl Default for AppState {
@@ -61,6 +69,7 @@ impl Default for AppState {
             active: Arc::new(Mutex::new(None)),
             pumping: Mutex::new(false),
             config_dir: Mutex::new(PathBuf::new()),
+            lan: Mutex::new(LanRuntime::default()),
         }
     }
 }
@@ -186,6 +195,62 @@ fn save_session_settings(app: AppHandle, settings: SessionSettings) -> Result<()
     let mut current = load_from_path(&file);
     merge_session_settings(&mut current, settings);
     save_to_path(&file, &current)
+}
+
+#[tauri::command]
+fn lan_status(state: State<AppState>) -> Result<LanStatus, String> {
+    let runtime = lock_err(state.lan.lock())?;
+    Ok(status_from_runtime(&runtime))
+}
+
+#[tauri::command]
+fn set_lan_share(app: AppHandle, settings: LanShareSettings) -> Result<LanStatus, String> {
+    let file = session_settings_path(&app)?;
+    let mut current = load_from_path(&file);
+    current.lan_share = LanShareSettings {
+        enabled: settings.enabled,
+        token: normalize_lan_token(&settings.token),
+    };
+    save_to_path(&file, &current)?;
+    {
+        let state = app.state::<AppState>();
+        lock_err(state.lan.lock())?.settings = current.lan_share.clone();
+    }
+    sync_lan_server(&app)
+}
+
+fn sync_lan_server(app: &AppHandle) -> Result<LanStatus, String> {
+    let state = app.state::<AppState>();
+    let mut runtime = lock_err(state.lan.lock())?;
+    let token = runtime.settings.token.clone();
+    let app_for_serve = app.clone();
+    sync_lan_runtime(
+        &mut runtime,
+        &collect_ifaces(),
+        |ip, port| TcpListener::bind((ip, port)),
+        move |listener, stop| {
+            serve_lan_listener(listener, stop, token, move || current_jobs(&app_for_serve));
+        },
+    )
+}
+
+fn stop_lan_server(app: &AppHandle) {
+    if let Ok(mut runtime) = app.state::<AppState>().lan.lock() {
+        stop_lan_runtime(&mut runtime);
+    }
+}
+
+fn load_lan_into_state(app: &AppHandle) {
+    let Ok(file) = session_settings_path(app) else {
+        return;
+    };
+    let settings = load_from_path(&file);
+    if let Ok(mut runtime) = app.state::<AppState>().lan.lock() {
+        runtime.settings = settings.lan_share.clone();
+    }
+    if settings.lan_share.enabled {
+        let _ = sync_lan_server(app);
+    }
 }
 
 #[tauri::command]
@@ -810,6 +875,7 @@ pub fn run() {
         .manage(AppState::default())
         .setup(|app| {
             load_jobs_into_state(app.handle());
+            load_lan_into_state(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -822,6 +888,8 @@ pub fn run() {
             get_or_init_output_dir,
             load_session_settings,
             save_session_settings,
+            lan_status,
+            set_lan_share,
             list_jobs,
             extract_preview_frame_command,
             prepare_preview_command,
@@ -834,6 +902,11 @@ pub fn run() {
             app_version,
             remove_source_jobs,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let RunEvent::Exit = event {
+                stop_lan_server(app);
+            }
+        });
 }

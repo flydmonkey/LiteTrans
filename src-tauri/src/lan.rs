@@ -421,6 +421,60 @@ fn is_rfc1918(host: &str) -> bool {
     false
 }
 
+pub fn collect_ifaces() -> Vec<LanIface> {
+    #[cfg(unix)]
+    {
+        collect_ifaces_unix()
+    }
+    #[cfg(not(unix))]
+    {
+        Vec::new()
+    }
+}
+
+#[cfg(unix)]
+fn collect_ifaces_unix() -> Vec<LanIface> {
+    use std::ffi::CStr;
+    use std::net::Ipv4Addr;
+
+    let mut out = Vec::new();
+    unsafe {
+        let mut ifap: *mut libc::ifaddrs = std::ptr::null_mut();
+        if libc::getifaddrs(&mut ifap) != 0 {
+            return out;
+        }
+        let mut cur = ifap;
+        while !cur.is_null() {
+            let iface = &*cur;
+            if !iface.ifa_addr.is_null()
+                && i32::from((*iface.ifa_addr).sa_family) == libc::AF_INET
+            {
+                let name = if iface.ifa_name.is_null() {
+                    String::new()
+                } else {
+                    CStr::from_ptr(iface.ifa_name)
+                        .to_string_lossy()
+                        .into_owned()
+                };
+                let addr = &*(iface.ifa_addr as *const libc::sockaddr_in);
+                let ip = Ipv4Addr::from(u32::from_be(addr.sin_addr.s_addr));
+                if !ip.is_unspecified() {
+                    let loopback = (iface.ifa_flags & libc::IFF_LOOPBACK as libc::c_uint) != 0
+                        || ip.is_loopback();
+                    out.push(LanIface {
+                        name,
+                        host_address: ip.to_string(),
+                        loopback,
+                    });
+                }
+            }
+            cur = iface.ifa_next;
+        }
+        libc::freeifaddrs(ifap);
+    }
+    out
+}
+
 pub fn pick_lan_ipv4(ifaces: &[LanIface]) -> Option<String> {
     let usable: Vec<&LanIface> = ifaces
         .iter()
@@ -575,6 +629,11 @@ mod tests {
             lan_public_url("10.0.0.8", 17890, "a b"),
             "http://10.0.0.8:17890/?k=a+b"
         );
+        if let Some(ip) = pick_lan_ipv4(&collect_ifaces()) {
+            assert_ne!(ip, "127.0.0.1");
+            assert_ne!(ip, "0.0.0.0");
+            assert!(!ip.starts_with("127."));
+        }
     }
 
     #[test]

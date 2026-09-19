@@ -4902,6 +4902,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "image",
+ "libc",
  "lopdf 0.45.0",
  "pdf-extract",
  "pdfium-render",
