@@ -1,6 +1,7 @@
 mod args;
 mod concat;
 mod convert;
+mod document;
 mod engine;
 mod history;
 mod job_store;
@@ -25,7 +26,7 @@ use convert::{
 };
 use engine::{
     cancel_active, extract_preview_frame, prepare_preview, probe_media, transcode_job,
-    ActiveTranscode,
+    ActiveTranscode, ProgressPayload,
 };
 use history::{
     is_document_preset, mark_interrupted, parse_history_segment, remaining_jobs_after_clear_finished,
@@ -376,7 +377,7 @@ fn cancel_job(app: AppHandle, state: State<AppState>, id: String) -> Result<(), 
         let mut jobs = lock_err(state.jobs.lock())?;
         if let Some(job) = jobs.iter_mut().find(|job| job.id == id) {
             match job.status {
-                JobStatus::Running if killed => {
+                JobStatus::Running if killed || is_document_preset(&job.config.preset) => {
                     job.status = JobStatus::Cancelled;
                     job.error = Some("已取消".into());
                 }
@@ -684,12 +685,32 @@ async fn pump_queue(app: AppHandle) {
         let job_id = job.id.clone();
         let media = job.media.clone();
         let concat = is_video_concat_preset(&job.config.preset);
+        let document = is_document_preset(&job.config.preset);
         let result = tauri::async_runtime::spawn_blocking({
             let app = app.clone();
             let output_path = output_path.clone();
             let job = job.clone();
             move || {
-                if concat {
+                if document {
+                    let progress_app = app.clone();
+                    let progress_id = job.id.clone();
+                    let cancel_app = app.clone();
+                    let cancel_id = job.id.clone();
+                    document::run_job(
+                        &job,
+                        move |percent| {
+                            let _ = progress_app.emit(
+                                "job-progress",
+                                ProgressPayload {
+                                    id: progress_id.clone(),
+                                    percent,
+                                },
+                            );
+                        },
+                        move || job_is_cancelled(&cancel_app, &cancel_id),
+                    )
+                    .map(|_| ())
+                } else if concat {
                     concat_job(&app, &job, &output_path, &active)
                 } else {
                     transcode_job(&app, &job_id, &media, &resolved, &output_path, &active)
@@ -735,6 +756,19 @@ async fn pump_queue(app: AppHandle) {
     if let Ok(mut pumping) = app.state::<AppState>().pumping.lock() {
         *pumping = false;
     }
+}
+
+fn job_is_cancelled(app: &AppHandle, id: &str) -> bool {
+    app.state::<AppState>()
+        .jobs
+        .lock()
+        .ok()
+        .and_then(|jobs| {
+            jobs.iter()
+                .find(|job| job.id == id)
+                .map(|job| job.status == JobStatus::Cancelled)
+        })
+        .unwrap_or(false)
 }
 
 fn current_jobs(app: &AppHandle) -> Vec<Job> {

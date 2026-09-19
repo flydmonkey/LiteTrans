@@ -13,8 +13,9 @@
     "tauri:build:windows": "tauri build --bundles nsis --ci",
     "tauri:build:linux": "tauri build --bundles deb,appimage --ci",
     "fetch-ffmpeg": "node scripts/fetch-ffmpeg.mjs",
+    "fetch-pdfium": "node scripts/fetch-pdfium.mjs",
     "smoke": "node scripts/smoke-test.mjs",
-    "postinstall": "node scripts/fetch-ffmpeg.mjs"
+    "postinstall": "node scripts/fetch-ffmpeg.mjs && node scripts/fetch-pdfium.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",
