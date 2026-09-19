@@ -87,12 +87,14 @@ sealed class LanRoute {
     data object Home : LanRoute()
     data class Download(val jobId: String, val index: Int) : LanRoute()
     data class Media(val jobId: String, val index: Int) : LanRoute()
+    data object Favicon : LanRoute()
     data object NotFound : LanRoute()
 }
 
 fun parseLanRoute(path: String): LanRoute {
     val trimmed = path.substringBefore('?')
     if (trimmed == "/" || trimmed.isEmpty()) return LanRoute.Home
+    if (trimmed == "/favicon.png" || trimmed == "/favicon.ico") return LanRoute.Favicon
     val parts = trimmed.trim('/').split('/')
     if (parts.size !in 2..3) return LanRoute.NotFound
     val kind = parts[0]
@@ -295,10 +297,19 @@ fun handleLanRequest(
         return lanPlainText(405, "Method Not Allowed")
     }
     val sendBody = request.method != "HEAD"
+    val route = parseLanRoute(request.path)
+    if (route is LanRoute.Favicon) {
+        return LanHttpResponse(
+            status = 200,
+            contentType = "image/png",
+            body = lanFaviconPng,
+            sendBody = sendBody,
+        )
+    }
     if (!lanTokenAllows(token, request.query["k"])) {
         return lanPlainText(401, copy.needToken, sendBody)
     }
-    return when (val route = parseLanRoute(request.path)) {
+    return when (route) {
         is LanRoute.Home -> {
             val html = renderLanHistoryHtml(jobs, token, copy, fileExists = exists)
             LanHttpResponse(
@@ -331,7 +342,7 @@ fun handleLanRequest(
                 sendBody = sendBody,
             )
         }
-        is LanRoute.NotFound -> lanPlainText(404, "Not Found", sendBody)
+        is LanRoute.NotFound, is LanRoute.Favicon -> lanPlainText(404, "Not Found", sendBody)
     }
 }
 

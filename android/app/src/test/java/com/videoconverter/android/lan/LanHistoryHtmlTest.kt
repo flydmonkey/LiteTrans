@@ -19,6 +19,7 @@ class LanHistoryHtmlTest {
         )
         val html = renderLanHistoryHtml(jobs, "pw", englishLanHistoryCopy()) { it.startsWith("/tmp/") }
         assertTrue(html.contains("LiteTrans"))
+        assertTrue(html.contains("<link rel=\"icon\" type=\"image/png\" href=\"/favicon.png\">"))
         assertTrue(html.contains("data-tab-btn=\"video\""))
         assertTrue(html.contains("data-tab-btn=\"audio\""))
         assertTrue(html.contains("data-tab-btn=\"image\""))

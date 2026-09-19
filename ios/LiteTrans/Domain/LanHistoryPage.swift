@@ -13,6 +13,7 @@ public func renderLanHistoryHtml(
     html += "<meta charset=\"utf-8\">"
     html += "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
     html += "<title>LiteTrans</title>"
+    html += "<link rel=\"icon\" type=\"image/png\" href=\"/favicon.png\">"
     html += "<style>"
     html += lanHistoryPageCSS
     html += "</style></head><body>"

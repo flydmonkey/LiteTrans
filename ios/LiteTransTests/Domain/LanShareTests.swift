@@ -40,6 +40,9 @@ struct LanShareTests {
         #expect(parseLanRoute("/m/") == .notFound)
         #expect(parseLanRoute("/m/../secret") == .notFound)
         #expect(parseLanRoute("/d/a1/../b") == .notFound)
+        #expect(parseLanRoute("/favicon.png") == .favicon)
+        #expect(parseLanRoute("/favicon.ico") == .favicon)
+        #expect(parseLanRoute("/favicon.png?k=pw") == .favicon)
     }
 
     @Test func prefersWifiIpv4AndSkipsLoopback() {
@@ -133,6 +136,24 @@ struct LanShareTests {
             copy: englishLanHistoryCopy()
         )
         #expect(ranged.rangeHeader == "bytes=0-1")
+    }
+
+    @Test func faviconServesAppIconWithoutToken() {
+        let png = handleLanRequest(LanHttpRequest(method: "GET", path: "/favicon.png", query: [:]), jobs: handlerJobs, token: "pw", exists: handlerExists, copy: englishLanHistoryCopy())
+        #expect(png.status == 200)
+        #expect(png.contentType == "image/png")
+        #expect(png.sendBody)
+        #expect(png.body.count > 32)
+        #expect(png.body.starts(with: [0x89, 0x50, 0x4E, 0x47]))
+
+        let ico = handleLanRequest(LanHttpRequest(method: "GET", path: "/favicon.ico", query: [:]), jobs: handlerJobs, token: "pw", exists: handlerExists, copy: englishLanHistoryCopy())
+        #expect(ico.status == 200)
+        #expect(ico.contentType == "image/png")
+        #expect(ico.body == png.body)
+
+        let head = handleLanRequest(LanHttpRequest(method: "HEAD", path: "/favicon.png", query: [:]), jobs: handlerJobs, token: "pw", exists: handlerExists, copy: englishLanHistoryCopy())
+        #expect(head.status == 200)
+        #expect(!head.sendBody)
     }
 
     @Test func headErrorsOmitBody() {

@@ -17,6 +17,7 @@ fun renderLanHistoryHtml(
         append("<meta charset=\"utf-8\">")
         append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">")
         append("<title>LiteTrans</title>")
+        append("<link rel=\"icon\" type=\"image/png\" href=\"/favicon.png\">")
         append("<style>")
         append(LAN_HISTORY_PAGE_CSS)
         append("</style></head><body>")

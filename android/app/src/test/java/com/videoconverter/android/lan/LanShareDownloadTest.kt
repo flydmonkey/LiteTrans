@@ -33,6 +33,9 @@ class LanShareDownloadTest {
         assertEquals(LanRoute.Media("a1", 2), parseLanRoute("/m/a1/2"))
         assertEquals(LanRoute.NotFound, parseLanRoute("/m/"))
         assertEquals(LanRoute.NotFound, parseLanRoute("/m/../secret"))
+        assertEquals(LanRoute.Favicon, parseLanRoute("/favicon.png"))
+        assertEquals(LanRoute.Favicon, parseLanRoute("/favicon.ico"))
+        assertEquals(LanRoute.Favicon, parseLanRoute("/favicon.png?k=pw"))
     }
 
     @Test

@@ -78,4 +78,26 @@ class LanShareHandlerTest {
     fun parseQueryDecodesK() {
         assertEquals("a b", parseLanQuery("k=a+b")["k"])
     }
+
+    @Test
+    fun faviconServesAppIconWithoutToken() {
+        val png = handleLanRequest(LanHttpRequest("GET", "/favicon.png", emptyMap()), jobs, "pw", exists, copy)
+        assertEquals(200, png.status)
+        assertEquals("image/png", png.contentType)
+        assertTrue(png.sendBody)
+        assertTrue(png.body.size > 32)
+        assertEquals(0x89.toByte(), png.body[0])
+        assertEquals('P'.code.toByte(), png.body[1])
+        assertEquals('N'.code.toByte(), png.body[2])
+        assertEquals('G'.code.toByte(), png.body[3])
+
+        val ico = handleLanRequest(LanHttpRequest("GET", "/favicon.ico", emptyMap()), jobs, "pw", exists, copy)
+        assertEquals(200, ico.status)
+        assertEquals("image/png", ico.contentType)
+        assertTrue(ico.body.contentEquals(png.body))
+
+        val head = handleLanRequest(LanHttpRequest("HEAD", "/favicon.png", emptyMap()), jobs, "pw", exists, copy)
+        assertEquals(200, head.status)
+        assertFalse(head.sendBody)
+    }
 }

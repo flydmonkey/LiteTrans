@@ -12,6 +12,7 @@ struct LanHistoryHtmlTests {
         ]
         let html = renderLanHistoryHtml(jobs: jobs, token: "pw", copy: englishLanHistoryCopy(), fileExists: { $0.hasPrefix("/tmp/") })
         #expect(html.contains("LiteTrans"))
+        #expect(html.contains("<link rel=\"icon\" type=\"image/png\" href=\"/favicon.png\">"))
         #expect(html.contains("data-tab-btn=\"video\""))
         #expect(html.contains("data-tab-btn=\"audio\""))
         #expect(html.contains("data-tab-btn=\"image\""))
