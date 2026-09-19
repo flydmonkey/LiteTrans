@@ -6,7 +6,7 @@ import HistoryPage from "./HistoryPage";
 import MinePage, { type MinePageId } from "./MinePage";
 import { historySegmentAfterEnqueue } from "./history";
 import { resolveLocaleTag, t } from "./i18n";
-import type { AppLanguage, HistorySegment, Job } from "./types";
+import type { AppLanguage, ConvertMode, HistorySegment, Job } from "./types";
 import "./App.css";
 
 type Tab = "convert" | "history" | "mine";
@@ -27,6 +27,7 @@ function asAppLanguage(value: string | null | undefined): AppLanguage {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("convert");
+  const [convertMode, setConvertMode] = useState<ConvertMode>("video");
   const [historySegment, setHistorySegment] = useState<HistorySegment>("video");
   const [minePage, setMinePage] = useState<MinePageId>("language");
   const [language, setLanguage] = useState<AppLanguage>("system");
@@ -129,8 +130,10 @@ export default function App() {
           <ConvertPage
             active={tab === "convert"}
             locale={locale}
+            mode={convertMode}
             jobs={jobs}
             dragging={dragging}
+            onModeChange={setConvertMode}
             onNotice={setNotice}
             onDraggingChange={setDragging}
             onEnqueued={(preset) => setHistorySegment(historySegmentAfterEnqueue(preset))}
@@ -143,7 +146,10 @@ export default function App() {
             segment={historySegment}
             startedAtById={startedAtRef.current}
             onSegmentChange={setHistorySegment}
-            onGoConvert={() => setTab("convert")}
+            onGoConvert={(segment) => {
+              setConvertMode(segment);
+              setTab("convert");
+            }}
             onNotice={setNotice}
           />
         ) : null}

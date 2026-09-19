@@ -382,10 +382,19 @@ select {
   padding: 20px 20px 108px;
 }
 
+.convert-segments {
+  margin-bottom: 16px;
+}
+
 .convert-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+  align-items: start;
+}
+
+.convert-grid > * {
+  min-width: 0;
 }
 
 .convert-right {
@@ -444,6 +453,11 @@ select {
   border-radius: 12px;
 }
 
+.notice span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .stage {
   display: flex;
   flex-direction: column;
@@ -480,8 +494,9 @@ select {
 
 .dropzone {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  gap: 14px 18px;
   width: 100%;
   padding: 24px;
   border: 1px dashed #b9b9b0;
@@ -501,9 +516,20 @@ select {
   font-size: 18px;
 }
 
+.dropzone p {
+  margin: 4px 0 0;
+  color: #5c6460;
+}
+
+.dropzone > div:not(.drop-art) {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
 .drop-art {
   display: grid;
   place-items: center;
+  flex-shrink: 0;
   width: 64px;
   height: 64px;
   border-radius: 12px;
@@ -519,7 +545,9 @@ select {
 }
 
 .dropzone .ghost {
+  flex: 0 0 auto;
   margin-left: auto;
+  white-space: nowrap;
 }
 
 .files,
@@ -760,7 +788,7 @@ select {
 
 .tune-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
@@ -792,6 +820,17 @@ select {
   border-radius: 10px;
   background: #fff;
   border: 1px solid #e4e4de;
+}
+
+.tune-grid .chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tune-grid .chip {
+  width: 100%;
+  min-width: 0;
+  text-align: left;
 }
 
 .chip strong {
@@ -891,7 +930,7 @@ button:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 280px;
+  max-width: 100%;
 }
 
 .job-path .to {
@@ -901,13 +940,19 @@ button:disabled {
 
 .job-actions {
   display: flex;
+  flex-shrink: 0;
+  align-items: center;
   gap: 8px;
+}
+
+.job-actions button {
+  white-space: nowrap;
 }
 
 .dock {
   position: absolute;
-  left: 16px;
-  right: 16px;
+  left: 20px;
+  right: 20px;
   bottom: 16px;
   display: flex;
   justify-content: space-between;

@@ -1,3 +1,5 @@
+export type ConvertMode = "video" | "audio" | "document";
+
 export type MediaInfo = {
   path: string;
   durationSecs: number | null;
@@ -12,6 +14,9 @@ export type MediaInfo = {
   error: string | null;
   trimStartSecs?: number | null;
   trimEndSecs?: number | null;
+  pageCount?: number | null;
+  pageStart?: number | null;
+  pageEnd?: number | null;
 };
 
 export type PresetInfo = {

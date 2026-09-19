@@ -1,6 +1,7 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
+  ConvertMode,
   EnqueueReport,
   HistorySegment,
   Job,
@@ -28,6 +29,40 @@ const VIDEO_EXTENSIONS = [
   "mts",
 ];
 
+const AUDIO_EXTENSIONS = [...VIDEO_EXTENSIONS, "mp3", "m4a", "wav", "flac", "ogg", "amr", "aac"];
+
+const DOCUMENT_EXTENSIONS = [
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "bmp",
+  "gif",
+  "pdf",
+  "docx",
+  "doc",
+  "xls",
+  "xlsx",
+];
+
+export function extensionsForMode(mode: ConvertMode): string[] {
+  switch (mode) {
+    case "video":
+      return VIDEO_EXTENSIONS;
+    case "audio":
+      return AUDIO_EXTENSIONS;
+    case "document":
+      return DOCUMENT_EXTENSIONS;
+  }
+}
+
+export function pathAllowedForMode(path: string, mode: ConvertMode): boolean {
+  const base = path.split(/[/\\]/).pop() ?? path;
+  const dot = base.lastIndexOf(".");
+  if (dot < 0 || dot === base.length - 1) return false;
+  return extensionsForMode(mode).includes(base.slice(dot + 1).toLowerCase());
+}
+
 export function normalizePickedPaths(selected: string | string[] | null): string[] {
   if (selected == null) return [];
   return Array.isArray(selected) ? selected : [selected];
@@ -37,11 +72,11 @@ export function probeMedia(path: string) {
   return invoke<MediaInfo>("probe_media_command", { path });
 }
 
-export async function pickFiles(labels: { title: string; filter: string }) {
+export async function pickFiles(mode: ConvertMode, labels: { title: string; filter: string }) {
   const selected = await open({
     multiple: true,
     title: labels.title,
-    filters: [{ name: labels.filter, extensions: VIDEO_EXTENSIONS }],
+    filters: [{ name: labels.filter, extensions: extensionsForMode(mode) }],
   });
   return normalizePickedPaths(selected);
 }

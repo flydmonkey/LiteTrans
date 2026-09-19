@@ -1,4 +1,6 @@
-export type ConvertMode = "video" | "audio" | "document";
+import type { ConvertMode } from "./types";
+
+export type { ConvertMode };
 
 export type DocumentSourceKind = "image" | "pdf" | "word" | "excel";
 

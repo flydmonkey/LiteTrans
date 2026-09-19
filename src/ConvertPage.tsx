@@ -5,14 +5,23 @@ import {
   getOrInitOutputDir,
   loadSessionSettings,
   localMediaUrl,
+  pathAllowedForMode,
   pickFiles,
   preparePreview,
   pickOutputDir,
   probeMedia,
   saveSessionSettings,
 } from "./api";
+import {
+  allowsTrim,
+  canStart,
+  defaultDocumentPreset,
+  documentSourceKind,
+  isVideoConcatPreset,
+  sameDocumentKind,
+} from "./convert";
 import { t } from "./i18n";
-import type { Job, MediaInfo, OutputConfig, SourceItem } from "./types";
+import type { ConvertMode, Job, MediaInfo, ModeSettings, OutputConfig, SourceItem } from "./types";
 
 const PROBE_CONCURRENCY = 4;
 
@@ -34,13 +43,14 @@ async function mapWithConcurrency<T>(
   );
 }
 
-const PRESET_CARDS: Array<{
+type PresetCard = {
   id: string;
   titleKey: string;
   hintKey: string;
   badgeKey?: string;
-  kind?: "audio" | "video";
-}> = [
+};
+
+const VIDEO_PRESET_CARDS: PresetCard[] = [
   {
     id: "mp4-h264",
     titleKey: "preset_mp4_h264_title",
@@ -62,6 +72,11 @@ const PRESET_CARDS: Array<{
     id: "mov-h264",
     titleKey: "preset_mov_h264_title",
     hintKey: "preset_mov_h264_hint",
+  },
+  {
+    id: "video-concat",
+    titleKey: "preset_video_concat_title",
+    hintKey: "preset_video_concat_hint",
   },
   {
     id: "mkv-copy-friendly",
@@ -88,30 +103,75 @@ const PRESET_CARDS: Array<{
     titleKey: "preset_gif_title",
     hintKey: "preset_gif_hint",
   },
+];
+
+const AUDIO_PRESET_CARDS: PresetCard[] = [
   {
     id: "audio-mp3",
     titleKey: "preset_audio_mp3_title",
     hintKey: "preset_audio_mp3_hint",
-    kind: "audio",
   },
   {
     id: "audio-aac",
     titleKey: "preset_audio_aac_title",
     hintKey: "preset_audio_aac_hint",
-    kind: "audio",
+  },
+  {
+    id: "audio-wav",
+    titleKey: "preset_audio_wav_title",
+    hintKey: "preset_audio_wav_hint",
+  },
+  {
+    id: "audio-flac",
+    titleKey: "preset_audio_flac_title",
+    hintKey: "preset_audio_flac_hint",
+  },
+  {
+    id: "audio-ogg",
+    titleKey: "preset_audio_ogg_title",
+    hintKey: "preset_audio_ogg_hint",
+  },
+  {
+    id: "audio-amr",
+    titleKey: "preset_audio_amr_title",
+    hintKey: "preset_audio_amr_hint",
   },
 ];
 
-const PRIMARY_PRESET_IDS = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264"];
+const DOCUMENT_PRESET_CARDS: PresetCard[] = [
+  { id: "image-jpg", titleKey: "preset_image_jpg_title", hintKey: "preset_image_jpg_hint" },
+  { id: "image-png", titleKey: "preset_image_png_title", hintKey: "preset_image_png_hint" },
+  { id: "image-webp", titleKey: "preset_image_webp_title", hintKey: "preset_image_webp_hint" },
+  { id: "image-bmp", titleKey: "preset_image_bmp_title", hintKey: "preset_image_bmp_hint" },
+  { id: "image-gif", titleKey: "preset_image_gif_title", hintKey: "preset_image_gif_hint" },
+  { id: "image-compress", titleKey: "preset_image_compress_title", hintKey: "preset_image_compress_hint" },
+  { id: "pdf-image", titleKey: "preset_pdf_image_title", hintKey: "preset_pdf_image_hint" },
+  { id: "pdf-txt", titleKey: "preset_pdf_txt_title", hintKey: "preset_pdf_txt_hint" },
+  { id: "pdf-compress", titleKey: "preset_pdf_compress_title", hintKey: "preset_pdf_compress_hint" },
+  { id: "pdf-split", titleKey: "preset_pdf_split_title", hintKey: "preset_pdf_split_hint" },
+  { id: "office-pdf", titleKey: "preset_office_pdf_title", hintKey: "preset_office_pdf_hint" },
+];
+
+const ALL_PRESET_CARDS = [...VIDEO_PRESET_CARDS, ...AUDIO_PRESET_CARDS, ...DOCUMENT_PRESET_CARDS];
+
+const PRIMARY_PRESET_IDS = ["mp4-h264", "mp4-copy", "mp4-h265", "mov-h264", "video-concat"];
+
+const CONVERT_MODES: ConvertMode[] = ["video", "audio", "document"];
+
+const DEFAULT_PRESET: Record<ConvertMode, string> = {
+  video: "mp4-h264",
+  audio: "audio-mp3",
+  document: "image-jpg",
+};
 
 function collapsedPresetCards(selectedId: string) {
   const primary = PRIMARY_PRESET_IDS.map(
-    (id) => PRESET_CARDS.find((card) => card.id === id)!,
+    (id) => VIDEO_PRESET_CARDS.find((card) => card.id === id)!,
   );
   if (PRIMARY_PRESET_IDS.includes(selectedId)) return primary;
-  const selected = PRESET_CARDS.find((card) => card.id === selectedId);
+  const selected = VIDEO_PRESET_CARDS.find((card) => card.id === selectedId);
   if (!selected) return primary;
-  return [...primary.slice(0, 3), selected];
+  return [...primary.slice(0, 4), selected];
 }
 
 const QUALITY_OPTIONS = [
@@ -190,9 +250,15 @@ function friendlyContainer(locale: string, container: string | null, path: strin
   return ext || t(locale, "container_video");
 }
 
+function localizedError(locale: string, error: string | null) {
+  if (!error) return t(locale, "source_unreadable");
+  const translated = t(locale, error);
+  return translated !== error ? translated : error;
+}
+
 function sourceFormat(locale: string, item: SourceItem) {
   if (item.probing) return t(locale, "source_reading_format");
-  if (!item.importable) return item.error ?? t(locale, "source_unreadable");
+  if (!item.importable) return localizedError(locale, item.error);
   return [
     friendlyContainer(locale, item.container, item.path),
     friendlyCodec(item.videoCodec) || friendlyCodec(item.audioCodec),
@@ -226,11 +292,24 @@ function itemHasDuration(item: SourceItem) {
 }
 
 function isAudioPreset(preset: string) {
-  return preset === "audio-mp3" || preset === "audio-aac";
+  return preset.startsWith("audio-");
+}
+
+function isLosslessAudioPreset(preset: string) {
+  return preset === "audio-wav" || preset === "audio-flac";
 }
 
 function isCopyPreset(preset: string) {
   return preset === "mp4-copy";
+}
+
+function shouldShowQuality(preset: string, mode: ConvertMode) {
+  if (mode === "document") return false;
+  return !isCopyPreset(preset) && !isLosslessAudioPreset(preset);
+}
+
+function shouldShowResolution(preset: string, mode: ConvertMode) {
+  return mode === "video" && !isCopyPreset(preset) && !isVideoConcatPreset(preset);
 }
 
 function isTrimmed(item: SourceItem) {
@@ -253,6 +332,75 @@ function qualityId(config: OutputConfig) {
 
 function emptyConfig(preset = "mp4-h264"): OutputConfig {
   return { preset, quality: "standard" };
+}
+
+type WizardSession = {
+  sources: SourceItem[];
+  config: OutputConfig;
+  outputDir: string;
+  showAll: boolean;
+};
+
+function emptySession(preset: string, outputDir = ""): WizardSession {
+  return {
+    sources: [],
+    config: emptyConfig(preset),
+    outputDir,
+    showAll: false,
+  };
+}
+
+function sessionFromSettings(
+  saved: ModeSettings | undefined,
+  fallbackPreset: string,
+  fallbackDir: string,
+): WizardSession {
+  return {
+    sources: [],
+    config: {
+      preset: saved?.preset || fallbackPreset,
+      quality: saved?.quality || "standard",
+      maxWidth: saved?.maxWidth ?? null,
+      maxHeight: saved?.maxHeight ?? null,
+    },
+    outputDir: saved?.outputDir || fallbackDir,
+    showAll: false,
+  };
+}
+
+function emptySources(): Record<ConvertMode, WizardSession> {
+  return {
+    video: emptySession(DEFAULT_PRESET.video),
+    audio: emptySession(DEFAULT_PRESET.audio),
+    document: emptySession(DEFAULT_PRESET.document),
+  };
+}
+
+function placeholderSource(path: string): SourceItem {
+  return {
+    path,
+    durationSecs: null,
+    container: null,
+    videoCodec: null,
+    width: null,
+    height: null,
+    frameRate: null,
+    audioCodec: null,
+    channels: null,
+    importable: false,
+    error: null,
+    probing: true,
+    pageCount: null,
+    pageStart: null,
+    pageEnd: null,
+  };
+}
+
+function pickDialogLabels(locale: string, mode: ConvertMode) {
+  if (mode === "video") {
+    return { title: t(locale, "pick_files_title"), filter: t(locale, "pick_files_filter") };
+  }
+  return { title: t(locale, "action_pick_files"), filter: t(locale, `segment_${mode}`) };
 }
 
 function formatClock(seconds: number) {
@@ -544,8 +692,10 @@ function TrimBar({
 export type ConvertPageProps = {
   active: boolean;
   locale: string;
+  mode: ConvertMode;
   jobs: Job[];
   dragging: boolean;
+  onModeChange: (mode: ConvertMode) => void;
   onNotice: (message: string | null) => void;
   onDraggingChange: (dragging: boolean) => void;
   onEnqueued: (preset: string) => void;
@@ -554,23 +704,29 @@ export type ConvertPageProps = {
 export default function ConvertPage({
   active,
   locale,
+  mode,
   jobs,
   dragging,
+  onModeChange,
   onNotice,
   onDraggingChange,
   onEnqueued,
 }: ConvertPageProps) {
-  const [sources, setSources] = useState<SourceItem[]>([]);
-  const [config, setConfig] = useState<OutputConfig>(emptyConfig());
-  const [outputDir, setOutputDir] = useState("");
+  const [sessions, setSessions] = useState<Record<ConvertMode, WizardSession>>(emptySources);
   const [busy, setBusy] = useState(false);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [prefsReady, setPrefsReady] = useState(false);
-  const [showAllFormats, setShowAllFormats] = useState(false);
-  const sourcesRef = useRef(sources);
-  sourcesRef.current = sources;
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
   const activeRef = useRef(active);
   activeRef.current = active;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
+
+  const session = sessions[mode];
+  const { sources, config, outputDir, showAll: showAllFormats } = session;
 
   const runningIds = useMemo(
     () => new Set(jobs.filter((job) => job.status === "running").map((job) => job.sourcePath)),
@@ -578,7 +734,15 @@ export default function ConvertPage({
   );
   const transcoding = jobs.some((job) => job.status === "running" || job.status === "queued");
   const importableCount = sources.filter((item) => item.importable).length;
-  const readyToStart = importableCount > 0 && Boolean(outputDir) && !busy && !transcoding;
+  const probing = sources.some((item) => item.probing);
+  const readyToStart = canStart(
+    importableCount,
+    probing,
+    transcoding || busy,
+    Boolean(outputDir),
+    config.preset,
+    sources.length,
+  );
   const previewSource = useMemo(() => {
     const withDuration = sources.filter(itemHasDuration);
     return withDuration.find((item) => item.path === selectedPath) ?? withDuration[0] ?? null;
@@ -595,40 +759,72 @@ export default function ConvertPage({
   useEffect(() => {
     if (!prefsReady || !outputDir) return;
     void saveSessionSettings({
-      outputDir,
-      preset: config.preset,
-      quality: config.quality ?? "standard",
-      maxWidth: config.maxWidth ?? null,
-      maxHeight: config.maxHeight ?? null,
+      [mode]: {
+        outputDir,
+        preset: config.preset,
+        quality: config.quality ?? "standard",
+        maxWidth: config.maxWidth ?? null,
+        maxHeight: config.maxHeight ?? null,
+      },
     });
-  }, [prefsReady, outputDir, config.preset, config.quality, config.maxWidth, config.maxHeight]);
+  }, [prefsReady, mode, outputDir, config.preset, config.quality, config.maxWidth, config.maxHeight]);
+
+  const patchSession = useCallback((target: ConvertMode, patch: (current: WizardSession) => WizardSession) => {
+    setSessions((all) => {
+      const next = { ...all, [target]: patch(all[target]) };
+      sessionsRef.current = next;
+      return next;
+    });
+  }, []);
 
   const addPaths = useCallback(async (paths: string[]) => {
-    const unique = paths.filter((path) => !sourcesRef.current.some((item) => item.path === path));
+    const modeNow = modeRef.current;
+    const current = sessionsRef.current[modeNow];
+    const unique = paths.filter((path) => !current.sources.some((item) => item.path === path));
     if (!unique.length) return;
-    sourcesRef.current = [
-      ...sourcesRef.current,
-      ...unique.map((path) => ({
-        path,
-        durationSecs: null,
-        container: null,
-        videoCodec: null,
-        width: null,
-        height: null,
-        frameRate: null,
-        audioCodec: null,
-        channels: null,
-        importable: false,
-        error: null,
-        probing: true,
-      })),
-    ];
-    setSources(sourcesRef.current);
-    await mapWithConcurrency(unique, PROBE_CONCURRENCY, async (path) => {
+
+    const allowed = unique.filter((path) => pathAllowedForMode(path, modeNow));
+    if (allowed.length !== unique.length) {
+      onNotice(t(localeRef.current, "notice_wrong_mode"));
+    }
+    if (!allowed.length) return;
+
+    if (modeNow === "document") {
+      const existingNames = current.sources.map((item) => item.path);
+      const incoming: string[] = [];
+      let mixed = false;
+      for (const path of allowed) {
+        if (!sameDocumentKind([...existingNames, ...incoming], path)) {
+          mixed = true;
+          break;
+        }
+        incoming.push(path);
+      }
+      if (mixed) {
+        onNotice(t(localeRef.current, "notice_document_mixed"));
+        return;
+      }
+    }
+
+    let nextConfig = current.config;
+    if (modeNow === "document" && current.sources.length === 0) {
+      const kind = documentSourceKind(allowed[0]);
+      if (kind && kind !== "excel") {
+        nextConfig = { ...current.config, preset: defaultDocumentPreset(kind) };
+      }
+    }
+
+    const nextSources = [...current.sources, ...allowed.map(placeholderSource)];
+    const nextSession = { ...current, sources: nextSources, config: nextConfig };
+    sessionsRef.current = { ...sessionsRef.current, [modeNow]: nextSession };
+    setSessions(sessionsRef.current);
+
+    await mapWithConcurrency(allowed, PROBE_CONCURRENCY, async (path) => {
       try {
         const info = await probeMedia(path);
-        setSources((current) =>
-          current.map((item) =>
+        patchSession(modeNow, (session) => ({
+          ...session,
+          sources: session.sources.map((item) =>
             item.path === path
               ? {
                   ...info,
@@ -638,38 +834,48 @@ export default function ConvertPage({
                 }
               : item,
           ),
-        );
+        }));
       } catch (err) {
-        setSources((current) =>
-          current.map((item) =>
+        patchSession(modeNow, (session) => ({
+          ...session,
+          sources: session.sources.map((item) =>
             item.path === path
               ? { ...item, probing: false, importable: false, error: String(err) }
               : item,
           ),
-        );
+        }));
       }
     });
-  }, []);
+  }, [onNotice, patchSession]);
 
   useEffect(() => {
     void (async () => {
+      let fallbackDir = "";
       try {
-        const saved = await loadSessionSettings();
-        if (saved.preset || saved.quality || saved.maxWidth != null || saved.maxHeight != null) {
-          setConfig({
-            preset: saved.preset || "mp4-h264",
-            quality: saved.quality || "standard",
-            maxWidth: saved.maxWidth ?? null,
-            maxHeight: saved.maxHeight ?? null,
-          });
-        }
-      } catch {
-        // First launch has no saved prefs.
-      }
-      try {
-        setOutputDir(await getOrInitOutputDir());
+        fallbackDir = await getOrInitOutputDir();
       } catch (err) {
         onNotice(String(err));
+      }
+      try {
+        const saved = await loadSessionSettings();
+        const videoSaved = saved.video?.preset ? saved.video : {
+          outputDir: saved.outputDir,
+          preset: saved.preset,
+          quality: saved.quality,
+          maxWidth: saved.maxWidth,
+          maxHeight: saved.maxHeight,
+        };
+        setSessions({
+          video: sessionFromSettings(videoSaved, DEFAULT_PRESET.video, fallbackDir),
+          audio: sessionFromSettings(saved.audio, DEFAULT_PRESET.audio, fallbackDir),
+          document: sessionFromSettings(saved.document, DEFAULT_PRESET.document, fallbackDir),
+        });
+      } catch {
+        setSessions({
+          video: emptySession(DEFAULT_PRESET.video, fallbackDir),
+          audio: emptySession(DEFAULT_PRESET.audio, fallbackDir),
+          document: emptySession(DEFAULT_PRESET.document, fallbackDir),
+        });
       }
       setPrefsReady(true);
     })();
@@ -703,10 +909,7 @@ export default function ConvertPage({
 
   async function onPickFiles() {
     try {
-      const paths = await pickFiles({
-        title: t(locale, "pick_files_title"),
-        filter: t(locale, "pick_files_filter"),
-      });
+      const paths = await pickFiles(mode, pickDialogLabels(locale, mode));
       await addPaths(paths);
     } catch (err) {
       onNotice(String(err));
@@ -716,7 +919,7 @@ export default function ConvertPage({
   async function onPickOutputDir() {
     try {
       const dir = await pickOutputDir(t(locale, "pick_output_title"));
-      if (dir) setOutputDir(dir);
+      if (dir) patchSession(mode, (current) => ({ ...current, outputDir: dir }));
     } catch (err) {
       onNotice(String(err));
     }
@@ -727,11 +930,36 @@ export default function ConvertPage({
       onNotice(t(locale, "notice_cannot_remove_running"));
       return;
     }
-    setSources((current) => current.filter((item) => item.path !== path));
+    patchSession(mode, (current) => ({
+      ...current,
+      sources: current.sources.filter((item) => item.path !== path),
+    }));
+  }
+
+  function applyPreset(preset: string) {
+    patchSession(mode, (current) => ({
+      ...current,
+      config: {
+        preset,
+        quality: current.config.quality ?? "standard",
+        maxWidth:
+          isCopyPreset(preset) || isVideoConcatPreset(preset) || mode === "audio" || mode === "document"
+            ? null
+            : current.config.maxWidth,
+        maxHeight:
+          isCopyPreset(preset) || isVideoConcatPreset(preset) || mode === "audio" || mode === "document"
+            ? null
+            : current.config.maxHeight,
+      },
+    }));
+  }
+
+  function applyConfig(next: OutputConfig) {
+    patchSession(mode, (current) => ({ ...current, config: next }));
   }
 
   async function onStart() {
-    if (transcoding || busy) return;
+    if (!readyToStart) return;
     const importable = sources.filter((item) => item.importable);
     if (!importable.length) {
       onNotice(t(locale, "notice_need_source"));
@@ -749,7 +977,7 @@ export default function ConvertPage({
         config,
         outputDir,
       );
-      setSources([]);
+      patchSession(mode, (current) => ({ ...current, sources: [] }));
       setSelectedPath(null);
       onEnqueued(config.preset);
       if (report.skipped.length) {
@@ -769,12 +997,22 @@ export default function ConvertPage({
     }
   }
 
-  const selectedCard = PRESET_CARDS.find((card) => card.id === config.preset);
-  const selectedTitle = selectedCard ? t(locale, selectedCard.titleKey) : t(locale, "preset_mp4_h264_title");
-  const shownPresets = showAllFormats
-    ? PRESET_CARDS
-    : collapsedPresetCards(config.preset);
-  const audioOnly = isAudioPreset(config.preset);
+  const selectedCard = ALL_PRESET_CARDS.find((card) => card.id === config.preset);
+  const selectedTitle = selectedCard
+    ? t(locale, selectedCard.titleKey)
+    : t(locale, mode === "audio" ? "preset_audio_mp3_title" : "preset_mp4_h264_title");
+  const shownPresets =
+    mode === "audio"
+      ? AUDIO_PRESET_CARDS
+      : mode === "document"
+        ? []
+        : showAllFormats
+          ? VIDEO_PRESET_CARDS
+          : collapsedPresetCards(config.preset);
+  const audioOnly = mode === "audio" || isAudioPreset(config.preset);
+  const showQuality = shouldShowQuality(config.preset, mode);
+  const showResolution = shouldShowResolution(config.preset, mode);
+  const showTrim = Boolean(allowsTrim(config.preset) && timelineDuration && previewSource);
   const qualityLabel =
     t(
       locale,
@@ -785,6 +1023,7 @@ export default function ConvertPage({
     SIZE_OPTIONS.find((item) => item.id === sizeId(config))?.titleKey ?? "size_original",
   );
   const copyOnly = isCopyPreset(config.preset);
+  const concatOnly = isVideoConcatPreset(config.preset);
   const trimmedCount = sources.filter(isTrimmed).length;
   const trimLabel = trimmedCount
     ? trimmedCount === 1 && previewSource && isTrimmed(previewSource)
@@ -796,11 +1035,13 @@ export default function ConvertPage({
     : "";
 
   let dockSummary = t(locale, "dock_need_source");
-  if (importableCount) {
-    if (audioOnly) {
+  if (concatOnly && importableCount < 2) {
+    dockSummary = t(locale, "dock_concat_need_two");
+  } else if (importableCount) {
+    if (audioOnly || mode === "document" || concatOnly) {
       dockSummary = t(locale, "dock_convert_files", {
         count: importableCount,
-        target: selectedCard ? t(locale, selectedCard.titleKey) : t(locale, "preset_audio_mp3_title"),
+        target: selectedTitle,
         quality: qualityLabel,
       });
     } else if (copyOnly) {
@@ -821,6 +1062,18 @@ export default function ConvertPage({
 
   return (
     <>
+      <div className="chips convert-segments">
+        {CONVERT_MODES.map((id) => (
+          <button
+            key={id}
+            type="button"
+            className={mode === id ? "chip on" : "chip"}
+            onClick={() => onModeChange(id)}
+          >
+            <strong>{t(locale, `segment_${id}`)}</strong>
+          </button>
+        ))}
+      </div>
       <div className="convert-grid">
         <section className="stage">
           <div className="stage-head">
@@ -860,7 +1113,7 @@ export default function ConvertPage({
                     .filter(Boolean)
                     .join(" ")}
                   onClick={() => {
-                    if (itemHasDuration(item)) setSelectedPath(item.path);
+                    if (allowsTrim(config.preset) && itemHasDuration(item)) setSelectedPath(item.path);
                   }}
                 >
                   <div>
@@ -885,7 +1138,7 @@ export default function ConvertPage({
               ))}
             </ul>
           ) : null}
-          {timelineDuration && previewSource ? (
+          {showTrim && timelineDuration && previewSource ? (
             <div className="trim-wrap">
               <div className="trim-head">
                 <div>
@@ -900,13 +1153,14 @@ export default function ConvertPage({
                   type="button"
                   className="text"
                   onClick={() =>
-                    setSources((current) =>
-                      current.map((item) =>
+                    patchSession(mode, (current) => ({
+                      ...current,
+                      sources: current.sources.map((item) =>
                         item.path === previewSource.path
                           ? { ...item, trimStartSecs: 0, trimEndSecs: timelineDuration }
                           : item,
                       ),
-                    )
+                    }))
                   }
                 >
                   {t(locale, "trim_reset")}
@@ -923,13 +1177,14 @@ export default function ConvertPage({
                 videoCodec={previewSource.videoCodec}
                 audioCodec={previewSource.audioCodec}
                 onChange={(nextStart, nextEnd) =>
-                  setSources((current) =>
-                    current.map((item) =>
+                  patchSession(mode, (current) => ({
+                    ...current,
+                    sources: current.sources.map((item) =>
                       item.path === previewSource.path
                         ? { ...item, trimStartSecs: nextStart, trimEndSecs: nextEnd }
                         : item,
                     ),
-                  )
+                  }))
                 }
               />
             </div>
@@ -945,65 +1200,66 @@ export default function ConvertPage({
                 <p>{conversionPreview(locale, sources, selectedTitle)}</p>
               </div>
             </div>
-            <div className="presets">
-              {shownPresets.map((card) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  className={config.preset === card.id ? "preset on" : "preset"}
-                  onClick={() =>
-                    setConfig((current) => ({
-                      preset: card.id,
-                      quality: current.quality ?? "standard",
-                      maxWidth: isCopyPreset(card.id) ? null : current.maxWidth,
-                      maxHeight: isCopyPreset(card.id) ? null : current.maxHeight,
-                    }))
-                  }
-                >
-                  <span className="preset-title">
-                    {t(locale, card.titleKey)}
-                    {card.badgeKey ? <em>{t(locale, card.badgeKey)}</em> : null}
-                  </span>
-                  <span>{t(locale, card.hintKey)}</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                className="preset more"
-                onClick={() => setShowAllFormats((open) => !open)}
-              >
-                <span className="preset-title">
-                  {t(locale, showAllFormats ? "action_collapse" : "action_more")}
-                </span>
-                <span>{t(locale, showAllFormats ? "formats_less_hint" : "formats_more_hint")}</span>
-              </button>
-            </div>
-            {isCopyPreset(config.preset) ? (
+            {shownPresets.length > 0 ? (
+              <div className="presets">
+                {shownPresets.map((card) => (
+                  <button
+                    key={card.id}
+                    type="button"
+                    className={config.preset === card.id ? "preset on" : "preset"}
+                    onClick={() => applyPreset(card.id)}
+                  >
+                    <span className="preset-title">
+                      {t(locale, card.titleKey)}
+                      {card.badgeKey ? <em>{t(locale, card.badgeKey)}</em> : null}
+                    </span>
+                    <span>{t(locale, card.hintKey)}</span>
+                  </button>
+                ))}
+                {mode === "video" ? (
+                  <button
+                    type="button"
+                    className="preset more"
+                    onClick={() =>
+                      patchSession(mode, (current) => ({ ...current, showAll: !current.showAll }))
+                    }
+                  >
+                    <span className="preset-title">
+                      {t(locale, showAllFormats ? "action_collapse" : "action_more")}
+                    </span>
+                    <span>{t(locale, showAllFormats ? "formats_less_hint" : "formats_more_hint")}</span>
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {copyOnly ? (
               <p className="tune-intro">{t(locale, "hint_copy_mp4")}</p>
-            ) : (
+            ) : showQuality || showResolution ? (
               <div className="tune">
-                <p className="tune-intro">{t(locale, "tune_intro")}</p>
+                {showResolution ? <p className="tune-intro">{t(locale, "tune_intro")}</p> : null}
                 <div className="tune-grid">
-                  <div>
-                    <p className="tune-label">{t(locale, audioOnly ? "quality_audio_title" : "quality_title")}</p>
-                    <p className="tune-desc">
-                      {t(locale, audioOnly ? "quality_audio_desc" : "quality_desc")}
-                    </p>
-                    <div className="chips">
-                      {QUALITY_OPTIONS.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className={qualityId(config) === item.id ? "chip on" : "chip"}
-                          onClick={() => setConfig({ ...config, quality: item.id })}
-                        >
-                          <strong>{t(locale, item.titleKey)}</strong>
-                          <span>{t(locale, item.hintKey)}</span>
-                        </button>
-                      ))}
+                  {showQuality ? (
+                    <div>
+                      <p className="tune-label">{t(locale, audioOnly ? "quality_audio_title" : "quality_title")}</p>
+                      <p className="tune-desc">
+                        {t(locale, audioOnly ? "quality_audio_desc" : "quality_desc")}
+                      </p>
+                      <div className="chips">
+                        {QUALITY_OPTIONS.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={qualityId(config) === item.id ? "chip on" : "chip"}
+                            onClick={() => applyConfig({ ...config, quality: item.id })}
+                          >
+                            <strong>{t(locale, item.titleKey)}</strong>
+                            <span>{t(locale, item.hintKey)}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  {audioOnly ? null : (
+                  ) : null}
+                  {showResolution ? (
                     <div>
                       <p className="tune-label">{t(locale, "resolution_title")}</p>
                       <p className="tune-desc">{t(locale, "resolution_desc")}</p>
@@ -1014,7 +1270,7 @@ export default function ConvertPage({
                             type="button"
                             className={sizeId(config) === item.id ? "chip on" : "chip"}
                             onClick={() =>
-                              setConfig({
+                              applyConfig({
                                 ...config,
                                 maxWidth: item.width,
                                 maxHeight: item.height,
@@ -1027,10 +1283,10 @@ export default function ConvertPage({
                         ))}
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
-            )}
+            ) : null}
           </section>
 
           <section className="save">
@@ -1052,7 +1308,7 @@ export default function ConvertPage({
             ? t(locale, "joining_queue")
             : transcoding
               ? t(locale, "converting")
-              : t(locale, "start_transcode")}
+              : t(locale, mode === "video" ? "start_transcode" : "start_convert")}
         </button>
       </footer>
     </>
