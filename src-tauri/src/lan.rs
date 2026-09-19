@@ -395,7 +395,13 @@ fn is_dotted_ipv4(host: &str) -> bool {
     })
 }
 
-fn is_skipped_desktop_iface(name: &str) -> bool {
+/// Unix skips `lo*` / `utun*` / `awdl*` / `llw*` by name.
+/// Windows must not use the `lo*` prefix — that would drop "Local Area Connection".
+/// Loopback is filtered via [`LanIface::loopback`], not this name check.
+pub fn skip_desktop_iface_name(name: &str, unix: bool) -> bool {
+    if !unix {
+        return false;
+    }
     let n = name.to_lowercase();
     n.starts_with("lo")
         || n.starts_with("utun")
@@ -426,7 +432,11 @@ pub fn collect_ifaces() -> Vec<LanIface> {
     {
         collect_ifaces_unix()
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        collect_ifaces_windows()
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         Vec::new()
     }
@@ -475,13 +485,40 @@ fn collect_ifaces_unix() -> Vec<LanIface> {
     out
 }
 
+#[cfg(windows)]
+fn collect_ifaces_windows() -> Vec<LanIface> {
+    let Ok(ifaces) = if_addrs::get_if_addrs() else {
+        return Vec::new();
+    };
+    ifaces
+        .into_iter()
+        .filter_map(|iface| {
+            let std::net::IpAddr::V4(ip) = iface.ip() else {
+                return None;
+            };
+            if ip.is_unspecified() {
+                return None;
+            }
+            Some(LanIface {
+                name: iface.name,
+                host_address: ip.to_string(),
+                loopback: iface.is_loopback() || ip.is_loopback(),
+            })
+        })
+        .collect()
+}
+
 pub fn pick_lan_ipv4(ifaces: &[LanIface]) -> Option<String> {
+    pick_lan_ipv4_filtered(ifaces, cfg!(unix))
+}
+
+pub fn pick_lan_ipv4_filtered(ifaces: &[LanIface], unix: bool) -> Option<String> {
     let usable: Vec<&LanIface> = ifaces
         .iter()
         .filter(|iface| {
             !iface.loopback
                 && is_dotted_ipv4(&iface.host_address)
-                && !is_skipped_desktop_iface(&iface.name)
+                && !skip_desktop_iface_name(&iface.name, unix)
         })
         .collect();
     if let Some(iface) = usable.iter().find(|i| is_rfc1918(&i.host_address)) {
@@ -634,6 +671,63 @@ mod tests {
             assert_ne!(ip, "0.0.0.0");
             assert!(!ip.starts_with("127."));
         }
+    }
+
+    #[test]
+    fn skip_desktop_iface_name_unix_and_windows() {
+        assert!(skip_desktop_iface_name("lo0", true));
+        assert!(skip_desktop_iface_name("utun0", true));
+        assert!(skip_desktop_iface_name("awdl0", true));
+        assert!(skip_desktop_iface_name("llw0", true));
+        assert!(!skip_desktop_iface_name("en0", true));
+        assert!(
+            skip_desktop_iface_name("Local Area Connection", true),
+            "unix lo* prefix would hide a Windows Ethernet name"
+        );
+        assert!(!skip_desktop_iface_name("lo0", false));
+        assert!(!skip_desktop_iface_name("Local Area Connection", false));
+        assert!(!skip_desktop_iface_name("Ethernet", false));
+        assert!(!skip_desktop_iface_name("Wi-Fi", false));
+        assert_eq!(
+            pick_lan_ipv4_filtered(
+                &[LanIface {
+                    name: "Local Area Connection".into(),
+                    host_address: "192.168.1.20".into(),
+                    loopback: false,
+                }],
+                false,
+            ),
+            Some("192.168.1.20".into())
+        );
+        assert_eq!(
+            pick_lan_ipv4_filtered(
+                &[
+                    LanIface {
+                        name: "Loopback Pseudo-Interface 1".into(),
+                        host_address: "127.0.0.1".into(),
+                        loopback: true,
+                    },
+                    LanIface {
+                        name: "Local Area Connection".into(),
+                        host_address: "192.168.1.20".into(),
+                        loopback: false,
+                    },
+                ],
+                false,
+            ),
+            Some("192.168.1.20".into())
+        );
+        assert_eq!(
+            pick_lan_ipv4_filtered(
+                &[LanIface {
+                    name: "Local Area Connection".into(),
+                    host_address: "192.168.1.20".into(),
+                    loopback: false,
+                }],
+                true,
+            ),
+            None
+        );
     }
 
     #[test]

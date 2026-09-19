@@ -197,15 +197,94 @@ fn item_format(job: &Job, label: &str) -> String {
         })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HistoryDateZone {
+    Local,
+    Utc,
+    FixedOffsetSecs(i32),
+}
+
 fn history_date_label(epoch_ms: Option<i64>) -> Option<String> {
+    format_history_date(epoch_ms, HistoryDateZone::Local)
+}
+
+pub(crate) fn format_history_date(epoch_ms: Option<i64>, zone: HistoryDateZone) -> Option<String> {
     let ms = epoch_ms.filter(|&value| value > 0)?;
-    let secs = ms.div_euclid(1000);
+    let utc_secs = ms.div_euclid(1000);
+    let (year, month, day, hour, minute) = match zone {
+        HistoryDateZone::Utc => civil_hms(utc_secs),
+        HistoryDateZone::FixedOffsetSecs(offset) => civil_hms(utc_secs + i64::from(offset)),
+        HistoryDateZone::Local => local_civil_hms(utc_secs)?,
+    };
+    Some(format!("{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}"))
+}
+
+fn civil_hms(secs: i64) -> (i32, u32, u32, u32, u32) {
     let days = secs.div_euclid(86_400);
     let tod = secs.rem_euclid(86_400) as u32;
-    let hour = tod / 3600;
-    let minute = (tod % 3600) / 60;
     let (year, month, day) = civil_from_days(days);
-    Some(format!("{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}"))
+    (year, month, day, tod / 3600, (tod % 3600) / 60)
+}
+
+fn local_civil_hms(utc_secs: i64) -> Option<(i32, u32, u32, u32, u32)> {
+    #[cfg(unix)]
+    unsafe {
+        let mut tm = std::mem::zeroed::<libc::tm>();
+        let t = utc_secs as libc::time_t;
+        if libc::localtime_r(&t, &mut tm).is_null() {
+            return None;
+        }
+        Some((
+            tm.tm_year + 1900,
+            (tm.tm_mon + 1) as u32,
+            tm.tm_mday as u32,
+            tm.tm_hour as u32,
+            tm.tm_min as u32,
+        ))
+    }
+    #[cfg(windows)]
+    {
+        #[repr(C)]
+        struct WinTm {
+            tm_sec: i32,
+            tm_min: i32,
+            tm_hour: i32,
+            tm_mday: i32,
+            tm_mon: i32,
+            tm_year: i32,
+            tm_wday: i32,
+            tm_yday: i32,
+            tm_isdst: i32,
+        }
+        extern "C" {
+            fn _localtime64_s(tm: *mut WinTm, time: *const i64) -> i32;
+        }
+        let mut tm = WinTm {
+            tm_sec: 0,
+            tm_min: 0,
+            tm_hour: 0,
+            tm_mday: 0,
+            tm_mon: 0,
+            tm_year: 0,
+            tm_wday: 0,
+            tm_yday: 0,
+            tm_isdst: 0,
+        };
+        if unsafe { _localtime64_s(&mut tm, &utc_secs) } != 0 {
+            return None;
+        }
+        Some((
+            tm.tm_year + 1900,
+            (tm.tm_mon + 1) as u32,
+            tm.tm_mday as u32,
+            tm.tm_hour as u32,
+            tm.tm_min as u32,
+        ))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        Some(civil_hms(utc_secs))
+    }
 }
 
 fn civil_from_days(z: i64) -> (i32, u32, u32) {
@@ -571,5 +650,66 @@ mod tests {
             lan_library_tab(&jobs[1], "/tmp/a.pdf"),
             LanLibraryTab::Document
         );
+    }
+
+    #[test]
+    fn history_date_uses_local_offset_not_only_utc() {
+        // 2026-09-18 03:43:00 UTC
+        let epoch_ms = 1_789_702_980_000;
+        assert_eq!(
+            format_history_date(Some(epoch_ms), HistoryDateZone::Utc).as_deref(),
+            Some("2026-09-18 03:43")
+        );
+        assert_eq!(
+            format_history_date(Some(epoch_ms), HistoryDateZone::FixedOffsetSecs(8 * 3600))
+                .as_deref(),
+            Some("2026-09-18 11:43")
+        );
+        assert_eq!(
+            format_history_date(Some(epoch_ms), HistoryDateZone::FixedOffsetSecs(-5 * 3600))
+                .as_deref(),
+            Some("2026-09-17 22:43")
+        );
+        let local = format_history_date(Some(epoch_ms), HistoryDateZone::Local).unwrap();
+        let utc = format_history_date(Some(epoch_ms), HistoryDateZone::Utc).unwrap();
+        if let Some(offset) = local_offset_secs_at(epoch_ms / 1000) {
+            let expected =
+                format_history_date(Some(epoch_ms), HistoryDateZone::FixedOffsetSecs(offset))
+                    .unwrap();
+            assert_eq!(local, expected);
+            if offset != 0 {
+                assert_ne!(local, utc);
+            }
+        }
+        assert_eq!(format_history_date(None, HistoryDateZone::Local), None);
+    }
+
+    fn local_offset_secs_at(utc_secs: i64) -> Option<i32> {
+        let (year, month, day, hour, minute) = super::local_civil_hms(utc_secs)?;
+        let (uy, um, ud, uh, umin) = super::civil_hms(utc_secs);
+        let local_mins = civil_minutes(year, month, day, hour, minute);
+        let utc_mins = civil_minutes(uy, um, ud, uh, umin);
+        Some((local_mins - utc_mins) * 60)
+    }
+
+    fn civil_minutes(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> i32 {
+        let days = days_from_civil(year, month, day);
+        days * 24 * 60 + hour as i32 * 60 + minute as i32
+    }
+
+    fn days_from_civil(year: i32, month: u32, day: u32) -> i32 {
+        let mut y = year;
+        let mut m = month as i32;
+        if m <= 2 {
+            y -= 1;
+            m += 9;
+        } else {
+            m -= 3;
+        }
+        let era = if y >= 0 { y } else { y - 399 } / 400;
+        let yoe = y - era * 400;
+        let doy = (153 * m + 2) / 5 + day as i32 - 1;
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        era * 146_097 + doe - 719_468
     }
 }

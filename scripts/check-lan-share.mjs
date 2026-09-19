@@ -1,4 +1,9 @@
-import { normalizeLanToken, shouldApplyLanShare } from "../src/lanShare.ts";
+import {
+  nextLanShareApply,
+  normalizeLanToken,
+  requestLanShareApply,
+  shouldApplyLanShare,
+} from "../src/lanShare.ts";
 
 function assert(cond, msg) {
   if (!cond) {
@@ -37,5 +42,26 @@ assert(
   }),
   "empty vs whitespace",
 );
+
+const gate = { running: false, latest: null };
+assert(requestLanShareApply(gate, { enabled: false, token: "secret" }), "first apply starts worker");
+assert(
+  !requestLanShareApply(gate, { enabled: true, token: "secret" }),
+  "overlapping apply does not start a second worker",
+);
+const latest = nextLanShareApply(gate);
+assert(latest?.enabled === true && latest.token === "secret", "stale disable loses to later enable");
+assert(nextLanShareApply(gate) === null, "queue drains after latest intent");
+assert(gate.running === false, "worker stops when queue is empty");
+
+const blurThenSwitch = { running: false, latest: null };
+assert(requestLanShareApply(blurThenSwitch, { enabled: true, token: "ab" }), "token blur starts worker");
+assert(
+  !requestLanShareApply(blurThenSwitch, { enabled: false, token: "ab" }),
+  "switch after blur stays on one worker",
+);
+const afterSwitch = nextLanShareApply(blurThenSwitch);
+assert(afterSwitch?.enabled === false, "tab-off then toggle ends on the latest switch intent");
+assert(nextLanShareApply(blurThenSwitch) === null, "no leftover share intent");
 
 console.log("lan share apply ok");

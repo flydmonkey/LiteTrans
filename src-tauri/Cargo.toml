@@ -27,6 +27,9 @@ printpdf = "0.7"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 pdfium-render = "0.8"
 
+[target.'cfg(windows)'.dependencies]
+if-addrs = "0.13"
+
 [profile.release]
 codegen-units = 1
 lto = true

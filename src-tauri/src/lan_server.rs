@@ -16,13 +16,29 @@ use crate::lan::{
 use crate::lan_page::LanHistoryCopy;
 use crate::queue::Job;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct LanRuntime {
     pub settings: LanShareSettings,
     pub bound: Option<(String, u16)>,
     pub stop: Option<mpsc::Sender<()>>,
     done: Option<mpsc::Receiver<()>>,
+    accept: Option<thread::JoinHandle<()>>,
     error: Option<String>,
+    stop_wait: Duration,
+}
+
+impl Default for LanRuntime {
+    fn default() -> Self {
+        Self {
+            settings: LanShareSettings::default(),
+            bound: None,
+            stop: None,
+            done: None,
+            accept: None,
+            error: None,
+            stop_wait: Duration::from_secs(5),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -84,14 +100,33 @@ fn is_user_facing_lan_ip(ip: &str) -> bool {
     ip != "0.0.0.0" && !ip.starts_with("127.")
 }
 
-pub fn stop_lan_runtime(runtime: &mut LanRuntime) {
+/// Returns true when the accept thread has exited (or never started).
+/// On timeout the previous listener is left in place so a second bind is not started.
+pub fn stop_lan_runtime(runtime: &mut LanRuntime) -> bool {
+    stop_lan_runtime_wait(runtime, runtime.stop_wait)
+}
+
+fn stop_lan_runtime_wait(runtime: &mut LanRuntime, timeout: Duration) -> bool {
     if let Some(tx) = runtime.stop.take() {
         let _ = tx.send(());
     }
-    if let Some(done) = runtime.done.take() {
-        let _ = done.recv_timeout(Duration::from_secs(2));
+    let finished = match runtime.done.take() {
+        Some(done) => match done.recv_timeout(timeout) {
+            Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => true,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                runtime.done = Some(done);
+                false
+            }
+        },
+        None => true,
+    };
+    if finished {
+        if let Some(handle) = runtime.accept.take() {
+            let _ = handle.join();
+        }
+        runtime.bound = None;
     }
-    runtime.bound = None;
+    finished
 }
 
 pub fn sync_lan_runtime(
@@ -100,7 +135,10 @@ pub fn sync_lan_runtime(
     mut bind: impl FnMut(&str, u16) -> io::Result<TcpListener>,
     serve: impl FnOnce(TcpListener, mpsc::Receiver<()>) + Send + 'static,
 ) -> Result<LanStatus, String> {
-    stop_lan_runtime(runtime);
+    if !stop_lan_runtime(runtime) {
+        runtime.error = Some("lan_ports_busy".into());
+        return Err("lan_ports_busy".into());
+    }
     runtime.error = None;
 
     if !runtime.settings.enabled {
@@ -139,12 +177,13 @@ pub fn sync_lan_runtime(
 
     let (stop_tx, stop_rx) = mpsc::channel();
     let (done_tx, done_rx) = mpsc::channel();
-    thread::spawn(move || {
+    let handle = thread::spawn(move || {
         serve(listener, stop_rx);
         let _ = done_tx.send(());
     });
     runtime.stop = Some(stop_tx);
     runtime.done = Some(done_rx);
+    runtime.accept = Some(handle);
     runtime.bound = Some((ip, port));
     runtime.error = None;
     Ok(status_from_runtime(runtime))
@@ -328,11 +367,14 @@ fn write_file_response(
     range_header: Option<&str>,
 ) -> io::Result<()> {
     let file_path = Path::new(path);
-    let meta = match std::fs::symlink_metadata(file_path) {
-        Ok(meta) if meta.file_type().is_file() => meta,
-        _ => return write_plain(stream, 404, "Not Found", response.send_body),
+    let mut file = match open_lan_file(file_path) {
+        Ok(file) => file,
+        Err(_) => return write_plain(stream, 404, "Not Found", response.send_body),
     };
-    let total = meta.len();
+    let total = match file.metadata() {
+        Ok(meta) => meta.len(),
+        Err(_) => return write_plain(stream, 404, "Not Found", response.send_body),
+    };
     let (status, start, length, extra, send_file) = match range_header.filter(|h| !h.is_empty()) {
         None => (response.status, 0, total, response.headers.clone(), true),
         Some(header) => match parse_byte_range(header, total) {
@@ -353,10 +395,6 @@ fn write_file_response(
     };
     write_headers(stream, status, &response.content_type, &extra, length)?;
     if response.send_body && send_file {
-        let mut file = match open_lan_file(file_path) {
-            Ok(file) => file,
-            Err(_) => return stream.flush(),
-        };
         file.seek(SeekFrom::Start(start))?;
         let mut remaining = length;
         let mut buf = [0u8; 8192];
@@ -384,7 +422,7 @@ fn write_plain(stream: &mut TcpStream, status: u16, body: &str, send_body: bool)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lan::LanIface;
+    use crate::lan::{LanHttpResponse, LanIface};
     use crate::presets::OutputConfig;
     use crate::probe::MediaInfo;
     use crate::queue::{Job, JobStatus};
@@ -634,5 +672,97 @@ mod tests {
             }]),
             None
         );
+    }
+
+    #[test]
+    fn stop_waits_for_accept_thread_then_clears_bound() {
+        let (done_tx, done_rx) = mpsc::channel();
+        let (stop_tx, stop_rx) = mpsc::channel();
+        let mut runtime = LanRuntime {
+            bound: Some(("192.168.1.20".into(), 17890)),
+            stop: Some(stop_tx),
+            done: Some(done_rx),
+            stop_wait: Duration::from_secs(1),
+            ..Default::default()
+        };
+        thread::spawn(move || {
+            let _ = stop_rx.recv();
+            thread::sleep(Duration::from_millis(30));
+            let _ = done_tx.send(());
+        });
+        assert!(stop_lan_runtime(&mut runtime));
+        assert!(runtime.bound.is_none());
+    }
+
+    #[test]
+    fn stop_timeout_does_not_start_second_listener() {
+        let (done_tx, done_rx) = mpsc::channel();
+        let (stop_tx, _stop_rx) = mpsc::channel();
+        let mut runtime = LanRuntime {
+            settings: LanShareSettings {
+                enabled: true,
+                token: String::new(),
+            },
+            bound: Some(("192.168.1.20".into(), 17890)),
+            stop: Some(stop_tx),
+            done: Some(done_rx),
+            stop_wait: Duration::from_millis(20),
+            ..Default::default()
+        };
+        let mut bind_called = false;
+        let err = sync_lan_runtime(
+            &mut runtime,
+            &[LanIface {
+                name: "en0".into(),
+                host_address: "192.168.1.20".into(),
+                loopback: false,
+            }],
+            |_, _| {
+                bind_called = true;
+                TcpListener::bind(("127.0.0.1", 0))
+            },
+            |_, _| {},
+        )
+        .unwrap_err();
+        assert!(!bind_called, "timeout must not bind a second listener");
+        assert_eq!(runtime.bound, Some(("192.168.1.20".into(), 17890)));
+        assert_eq!(err, "lan_ports_busy");
+        drop(done_tx);
+    }
+
+    #[test]
+    fn write_file_response_opens_before_headers() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let addr = listener.local_addr().unwrap();
+        let missing = std::env::temp_dir().join(format!(
+            "lan-missing-{}-{}.bin",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let path = missing.to_string_lossy().into_owned();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let response = LanHttpResponse {
+                status: 200,
+                content_type: "application/octet-stream".into(),
+                body: Vec::new(),
+                headers: vec![],
+                file_path: Some(path.clone()),
+                send_body: true,
+            };
+            write_file_response(&mut stream, &response, &path, Some("bytes=0-1")).unwrap();
+        });
+
+        let mut client = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
+        let mut raw = Vec::new();
+        client.read_to_end(&mut raw).unwrap();
+        let text = String::from_utf8_lossy(&raw);
+        assert!(text.starts_with("HTTP/1.1 404"), "{text}");
+        assert!(!text.contains("HTTP/1.1 206"), "{text}");
+        assert!(!text.contains("Content-Range"), "{text}");
+        server.join().unwrap();
     }
 }

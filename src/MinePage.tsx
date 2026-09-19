@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appVersion, lanStatus, setLanShare } from "./api";
 import { t } from "./i18n";
-import { shouldApplyLanShare } from "./lanShare";
+import {
+  nextLanShareApply,
+  requestLanShareApply,
+  shouldApplyLanShare,
+  type LanShareApplyGate,
+} from "./lanShare";
 import type { AppLanguage, LanStatus } from "./types";
 
 export type MinePageId = "lan" | "language" | "privacy" | "terms" | "about";
@@ -70,6 +75,7 @@ export default function MinePage({
   const [tokenDraft, setTokenDraft] = useState("");
   const enabledIntentRef = useRef(false);
   const switchClickInFlightRef = useRef(false);
+  const shareGateRef = useRef<LanShareApplyGate>({ running: false, latest: null });
 
   function rememberShare(next: LanStatus) {
     setStatus(next);
@@ -94,20 +100,29 @@ export default function MinePage({
 
   async function applyShare(enabled: boolean, token: string) {
     enabledIntentRef.current = enabled;
-    try {
-      await setLanShare({ enabled, token });
-    } catch (err) {
-      const errorKey = invokeErrorText(err);
-      if (errorKey === "lan_need_address" || errorKey === "lan_ports_busy") {
-        onNotice?.(t(locale, errorKey));
-      } else {
-        onNotice?.(errorKey);
-      }
+    if (!requestLanShareApply(shareGateRef.current, { enabled, token })) {
+      return;
     }
-    try {
-      await refreshLanStatus();
-    } catch (err) {
-      onNotice?.(invokeErrorText(err));
+    while (true) {
+      const intent = nextLanShareApply(shareGateRef.current);
+      if (!intent) {
+        break;
+      }
+      try {
+        await setLanShare({ enabled: intent.enabled, token: intent.token });
+      } catch (err) {
+        const errorKey = invokeErrorText(err);
+        if (errorKey === "lan_need_address" || errorKey === "lan_ports_busy") {
+          onNotice?.(t(locale, errorKey));
+        } else {
+          onNotice?.(errorKey);
+        }
+      }
+      try {
+        await refreshLanStatus();
+      } catch (err) {
+        onNotice?.(invokeErrorText(err));
+      }
     }
   }
 
