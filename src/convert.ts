@@ -101,6 +101,15 @@ export function clampPageRange(start: number, end: number, pageCount: number): [
   return [lo, hi];
 }
 
+/** Inherit the session page-range control onto a newly probed document, clamped to that file. */
+export function pageRangeAfterProbe(
+  sessionStart: number,
+  sessionEnd: number,
+  pageCount: number,
+): [number, number] {
+  return clampPageRange(sessionStart, sessionEnd, pageCount);
+}
+
 export function defaultDocumentPreset(kind: DocumentSourceKind): string {
   switch (kind) {
     case "image":

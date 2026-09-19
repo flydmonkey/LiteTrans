@@ -18,6 +18,7 @@ import {
   clampPageRange,
   clampVideoPreset,
   defaultDocumentPreset,
+  pageRangeAfterProbe,
   documentCardsFor,
   documentSourceKind,
   isVideoConcatPreset,
@@ -849,21 +850,35 @@ export default function ConvertPage({
     await mapWithConcurrency(allowed, PROBE_CONCURRENCY, async (path) => {
       try {
         const info = await probeMedia(path);
-        patchSession(modeNow, (session) => ({
-          ...session,
-          sources: session.sources.map((item) =>
-            item.path === path
-              ? {
-                  ...info,
-                  probing: false,
-                  trimStartSecs: 0,
-                  trimEndSecs: info.durationSecs,
-                  pageStart: info.pageStart ?? (info.pageCount != null ? 1 : null),
-                  pageEnd: info.pageEnd ?? info.pageCount ?? null,
-                }
-              : item,
-          ),
-        }));
+        patchSession(modeNow, (session) => {
+          const rangeSource = session.sources.find(
+            (item) => item.path !== path && item.importable && item.pageCount != null,
+          );
+          const pages = info.pageCount;
+          const [pageStart, pageEnd] =
+            pages != null
+              ? pageRangeAfterProbe(
+                  rangeSource?.pageStart ?? info.pageStart ?? 1,
+                  rangeSource?.pageEnd ?? info.pageEnd ?? pages,
+                  pages,
+                )
+              : [info.pageStart ?? null, info.pageEnd ?? null];
+          return {
+            ...session,
+            sources: session.sources.map((item) =>
+              item.path === path
+                ? {
+                    ...info,
+                    probing: false,
+                    trimStartSecs: 0,
+                    trimEndSecs: info.durationSecs,
+                    pageStart,
+                    pageEnd,
+                  }
+                : item,
+            ),
+          };
+        });
       } catch (err) {
         patchSession(modeNow, (session) => ({
           ...session,
