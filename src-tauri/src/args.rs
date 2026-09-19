@@ -116,9 +116,14 @@ pub fn build_ffmpeg_args(
             "-vn".into(),
             "-c:a".into(),
             ffmpeg_audio_codec(encoder).into(),
-            "-b:a".into(),
-            format!("{}k", config.audio_bitrate_kbps.unwrap_or(192)),
         ]);
+        if encoder == "amr_nb" {
+            args.extend(["-ar".into(), "8000".into(), "-ac".into(), "1".into()]);
+        }
+        if let Some(bitrate) = config.audio_bitrate_kbps {
+            args.push("-b:a".into());
+            args.push(audio_bitrate_arg(encoder, bitrate));
+        }
         push_output(&mut args, &config.container, output_partial);
         return Ok(args);
     }
@@ -173,8 +178,13 @@ pub fn build_ffmpeg_args(
         args.push("-c:a".into());
         args.push(ffmpeg_audio_codec(audio_encoder).into());
         if audio_encoder != "copy" {
-            args.push("-b:a".into());
-            args.push(format!("{}k", config.audio_bitrate_kbps.unwrap_or(192)));
+            if audio_encoder == "amr_nb" {
+                args.extend(["-ar".into(), "8000".into(), "-ac".into(), "1".into()]);
+            }
+            if let Some(bitrate) = config.audio_bitrate_kbps {
+                args.push("-b:a".into());
+                args.push(audio_bitrate_arg(audio_encoder, bitrate));
+            }
         }
     }
 
@@ -296,6 +306,30 @@ fn ffmpeg_video_codec(encoder: &str) -> &'static str {
         "copy" => "copy",
         _ => "libx264",
     }
+}
+
+const AMR_NB_RATES_BPS: &[u32] = &[4750, 5150, 5900, 6700, 7400, 7950, 10200, 12200];
+
+fn audio_bitrate_arg(encoder: &str, kbps: u32) -> String {
+    if encoder == "amr_nb" {
+        format!("{}k", amr_nb_bitrate_label(kbps))
+    } else {
+        format!("{kbps}k")
+    }
+}
+
+fn amr_nb_bitrate_label(kbps: u32) -> &'static str {
+    const LABELS: &[&str] = &[
+        "4.75", "5.15", "5.90", "6.70", "7.40", "7.95", "10.2", "12.2",
+    ];
+    let target = if kbps >= 1000 { kbps } else { kbps.saturating_mul(1000) };
+    let idx = AMR_NB_RATES_BPS
+        .iter()
+        .enumerate()
+        .min_by_key(|(_, rate)| rate.abs_diff(target))
+        .map(|(i, _)| i)
+        .unwrap_or(LABELS.len() - 1);
+    LABELS[idx]
 }
 
 fn ffmpeg_audio_codec(encoder: &str) -> &'static str {
@@ -699,5 +733,57 @@ mod tests {
         let args = build_ffmpeg_args("/tmp/a.mkv", "/tmp/a.partial.mp4", &config, &h264_source()).unwrap();
         assert!(!args.contains(&"-ss".into()));
         assert!(!args.contains(&"-t".into()));
+    }
+
+    fn assert_legal_amr_nb_bitrate(value: &str) {
+        const LEGAL: &[&str] = &[
+            "4.75k", "5.15k", "5.90k", "6.70k", "7.40k", "7.95k", "10.2k", "12.2k",
+        ];
+        assert!(
+            LEGAL.contains(&value),
+            "AMR-NB bitrate must be a legal rate, got {value}"
+        );
+    }
+
+    #[test]
+    fn amr_forces_8khz_mono_and_legal_bitrate() {
+        let config = resolve_config(&OutputConfig {
+            preset: "audio-amr".into(),
+            quality: Some("original".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        let args = build_ffmpeg_args("/tmp/a.mkv", "/tmp/a.partial.amr", &config, &h264_source()).unwrap();
+        assert_eq!(args[args.iter().position(|a| a == "-c:a").unwrap() + 1], "libopencore_amrnb");
+        assert_eq!(args[args.iter().position(|a| a == "-ar").unwrap() + 1], "8000");
+        assert_eq!(args[args.iter().position(|a| a == "-ac").unwrap() + 1], "1");
+        assert_legal_amr_nb_bitrate(&args[args.iter().position(|a| a == "-b:a").unwrap() + 1]);
+    }
+
+    #[test]
+    fn lossless_wav_and_flac_omit_audio_bitrate() {
+        for preset in ["audio-wav", "audio-flac"] {
+            let config = resolve_config(&OutputConfig {
+                preset: preset.into(),
+                ..Default::default()
+            })
+            .unwrap();
+            assert!(
+                config.audio_bitrate_kbps.is_none(),
+                "{preset} should not invent a bitrate"
+            );
+            let ext = if preset == "audio-wav" { "wav" } else { "flac" };
+            let args = build_ffmpeg_args(
+                "/tmp/a.mkv",
+                &format!("/tmp/a.partial.{ext}"),
+                &config,
+                &h264_source(),
+            )
+            .unwrap();
+            assert!(
+                !args.iter().any(|a| a == "-b:a"),
+                "{preset} must not pass -b:a, got {args:?}"
+            );
+        }
     }
 }

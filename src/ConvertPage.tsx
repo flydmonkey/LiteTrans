@@ -16,12 +16,14 @@ import {
   allowsTrim,
   canStart,
   applySessionPageRange,
+  clampPageRange,
   clampVideoPreset,
   defaultDocumentPreset,
   documentCardsFor,
   documentSourceKind,
   isVideoConcatPreset,
   sameDocumentKind,
+  sourceImageFormat,
 } from "./convert";
 import { t } from "./i18n";
 import type { ConvertMode, Job, MediaInfo, ModeSettings, OutputConfig, SourceItem } from "./types";
@@ -326,6 +328,21 @@ function shouldShowQuality(preset: string, mode: ConvertMode) {
 }
 
 const PDF_IMAGE_FORMATS = ["jpg", "png", "webp"] as const;
+
+function documentContainerForPreset(
+  preset: string,
+  sourcePath?: string | null,
+  current?: string | null,
+): string | null {
+  if (preset === "pdf-image") {
+    const fallback = current ?? "jpg";
+    return PDF_IMAGE_FORMATS.includes(fallback as (typeof PDF_IMAGE_FORMATS)[number]) ? fallback : "jpg";
+  }
+  if (preset === "image-compress") {
+    return sourceImageFormat(sourcePath ?? "") ?? current ?? null;
+  }
+  return null;
+}
 
 function shouldShowResolution(preset: string, mode: ConvertMode) {
   return mode === "video" && !isCopyPreset(preset) && !isVideoConcatPreset(preset);
@@ -843,7 +860,7 @@ export default function ConvertPage({
         nextConfig = {
           ...current.config,
           preset,
-          container: preset === "pdf-image" ? current.config.container ?? "jpg" : current.config.container,
+          container: documentContainerForPreset(preset, allowed[0], current.config.container),
         };
       }
     }
@@ -1004,12 +1021,7 @@ export default function ConvertPage({
       config: {
         preset,
         quality: current.config.quality ?? "standard",
-        container:
-          preset === "pdf-image"
-            ? PDF_IMAGE_FORMATS.includes((current.config.container ?? "jpg") as (typeof PDF_IMAGE_FORMATS)[number])
-              ? current.config.container ?? "jpg"
-              : "jpg"
-            : null,
+        container: documentContainerForPreset(preset, current.sources[0]?.path, current.config.container),
         maxWidth:
           isCopyPreset(preset) || isVideoConcatPreset(preset) || mode === "audio" || mode === "document"
             ? null
@@ -1023,14 +1035,19 @@ export default function ConvertPage({
   }
 
   function applyPageRange(start: number, end: number) {
-    const sessionStart = Math.max(1, start);
-    const sessionEnd = Math.max(sessionStart, end);
-    patchSession(mode, (current) => ({
-      ...current,
-      pageStart: sessionStart,
-      pageEnd: sessionEnd,
-      sources: applySessionPageRange(current.sources, sessionStart, sessionEnd),
-    }));
+    patchSession(mode, (current) => {
+      const pages = current.sources
+        .filter((item) => item.importable && item.pageCount != null)
+        .map((item) => item.pageCount as number);
+      if (!pages.length) return current;
+      const [sessionStart, sessionEnd] = clampPageRange(start, end, Math.max(...pages));
+      return {
+        ...current,
+        pageStart: sessionStart,
+        pageEnd: sessionEnd,
+        sources: applySessionPageRange(current.sources, sessionStart, sessionEnd),
+      };
+    });
   }
 
   function applyConfig(next: OutputConfig) {
@@ -1053,7 +1070,13 @@ export default function ConvertPage({
     try {
       const report = await enqueueJobs(
         importable.map(({ probing: _probing, ...info }) => info),
-        config,
+        {
+          ...config,
+          container:
+            config.preset === "image-compress"
+              ? sourceImageFormat(importable[0].path) ?? config.container
+              : config.container,
+        },
         outputDir,
       );
       patchSession(mode, (current) => ({
@@ -1098,14 +1121,13 @@ export default function ConvertPage({
           : collapsedPresetCards(config.preset);
   const showPdfImageFormat = mode === "document" && config.preset === "pdf-image";
   const showPageRange = mode === "document" && documentKind === "pdf";
-  const pageRangePages = Math.max(
-    1,
-    ...sources
-      .filter((item) => item.importable && item.pageCount != null)
-      .map((item) => item.pageCount ?? 1),
-  );
-  const pageRangeStart = sessionPageStart ?? 1;
-  const pageRangeEnd = sessionPageEnd ?? pageRangePages;
+  const probedPageCounts = sources
+    .filter((item) => item.importable && item.pageCount != null)
+    .map((item) => item.pageCount as number);
+  const pageRangeReady = probedPageCounts.length > 0;
+  const pageRangePages = pageRangeReady ? Math.max(...probedPageCounts) : 0;
+  const pageRangeStart = pageRangeReady ? (sessionPageStart ?? 1) : 1;
+  const pageRangeEnd = pageRangeReady ? (sessionPageEnd ?? pageRangePages) : 1;
   const audioOnly = mode === "audio" || isAudioPreset(config.preset);
   const showQuality = shouldShowQuality(config.preset, mode);
   const showResolution = shouldShowResolution(config.preset, mode);
@@ -1193,7 +1215,18 @@ export default function ConvertPage({
               </svg>
             </div>
             <div>
-              <strong>{dragging ? t(locale, "dropzone_dragging") : t(locale, "dropzone_title")}</strong>
+              <strong>
+                {dragging
+                  ? t(locale, "dropzone_dragging")
+                  : t(
+                      locale,
+                      mode === "audio"
+                        ? "dropzone_title_audio"
+                        : mode === "document"
+                          ? "dropzone_title_document"
+                          : "dropzone_title",
+                    )}
+              </strong>
               <p>{t(locale, "dropzone_hint")}</p>
             </div>
             <span className="ghost">{t(locale, "action_pick_files")}</span>
@@ -1230,7 +1263,9 @@ export default function ConvertPage({
                   onDrop={(event) => {
                     if (!concatOnly) return;
                     event.preventDefault();
-                    const from = Number(event.dataTransfer.getData("text/plain"));
+                    const raw = event.dataTransfer.getData("text/plain");
+                    const parsed = raw === "" ? Number.NaN : Number(raw);
+                    const from = dragFrom ?? parsed;
                     if (Number.isFinite(from)) reorderSources(from, index);
                     setDragFrom(null);
                   }}
@@ -1386,15 +1421,20 @@ export default function ConvertPage({
                   {showPageRange ? (
                     <div>
                       <p className="tune-label">{t(locale, "document_page_range")}</p>
-                      <p className="tune-desc">{t(locale, "document_pages", { count: pageRangePages })}</p>
+                      <p className="tune-desc">
+                        {pageRangeReady
+                          ? t(locale, "document_pages", { count: pageRangePages })
+                          : t(locale, "source_reading_format")}
+                      </p>
                       <div className="page-range">
                         <label>
                           {t(locale, "document_start_page")}
                           <input
                             type="number"
                             min={1}
-                            max={pageRangePages}
-                            value={pageRangeStart}
+                            max={pageRangeReady ? pageRangePages : undefined}
+                            value={pageRangeReady ? pageRangeStart : ""}
+                            disabled={!pageRangeReady}
                             onChange={(event) => {
                               const next = Number(event.target.value);
                               if (!Number.isFinite(next)) return;
@@ -1407,8 +1447,9 @@ export default function ConvertPage({
                           <input
                             type="number"
                             min={1}
-                            max={pageRangePages}
-                            value={pageRangeEnd}
+                            max={pageRangeReady ? pageRangePages : undefined}
+                            value={pageRangeReady ? pageRangeEnd : ""}
+                            disabled={!pageRangeReady}
                             onChange={(event) => {
                               const next = Number(event.target.value);
                               if (!Number.isFinite(next)) return;
@@ -1488,7 +1529,7 @@ export default function ConvertPage({
           {busy
             ? t(locale, "joining_queue")
             : transcoding
-              ? t(locale, "converting")
+              ? t(locale, mode === "video" ? "converting" : "converting_generic")
               : t(locale, mode === "video" ? "start_transcode" : "start_convert")}
         </button>
       </footer>

@@ -207,7 +207,7 @@ fn openable_document(path: &str) -> MediaInfo {
 }
 
 fn pdf_page_count(path: &str) -> Result<u32, String> {
-    let doc = lopdf::Document::load(path).map_err(|err| err.to_string())?;
+    let doc = lopdf::Document::load(path).map_err(|_| "无法读取该文件".to_string())?;
     let count = u32::try_from(doc.get_pages().len()).unwrap_or(0);
     if count == 0 {
         Err("无法读取该文件".into())
@@ -389,6 +389,15 @@ mod tests {
         assert!(info.importable, "{info:?}");
         assert_eq!(info.container.as_deref(), Some("pdf"));
         assert_eq!(info.page_count, Some(2));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn unreadable_pdf_uses_user_facing_error() {
+        let path = temp_file("broken.pdf", b"not a pdf");
+        let info = crate::engine::probe_media(path.to_str().unwrap());
+        assert!(!info.importable, "{info:?}");
+        assert_eq!(info.error.as_deref(), Some("无法读取该文件"));
         let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 }

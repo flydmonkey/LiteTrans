@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::convert::source_image_format;
 use crate::presets::OutputConfig;
 use crate::probe::MediaInfo;
 
@@ -72,6 +73,11 @@ pub fn config_for_source(config: &OutputConfig, media: &MediaInfo) -> OutputConf
         next.trim_start_secs = media.trim_start_secs;
         next.trim_end_secs = media.trim_end_secs;
     }
+    if next.preset == "image-compress" {
+        if let Some(format) = source_image_format(&media.path) {
+            next.container = Some(format.to_string());
+        }
+    }
     next
 }
 
@@ -126,5 +132,17 @@ mod tests {
         let next = config_for_source(&config, &item);
         assert_eq!(next.trim_start_secs, Some(2.0));
         assert_eq!(next.trim_end_secs, Some(4.0));
+    }
+
+    #[test]
+    fn image_compress_keeps_source_format() {
+        let config = OutputConfig {
+            preset: "image-compress".into(),
+            ..Default::default()
+        };
+        let png = config_for_source(&config, &media("/tmp/photo.PNG", true, None));
+        assert_eq!(png.container.as_deref(), Some("png"));
+        let webp = config_for_source(&config, &media("/tmp/shot.webp", true, None));
+        assert_eq!(webp.container.as_deref(), Some("webp"));
     }
 }

@@ -63,6 +63,10 @@ function fileExtension(fileName: string): string | null {
   return fileName.slice(dot + 1).toLowerCase();
 }
 
+export function sourceImageFormat(fileName: string): string | null {
+  return staticImageExtension(fileExtension(fileName));
+}
+
 export function documentSourceKind(fileName: string): DocumentSourceKind | null {
   const ext = fileExtension(fileName);
   if (!ext) return null;

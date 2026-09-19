@@ -313,7 +313,7 @@ fn enqueue_jobs(
                 Path::new(&output_dir),
                 &stem,
                 &resolved.preset,
-                config.container.as_deref(),
+                job_config.container.as_deref(),
                 start,
                 end,
                 exists,

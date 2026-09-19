@@ -218,6 +218,8 @@ pub fn resolve_config(config: &OutputConfig) -> Result<ResolvedConfig, String> {
         };
         let audio_bitrate_kbps = if matches!(preset.as_str(), "audio-wav" | "audio-flac") {
             config.audio_bitrate_kbps
+        } else if preset == "audio-amr" {
+            Some(amr_nb_bitrate_for_quality(&quality))
         } else {
             audio_bitrate_kbps
         };
@@ -288,6 +290,14 @@ fn audio_bitrate_for_quality(quality: &str) -> u32 {
         "original" | "high" => 320,
         "small" => 128,
         _ => 192,
+    }
+}
+
+fn amr_nb_bitrate_for_quality(quality: &str) -> u32 {
+    match quality {
+        "original" | "high" => 12200,
+        "small" => 4750,
+        _ => 7950,
     }
 }
 
@@ -400,5 +410,22 @@ mod tests {
         .unwrap();
         assert_eq!(png.extension, "png");
         assert_eq!(png.container, "png");
+    }
+
+    #[test]
+    fn amr_bitrate_is_legal_amr_nb_rate() {
+        for quality in [None, Some("original"), Some("standard"), Some("small")] {
+            let resolved = resolve_config(&OutputConfig {
+                preset: "audio-amr".into(),
+                quality: quality.map(str::to_string),
+                ..Default::default()
+            })
+            .unwrap();
+            let rate = resolved.audio_bitrate_kbps.expect("AMR needs a bitrate");
+            assert!(
+                (4750..=12200).contains(&rate) || matches!(rate, 5 | 6 | 7 | 8 | 10 | 12),
+                "AMR quality {quality:?} bitrate {rate} is not a legal AMR-NB rate"
+            );
+        }
     }
 }

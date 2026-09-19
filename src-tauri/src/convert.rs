@@ -108,6 +108,14 @@ fn static_image_extension(image_format: Option<&str>) -> Option<&'static str> {
     }
 }
 
+pub fn source_image_format(path: &str) -> Option<&'static str> {
+    let ext = Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())?;
+    static_image_extension(Some(&ext))
+}
+
 pub fn document_extension(preset: &str, image_format: Option<&str>) -> &'static str {
     match preset {
         "image-jpg" => "jpg",
@@ -224,6 +232,10 @@ mod tests {
         assert_eq!(clamp_page_range(0, 99, 5), (1, 5));
         assert_eq!(default_document_preset(DocumentSourceKind::Pdf), "pdf-image");
         assert_eq!(document_extension("pdf-split", None), "pdf");
+        assert_eq!(document_extension("image-compress", Some("png")), "png");
+        assert_eq!(document_extension("image-compress", Some("webp")), "webp");
+        assert_eq!(source_image_format("photo.PNG"), Some("png"));
+        assert_eq!(source_image_format("shot.jpeg"), Some("jpg"));
         assert_eq!(document_output_file_name("scan", 2, 4, "jpg"), "scan-002.jpg");
         assert_eq!(even_dimension(1921), 1920);
         assert_eq!(concat_output_stem("clip.mp4"), "clip-merged");
