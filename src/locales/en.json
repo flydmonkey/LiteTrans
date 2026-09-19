@@ -37,6 +37,8 @@
   "history_rename_hint": "Only the file name changes. The extension stays the same.",
   "history_running_banner": "{{count}} converting",
   "history_go_convert": "Go convert",
+  "history_outputs_images": "{{count}} images",
+  "history_outputs_pdfs": "{{count}} PDFs",
   "history_subtitle": "Open, rename, or delete converted files",
   "mine_language": "Language",
   "mine_privacy": "Privacy",

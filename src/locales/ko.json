@@ -37,6 +37,8 @@
   "history_rename_hint": "파일 이름만 바뀝니다. 확장자는 그대로입니다.",
   "history_running_banner": "변환 중 {{count}}건",
   "history_go_convert": "변환으로",
+  "history_outputs_images": "이미지 {{count}}장",
+  "history_outputs_pdfs": "PDF {{count}}개",
   "history_subtitle": "변환된 파일을 열거나 이름 변경, 삭제할 수 있습니다",
   "mine_language": "언어",
   "mine_privacy": "개인정보 처리방침",

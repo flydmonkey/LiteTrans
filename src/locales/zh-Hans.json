@@ -37,6 +37,8 @@
   "history_rename_hint": "只改文件名，扩展名会保持原样。",
   "history_running_banner": "正在转码 {{count}} 项",
   "history_go_convert": "去转换",
+  "history_outputs_images": "{{count}} 张图片",
+  "history_outputs_pdfs": "{{count}} 个 PDF",
   "history_subtitle": "打开、重命名或删除转好的文件",
   "mine_language": "语言",
   "mine_privacy": "隐私协议",

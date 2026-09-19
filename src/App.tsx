@@ -146,8 +146,8 @@ export default function App() {
             segment={historySegment}
             startedAtById={startedAtRef.current}
             onSegmentChange={setHistorySegment}
-            onGoConvert={(segment) => {
-              setConvertMode(segment);
+            onGoConvert={(mode) => {
+              setConvertMode(mode);
               setTab("convert");
             }}
             onNotice={setNotice}

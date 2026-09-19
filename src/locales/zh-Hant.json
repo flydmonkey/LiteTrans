@@ -37,6 +37,8 @@
   "history_rename_hint": "只改檔名，副檔名會保持原樣。",
   "history_running_banner": "正在轉檔 {{count}} 項",
   "history_go_convert": "去轉換",
+  "history_outputs_images": "{{count}} 張圖片",
+  "history_outputs_pdfs": "{{count}} 個 PDF",
   "history_subtitle": "開啟、重新命名或刪除轉好的檔案",
   "mine_language": "語言",
   "mine_privacy": "隱私權政策",

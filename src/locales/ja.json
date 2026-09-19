@@ -37,6 +37,8 @@
   "history_rename_hint": "ファイル名だけが変わります。拡張子はそのままです。",
   "history_running_banner": "変換中 {{count}} 件",
   "history_go_convert": "変換へ",
+  "history_outputs_images": "{{count}} 枚の画像",
+  "history_outputs_pdfs": "{{count}} 個の PDF",
   "history_subtitle": "変換したファイルを開く、名前変更、削除できます",
   "mine_language": "言語",
   "mine_privacy": "プライバシー",

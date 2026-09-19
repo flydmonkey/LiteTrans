@@ -10,7 +10,7 @@ import {
   type JobRowAction,
 } from "./history";
 import { t } from "./i18n";
-import type { HistorySegment, Job } from "./types";
+import type { ConvertMode, HistorySegment, Job } from "./types";
 
 const SEGMENTS: HistorySegment[] = ["video", "audio", "document"];
 
@@ -47,9 +47,35 @@ const PRESET_TITLE_KEY: Record<string, string> = {
   "webm-vp9": "preset_webm_vp9_title",
   "avi-mpeg4": "preset_avi_mpeg4_title",
   gif: "preset_gif_title",
+  "video-concat": "preset_video_concat_title",
   "audio-mp3": "preset_audio_mp3_title",
   "audio-aac": "preset_audio_aac_title",
+  "audio-wav": "preset_audio_wav_title",
+  "audio-flac": "preset_audio_flac_title",
+  "audio-ogg": "preset_audio_ogg_title",
+  "audio-amr": "preset_audio_amr_title",
+  "image-jpg": "preset_image_jpg_title",
+  "image-png": "preset_image_png_title",
+  "image-webp": "preset_image_webp_title",
+  "image-bmp": "preset_image_bmp_title",
+  "image-gif": "preset_image_gif_title",
+  "image-compress": "preset_image_compress_title",
+  "pdf-image": "preset_pdf_image_title",
+  "pdf-txt": "preset_pdf_txt_title",
+  "pdf-compress": "preset_pdf_compress_title",
+  "pdf-split": "preset_pdf_split_title",
+  "office-pdf": "preset_office_pdf_title",
 };
+
+const IMAGE_RESULT_PRESETS = new Set([
+  "image-jpg",
+  "image-png",
+  "image-webp",
+  "image-bmp",
+  "image-gif",
+  "image-compress",
+  "pdf-image",
+]);
 
 const CODEC_LABELS: Record<string, string> = {
   h264: "H.264",
@@ -82,7 +108,7 @@ export type HistoryPageProps = {
   segment: HistorySegment;
   startedAtById: Map<string, number>;
   onSegmentChange: (segment: HistorySegment) => void;
-  onGoConvert: (segment: HistorySegment) => void;
+  onGoConvert: (mode: ConvertMode) => void;
   onNotice: (message: string | null) => void;
 };
 
@@ -169,10 +195,24 @@ function jobRouteLabel(locale: string, job: Job): string {
   return from ? `${from} → ${to}` : to;
 }
 
+function documentResultIsImage(preset: string): boolean {
+  return IMAGE_RESULT_PRESETS.has(preset);
+}
+
+function multiOutputLabel(locale: string, job: Job): string {
+  const count = job.outputPaths?.length ?? 0;
+  if (count <= 1) return "";
+  const key = documentResultIsImage(job.config.preset)
+    ? "history_outputs_images"
+    : "history_outputs_pdfs";
+  return t(locale, key, { count });
+}
+
 function jobSubtitle(locale: string, job: Job, startedAt: number | undefined): string {
   const route = jobRouteLabel(locale, job);
+  const outputs = multiOutputLabel(locale, job);
   if (job.status === "failed") {
-    return [route, errorText(locale, job.error), formatHistoryDate(job.createdAtEpochMs)]
+    return [route, errorText(locale, job.error), formatHistoryDate(job.createdAtEpochMs), outputs]
       .filter(Boolean)
       .join(" · ");
   }
@@ -184,6 +224,7 @@ function jobSubtitle(locale: string, job: Job, startedAt: number | undefined): s
   }
   const date = formatHistoryDate(job.createdAtEpochMs);
   if (date) parts.push(date);
+  if (outputs) parts.push(outputs);
   return parts.join(" · ");
 }
 
@@ -227,13 +268,13 @@ export default function HistoryPage({
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [menu]);
 
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>, failedNotice?: string) {
     setBusy(true);
     onNotice(null);
     try {
       await action();
     } catch (err) {
-      onNotice(String(err));
+      onNotice(failedNotice ?? String(err));
     } finally {
       setBusy(false);
     }
@@ -242,13 +283,13 @@ export default function HistoryPage({
   async function openJob(job: Job) {
     const path = firstOutputPath(job);
     if (!path) return;
-    await run(() => openPath(path));
+    await run(() => openPath(path), t(locale, "notice_cannot_open"));
   }
 
   async function revealJob(job: Job) {
     const path = firstOutputPath(job);
     if (!path) return;
-    await run(() => revealItemInDir(path));
+    await run(() => revealItemInDir(path), t(locale, "notice_cannot_open"));
   }
 
   function perform(action: JobRowAction, job: Job) {
@@ -274,11 +315,26 @@ export default function HistoryPage({
     }
   }
 
+  function menuPoint(event: MouseEvent<HTMLElement>, itemCount: number) {
+    const menuWidth = 188;
+    const menuHeight = 12 + itemCount * 36;
+    const fromButton = event.currentTarget instanceof HTMLButtonElement;
+    const rect = event.currentTarget.getBoundingClientRect();
+    let x = fromButton ? rect.right - menuWidth : event.clientX;
+    let y = fromButton ? rect.bottom + 6 : event.clientY;
+    x = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8));
+    if (y + menuHeight > window.innerHeight - 8) {
+      y = Math.max(8, (fromButton ? rect.top : event.clientY) - menuHeight - 6);
+    }
+    return { x, y };
+  }
+
   function openMore(job: Job, event: MouseEvent<HTMLElement>) {
     event.preventDefault();
     event.stopPropagation();
-    if (jobRowOverflowActions(job.status).length === 0) return;
-    setMenu({ jobId: job.id, x: event.clientX, y: event.clientY });
+    const overflow = jobRowOverflowActions(job.status);
+    if (overflow.length === 0) return;
+    setMenu({ jobId: job.id, ...menuPoint(event, overflow.length) });
   }
 
   function onRowKeyDown(job: Job, event: KeyboardEvent<HTMLLIElement>) {
