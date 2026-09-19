@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appVersion, lanStatus, setLanShare } from "./api";
 import { t } from "./i18n";
+import { shouldApplyLanShare } from "./lanShare";
 import type { AppLanguage, LanStatus } from "./types";
 
 export type MinePageId = "lan" | "language" | "privacy" | "terms" | "about";
@@ -67,27 +68,32 @@ export default function MinePage({
   const [version, setVersion] = useState("");
   const [status, setStatus] = useState<LanStatus>(EMPTY_LAN_STATUS);
   const [tokenDraft, setTokenDraft] = useState("");
+  const enabledIntentRef = useRef(false);
+  const switchClickInFlightRef = useRef(false);
+
+  function rememberShare(next: LanStatus) {
+    setStatus(next);
+    setTokenDraft(next.token);
+    enabledIntentRef.current = next.enabled;
+  }
 
   useEffect(() => {
     void appVersion()
       .then(setVersion)
       .catch(() => setVersion(""));
     void lanStatus()
-      .then((next) => {
-        setStatus(next);
-        setTokenDraft(next.token);
-      })
+      .then(rememberShare)
       .catch(() => {});
   }, []);
 
   async function refreshLanStatus() {
     const next = await lanStatus();
-    setStatus(next);
-    setTokenDraft(next.token);
+    rememberShare(next);
     return next;
   }
 
   async function applyShare(enabled: boolean, token: string) {
+    enabledIntentRef.current = enabled;
     try {
       await setLanShare({ enabled, token });
     } catch (err) {
@@ -103,6 +109,22 @@ export default function MinePage({
     } catch (err) {
       onNotice?.(invokeErrorText(err));
     }
+  }
+
+  function onTokenBlur() {
+    if (switchClickInFlightRef.current) {
+      return;
+    }
+    const enabled = enabledIntentRef.current;
+    if (
+      !shouldApplyLanShare({
+        prev: { enabled, token: status.token },
+        next: { enabled, token: tokenDraft },
+      })
+    ) {
+      return;
+    }
+    void applyShare(enabled, tokenDraft);
   }
 
   async function copyAddress(url: string) {
@@ -148,7 +170,18 @@ export default function MinePage({
           {minePage === "lan" ? (
             <>
               <h1 id="mine-pane-title">{t(locale, "mine_lan")}</h1>
-              <label className="mine-lan-switch">
+              <label
+                className="mine-lan-switch"
+                onPointerDown={() => {
+                  switchClickInFlightRef.current = true;
+                }}
+                onPointerUp={() => {
+                  switchClickInFlightRef.current = false;
+                }}
+                onPointerCancel={() => {
+                  switchClickInFlightRef.current = false;
+                }}
+              >
                 <span className="mine-lan-switch-copy">
                   <span>{t(locale, "mine_lan")}</span>
                   {shareUrl ? <em>{t(locale, "lan_status_on")}</em> : null}
@@ -157,7 +190,10 @@ export default function MinePage({
                   type="checkbox"
                   role="switch"
                   checked={status.enabled}
-                  onChange={(event) => void applyShare(event.target.checked, tokenDraft)}
+                  onChange={(event) => {
+                    enabledIntentRef.current = event.target.checked;
+                    void applyShare(event.target.checked, tokenDraft);
+                  }}
                 />
               </label>
               <p className="mine-legal">{t(locale, "lan_open_warning")}</p>
@@ -170,7 +206,7 @@ export default function MinePage({
                   autoComplete="off"
                   spellCheck={false}
                   onChange={(event) => setTokenDraft(event.target.value)}
-                  onBlur={() => void applyShare(status.enabled, tokenDraft)}
+                  onBlur={onTokenBlur}
                 />
               </label>
               {!tokenDraft.trim() ? (
