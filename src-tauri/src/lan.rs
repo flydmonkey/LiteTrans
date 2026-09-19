@@ -2,6 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::lan_page::{render_lan_history_html, LanHistoryCopy};
+use crate::queue::{Job, JobStatus};
+
 pub const LAN_SHARE_PREFERRED_PORT: u16 = 17890;
 pub const LAN_SHARE_PORT_ATTEMPTS: u16 = 10;
 
@@ -154,6 +157,7 @@ pub struct LanHttpRequest {
     pub method: String,
     pub path: String,
     pub query: HashMap<String, String>,
+    pub headers: HashMap<String, String>,
 }
 
 pub fn parse_http_request_line(line: &str) -> Option<LanHttpRequest> {
@@ -187,7 +191,188 @@ pub fn parse_http_request_line(line: &str) -> Option<LanHttpRequest> {
         method,
         path,
         query,
+        headers: HashMap::new(),
     })
+}
+
+pub fn job_output_paths(job: &Job) -> Vec<String> {
+    let paths: Vec<String> = job
+        .output_paths
+        .iter()
+        .filter(|path| !path.trim().is_empty())
+        .cloned()
+        .collect();
+    if !paths.is_empty() {
+        return paths;
+    }
+    job.output_path
+        .as_ref()
+        .filter(|path| !path.trim().is_empty())
+        .cloned()
+        .into_iter()
+        .collect()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LanDownloadTarget {
+    pub path: String,
+    pub download_name: String,
+    pub content_type: String,
+}
+
+fn lan_download_name(path: &str) -> String {
+    path.rsplit(['/', '\\'])
+        .next()
+        .filter(|name| !name.is_empty())
+        .unwrap_or(path)
+        .to_string()
+}
+
+pub fn resolve_lan_download(
+    jobs: &[Job],
+    job_id: &str,
+    index: usize,
+    exists: impl Fn(&str) -> bool,
+) -> Option<LanDownloadTarget> {
+    if job_id.contains("..") || job_id.contains('/') {
+        return None;
+    }
+    let job = jobs.iter().find(|job| job.id == job_id)?;
+    if job.status != JobStatus::Completed {
+        return None;
+    }
+    let paths = job_output_paths(job);
+    let path = paths.get(index)?;
+    if !exists(path) {
+        return None;
+    }
+    let download_name = lan_download_name(path);
+    Some(LanDownloadTarget {
+        path: path.clone(),
+        download_name: download_name.clone(),
+        content_type: lan_content_type(&download_name).to_string(),
+    })
+}
+
+pub fn lan_content_type(file_name: &str) -> &'static str {
+    let ext = file_name
+        .rsplit_once('.')
+        .map(|(_, ext)| ext)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "mp4" => "video/mp4",
+        "mov" => "video/quicktime",
+        "mkv" => "video/x-matroska",
+        "webm" => "video/webm",
+        "avi" => "video/x-msvideo",
+        "mp3" => "audio/mpeg",
+        "m4a" => "audio/mp4",
+        "wav" => "audio/wav",
+        "ogg" => "audio/ogg",
+        "flac" => "audio/flac",
+        "amr" => "audio/amr",
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        "pdf" => "application/pdf",
+        "txt" => "text/plain; charset=utf-8",
+        _ => "application/octet-stream",
+    }
+}
+
+fn lan_content_disposition(file_name: &str, inline: bool) -> String {
+    let safe = file_name.replace(['\r', '\n', '"'], "_");
+    let encoded = lan_query_encode(&safe).replace('+', "%20");
+    let kind = if inline { "inline" } else { "attachment" };
+    format!("{kind}; filename=\"{safe}\"; filename*=UTF-8''{encoded}")
+}
+
+const LAN_FAVICON_PNG: &[u8] = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x00IHDR";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LanHttpResponse {
+    pub status: u16,
+    pub content_type: String,
+    pub body: Vec<u8>,
+    pub headers: Vec<(String, String)>,
+    pub file_path: Option<String>,
+    pub send_body: bool,
+}
+
+fn lan_plain_text(status: u16, body: &str, send_body: bool) -> LanHttpResponse {
+    LanHttpResponse {
+        status,
+        content_type: "text/plain; charset=utf-8".into(),
+        body: body.as_bytes().to_vec(),
+        headers: vec![],
+        file_path: None,
+        send_body,
+    }
+}
+
+pub fn handle_lan_request(
+    req: &LanHttpRequest,
+    jobs: &[Job],
+    token: &str,
+    exists: impl Fn(&str) -> bool,
+    copy: &LanHistoryCopy,
+) -> LanHttpResponse {
+    if req.method != "GET" && req.method != "HEAD" {
+        return lan_plain_text(405, "Method Not Allowed", true);
+    }
+    let send_body = req.method != "HEAD";
+    let route = parse_lan_route(&req.path);
+    if matches!(route, LanRoute::Favicon) {
+        return LanHttpResponse {
+            status: 200,
+            content_type: "image/png".into(),
+            body: LAN_FAVICON_PNG.to_vec(),
+            headers: vec![],
+            file_path: None,
+            send_body,
+        };
+    }
+    if !lan_token_allows(token, req.query.get("k").map(String::as_str)) {
+        return lan_plain_text(401, &copy.need_token, send_body);
+    }
+    match &route {
+        LanRoute::Home => {
+            let html = render_lan_history_html(jobs, token, copy, exists);
+            LanHttpResponse {
+                status: 200,
+                content_type: "text/html; charset=utf-8".into(),
+                body: html.into_bytes(),
+                headers: vec![],
+                file_path: None,
+                send_body,
+            }
+        }
+        LanRoute::Download { job_id, index } | LanRoute::Media { job_id, index } => {
+            let inline = matches!(route, LanRoute::Media { .. });
+            let Some(target) = resolve_lan_download(jobs, job_id, *index, exists) else {
+                return lan_plain_text(404, "Not Found", send_body);
+            };
+            LanHttpResponse {
+                status: 200,
+                content_type: target.content_type.clone(),
+                body: Vec::new(),
+                headers: vec![
+                    ("Content-Type".into(), target.content_type.clone()),
+                    (
+                        "Content-Disposition".into(),
+                        lan_content_disposition(&target.download_name, inline),
+                    ),
+                    ("Accept-Ranges".into(), "bytes".into()),
+                ],
+                file_path: Some(target.path),
+                send_body,
+            }
+        }
+        LanRoute::NotFound | LanRoute::Favicon => lan_plain_text(404, "Not Found", send_body),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -274,7 +459,67 @@ pub fn lan_public_url(ip: &str, port: u16, token: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lan_page::LanHistoryCopy;
+    use crate::presets::OutputConfig;
+    use crate::probe::MediaInfo;
+    use crate::queue::{Job, JobStatus};
     use std::collections::HashSet;
+
+    fn sample_media() -> MediaInfo {
+        MediaInfo {
+            path: "/tmp/a.mp4".into(),
+            duration_secs: Some(1.0),
+            container: Some("mp4".into()),
+            video_codec: Some("h264".into()),
+            width: Some(64),
+            height: Some(64),
+            frame_rate: Some(25.0),
+            audio_codec: Some("aac".into()),
+            channels: Some(2),
+            importable: true,
+            error: None,
+            trim_start_secs: None,
+            trim_end_secs: None,
+            page_count: None,
+            page_start: None,
+            page_end: None,
+        }
+    }
+
+    fn completed_job(id: &str, output: &str) -> Job {
+        Job {
+            id: id.into(),
+            source_path: "/tmp/src.mp4".into(),
+            output_path: Some(output.into()),
+            status: JobStatus::Completed,
+            progress: 100.0,
+            error: None,
+            config: OutputConfig::default(),
+            media: sample_media(),
+            display_name: output.rsplit('/').next().unwrap_or(output).into(),
+            output_paths: vec![output.into()],
+            created_at_epoch_ms: Some(1),
+            concat_source_paths: vec![],
+        }
+    }
+
+    fn get(path: &str) -> LanHttpRequest {
+        LanHttpRequest {
+            method: "GET".into(),
+            path: path.into(),
+            query: HashMap::new(),
+            headers: HashMap::new(),
+        }
+    }
+
+    fn head(path: &str) -> LanHttpRequest {
+        LanHttpRequest {
+            method: "HEAD".into(),
+            path: path.into(),
+            query: HashMap::new(),
+            headers: HashMap::new(),
+        }
+    }
 
     #[test]
     fn token_and_routes() {
@@ -328,5 +573,98 @@ mod tests {
             lan_public_url("10.0.0.8", 17890, "a b"),
             "http://10.0.0.8:17890/?k=a+b"
         );
+    }
+
+    #[test]
+    fn download_and_auth() {
+        let job = completed_job("j1", "/tmp/a.mp4");
+        let exists = |p: &str| p == "/tmp/a.mp4";
+        let copy = LanHistoryCopy::english();
+        let mut req = get("/");
+        req.query.insert("k".into(), "nope".into());
+        assert_eq!(handle_lan_request(&req, &[job.clone()], "secret", exists, &copy).status, 401);
+        let ok = handle_lan_request(&get("/d/j1"), &[job.clone()], "", exists, &copy);
+        assert_eq!(ok.status, 200);
+        assert_eq!(ok.file_path.as_deref(), Some("/tmp/a.mp4"));
+        let head = handle_lan_request(&head("/d/j1"), &[job], "", exists, &copy);
+        assert!(!head.send_body);
+    }
+
+    #[test]
+    fn lan_content_type_matches_android() {
+        assert_eq!(lan_content_type("a.mp4"), "video/mp4");
+        assert_eq!(lan_content_type("a.MP4"), "video/mp4");
+        assert_eq!(lan_content_type("a.mov"), "video/quicktime");
+        assert_eq!(lan_content_type("a.mkv"), "video/x-matroska");
+        assert_eq!(lan_content_type("a.webm"), "video/webm");
+        assert_eq!(lan_content_type("a.avi"), "video/x-msvideo");
+        assert_eq!(lan_content_type("a.mp3"), "audio/mpeg");
+        assert_eq!(lan_content_type("a.m4a"), "audio/mp4");
+        assert_eq!(lan_content_type("a.wav"), "audio/wav");
+        assert_eq!(lan_content_type("a.ogg"), "audio/ogg");
+        assert_eq!(lan_content_type("a.flac"), "audio/flac");
+        assert_eq!(lan_content_type("a.amr"), "audio/amr");
+        assert_eq!(lan_content_type("a.jpg"), "image/jpeg");
+        assert_eq!(lan_content_type("a.jpeg"), "image/jpeg");
+        assert_eq!(lan_content_type("a.png"), "image/png");
+        assert_eq!(lan_content_type("a.webp"), "image/webp");
+        assert_eq!(lan_content_type("a.gif"), "image/gif");
+        assert_eq!(lan_content_type("a.bmp"), "image/bmp");
+        assert_eq!(lan_content_type("a.pdf"), "application/pdf");
+        assert_eq!(lan_content_type("a.txt"), "text/plain; charset=utf-8");
+        assert_eq!(lan_content_type("a.bin"), "application/octet-stream");
+    }
+
+    #[test]
+    fn handle_rejects_method_missing_and_serves_home() {
+        let job = completed_job("j1", "/tmp/a.mp4");
+        let exists = |p: &str| p == "/tmp/a.mp4";
+        let copy = LanHistoryCopy::english();
+        let post = LanHttpRequest {
+            method: "POST".into(),
+            path: "/".into(),
+            query: HashMap::new(),
+            headers: HashMap::new(),
+        };
+        assert_eq!(
+            handle_lan_request(&post, &[job.clone()], "", exists, &copy).status,
+            405
+        );
+        let mut denied_req = get("/");
+        denied_req.query.insert("k".into(), "nope".into());
+        let denied = handle_lan_request(&denied_req, &[job.clone()], "secret", exists, &copy);
+        assert_eq!(denied.status, 401);
+        assert_eq!(denied.content_type, "text/plain; charset=utf-8");
+        assert_eq!(String::from_utf8_lossy(&denied.body), copy.need_token);
+        assert_eq!(
+            handle_lan_request(&get("/d/missing"), &[job.clone()], "", exists, &copy).status,
+            404
+        );
+        assert_eq!(
+            handle_lan_request(&get("/m/j1/9"), &[job.clone()], "", exists, &copy).status,
+            404
+        );
+        let home = handle_lan_request(&get("/"), &[job.clone()], "", exists, &copy);
+        assert_eq!(home.status, 200);
+        let html = String::from_utf8(home.body.clone()).unwrap();
+        assert!(html.contains("<title>LiteTrans</title>"));
+        let fav = handle_lan_request(&get("/favicon.png"), &[job], "secret", exists, &copy);
+        assert_eq!(fav.status, 200);
+        assert!(fav.body.len() > 8);
+        assert_eq!(&fav.body[..4], b"\x89PNG");
+    }
+
+    #[test]
+    fn job_output_paths_falls_back_to_output_path() {
+        let mut job = completed_job("j1", "/tmp/a.mp4");
+        job.output_paths.clear();
+        assert_eq!(job_output_paths(&job), vec!["/tmp/a.mp4".to_string()]);
+        let exists = |p: &str| p == "/tmp/a.mp4";
+        assert_eq!(
+            resolve_lan_download(&[job.clone()], "j1", 0, exists).map(|t| t.path),
+            Some("/tmp/a.mp4".into())
+        );
+        job.status = JobStatus::Running;
+        assert!(resolve_lan_download(&[job], "j1", 0, exists).is_none());
     }
 }

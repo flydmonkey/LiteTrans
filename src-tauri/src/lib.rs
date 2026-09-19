@@ -1,4 +1,5 @@
 mod lan;
+mod lan_page;
 mod args;
 mod concat;
 mod convert;
