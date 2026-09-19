@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::convert::VIDEO_CONCAT_PRESET;
+
 pub const DEFAULT_PRESET: &str = "mp4-h264";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -108,6 +110,31 @@ pub fn list_presets() -> Vec<PresetInfo> {
             label: "仅音频 / M4A".into(),
             description: "提取音频为 AAC".into(),
         },
+        PresetInfo {
+            id: "audio-wav".into(),
+            label: "Audio / WAV".into(),
+            description: "Extract audio as lossless WAV".into(),
+        },
+        PresetInfo {
+            id: "audio-flac".into(),
+            label: "Audio / FLAC".into(),
+            description: "Extract audio as lossless FLAC".into(),
+        },
+        PresetInfo {
+            id: "audio-ogg".into(),
+            label: "Audio / OGG".into(),
+            description: "Extract audio as OGG Vorbis".into(),
+        },
+        PresetInfo {
+            id: "audio-amr".into(),
+            label: "Audio / AMR".into(),
+            description: "Extract audio as AMR-NB".into(),
+        },
+        PresetInfo {
+            id: VIDEO_CONCAT_PRESET.into(),
+            label: "Video Concat / MP4".into(),
+            description: "Concatenate multiple videos into MP4".into(),
+        },
     ]
 }
 
@@ -130,6 +157,11 @@ pub fn resolve_config(config: &OutputConfig) -> Result<ResolvedConfig, String> {
         "gif" => ("gif", Some("gif"), None, false),
         "audio-mp3" => ("mp3", None, Some("mp3"), true),
         "audio-aac" => ("m4a", None, Some("aac"), true),
+        "audio-wav" => ("wav", None, Some("pcm_s16le"), true),
+        "audio-flac" => ("flac", None, Some("flac"), true),
+        "audio-ogg" => ("ogg", None, Some("libvorbis"), true),
+        "audio-amr" => ("amr", None, Some("amr_nb"), true),
+        VIDEO_CONCAT_PRESET => ("mp4", Some("h264"), Some("aac"), true),
         "custom" => ("mp4", Some("h264"), Some("aac"), true),
         other => return Err(format!("未知预设：{other}")),
     };
@@ -153,9 +185,21 @@ pub fn resolve_config(config: &OutputConfig) -> Result<ResolvedConfig, String> {
         .audio_bitrate_kbps
         .or(Some(audio_bitrate_for_quality(&quality)));
 
-    if preset == "audio-mp3" || preset == "audio-aac" {
-        let audio_only = if preset == "audio-aac" { "m4a" } else { "mp3" };
-        let encoder = if preset == "audio-aac" { "aac" } else { "mp3" };
+    if preset.starts_with("audio-") {
+        let (audio_only, encoder) = match preset.as_str() {
+            "audio-aac" => ("m4a", "aac"),
+            "audio-mp3" => ("mp3", "mp3"),
+            "audio-wav" => ("wav", "pcm_s16le"),
+            "audio-flac" => ("flac", "flac"),
+            "audio-ogg" => ("ogg", "libvorbis"),
+            "audio-amr" => ("amr", "amr_nb"),
+            other => return Err(format!("未知预设：{other}")),
+        };
+        let audio_bitrate_kbps = if matches!(preset.as_str(), "audio-wav" | "audio-flac") {
+            config.audio_bitrate_kbps
+        } else {
+            audio_bitrate_kbps
+        };
         return Ok(ResolvedConfig {
             extension: extension_for(audio_only)?,
             preset,
@@ -219,6 +263,10 @@ pub fn extension_for(container: &str) -> Result<String, String> {
         "gif" => Ok("gif".into()),
         "mp3" => Ok("mp3".into()),
         "m4a" => Ok("m4a".into()),
+        "wav" => Ok("wav".into()),
+        "flac" => Ok("flac".into()),
+        "ogg" => Ok("ogg".into()),
+        "amr" => Ok("amr".into()),
         other => Err(format!("不支持的容器：{other}")),
     }
 }
@@ -267,5 +315,26 @@ mod tests {
         assert_eq!(resolved.container, "mp4");
         assert_eq!(resolved.video_encoder.as_deref(), Some("copy"));
         assert_eq!(resolved.audio_encoder.as_deref(), Some("copy"));
+    }
+
+    #[test]
+    fn resolves_new_audio_and_concat() {
+        for (id, ext) in [
+            ("audio-wav", "wav"),
+            ("audio-flac", "flac"),
+            ("audio-ogg", "ogg"),
+            ("audio-amr", "amr"),
+            ("video-concat", "mp4"),
+        ] {
+            let resolved =
+                resolve_config(&OutputConfig { preset: id.into(), ..Default::default() }).unwrap();
+            assert_eq!(resolved.extension, ext);
+            assert!(resolved.video_encoder.is_none() || id == "video-concat");
+        }
+        assert!(resolve_config(&OutputConfig {
+            preset: "nope".into(),
+            ..Default::default()
+        })
+        .is_err());
     }
 }

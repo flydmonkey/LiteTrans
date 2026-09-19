@@ -2,9 +2,13 @@ use crate::naming::ffmpeg_file_arg;
 use crate::presets::ResolvedConfig;
 use crate::probe::MediaInfo;
 
-const CONTAINERS: &[&str] = &["mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a"];
+const CONTAINERS: &[&str] = &[
+    "mp4", "webm", "mkv", "mov", "avi", "gif", "mp3", "m4a", "wav", "flac", "ogg", "amr",
+];
 const VIDEO_ENCODERS: &[&str] = &["h264", "h265", "vp9", "mpeg4", "gif", "copy"];
-const AUDIO_ENCODERS: &[&str] = &["aac", "opus", "mp3", "copy"];
+const AUDIO_ENCODERS: &[&str] = &[
+    "aac", "opus", "mp3", "copy", "pcm_s16le", "flac", "libvorbis", "amr_nb",
+];
 
 pub fn validate(config: &ResolvedConfig, media: &MediaInfo) -> Result<(), String> {
     if !CONTAINERS.contains(&config.container.as_str()) {
@@ -268,6 +272,10 @@ fn ffmpeg_muxer(container: &str) -> &'static str {
         "gif" => "gif",
         "mp3" => "mp3",
         "m4a" => "ipod",
+        "wav" => "wav",
+        "flac" => "flac",
+        "ogg" => "ogg",
+        "amr" => "amr",
         _ => "mp4",
     }
 }
@@ -295,6 +303,10 @@ fn ffmpeg_audio_codec(encoder: &str) -> &'static str {
         "aac" => "aac",
         "opus" => "libopus",
         "mp3" => "libmp3lame",
+        "pcm_s16le" => "pcm_s16le",
+        "flac" => "flac",
+        "libvorbis" => "libvorbis",
+        "amr_nb" => "libopencore_amrnb",
         "copy" => "copy",
         _ => "aac",
     }
@@ -324,8 +336,8 @@ fn effective_audio_encoder<'a>(config: &'a ResolvedConfig, media: &MediaInfo) ->
 fn is_audio_only(config: &ResolvedConfig) -> bool {
     matches!(
         config.container.as_str(),
-        "mp3" | "m4a"
-    ) || matches!(config.preset.as_str(), "audio-mp3" | "audio-aac")
+        "mp3" | "m4a" | "wav" | "flac" | "ogg" | "amr"
+    ) || config.preset.starts_with("audio-")
 }
 
 fn video_quality_args(encoder: &str, quality: &str) -> Vec<String> {
