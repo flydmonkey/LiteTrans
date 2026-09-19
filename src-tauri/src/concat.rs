@@ -10,7 +10,7 @@ use crate::engine::{probe_media, run_tracked_ffmpeg, ActiveTranscode, ProgressPa
 use crate::naming::{allocate_output_path, ffmpeg_file_arg, partial_output_path};
 use crate::presets::{resolve_config, OutputConfig};
 use crate::probe::MediaInfo;
-use crate::queue::{split_importable, EnqueueReport, Job, JobStatus, SkippedSource};
+use crate::queue::{split_importable, EnqueueReport, Job, JobStatus};
 
 pub struct ConcatTarget {
     pub width: u32,
@@ -221,57 +221,22 @@ pub fn concat_enqueue_report(
     let resolved = resolve_config(&config)?;
     let (accepted, skipped) = split_importable(sources);
     if !skipped.is_empty() {
-        return Ok(EnqueueReport {
-            jobs: Vec::new(),
-            skipped,
-        });
+        return Err(skipped
+            .into_iter()
+            .next()
+            .map(|item| item.reason)
+            .unwrap_or_else(|| "无法转码该文件".into()));
     }
     if accepted.len() < 2 {
-        return Ok(EnqueueReport {
-            jobs: Vec::new(),
-            skipped: accepted
-                .into_iter()
-                .map(|media| SkippedSource {
-                    path: media.path,
-                    reason: "至少添加两段视频".into(),
-                })
-                .collect(),
-        });
+        return Err("至少添加两段视频".into());
     }
     if accepted.len() > VIDEO_CONCAT_MAX_SOURCES {
-        return Ok(EnqueueReport {
-            jobs: Vec::new(),
-            skipped: accepted
-                .into_iter()
-                .map(|media| SkippedSource {
-                    path: media.path,
-                    reason: "最多合并 20 段视频".into(),
-                })
-                .collect(),
-        });
+        return Err("最多合并 20 段视频".into());
     }
 
-    let mut invalid = Vec::new();
     for media in &accepted {
-        if let Err(reason) = concat_target(media) {
-            invalid.push(SkippedSource {
-                path: media.path.clone(),
-                reason,
-            });
-            continue;
-        }
-        if let Err(reason) = validate(&resolved, media) {
-            invalid.push(SkippedSource {
-                path: media.path.clone(),
-                reason,
-            });
-        }
-    }
-    if !invalid.is_empty() {
-        return Ok(EnqueueReport {
-            jobs: Vec::new(),
-            skipped: invalid,
-        });
+        concat_target(media)?;
+        validate(&resolved, media)?;
     }
 
     Ok(EnqueueReport {
@@ -570,7 +535,7 @@ mod tests {
 
     #[test]
     fn concat_enqueue_rejects_one_clip() {
-        let report = concat_enqueue_report(
+        let err = concat_enqueue_report(
             vec![media("/a.mp4", 1920, 1080, Some(30.0))],
             OutputConfig {
                 preset: "video-concat".into(),
@@ -581,9 +546,8 @@ mod tests {
             |_| false,
             1,
         )
-        .expect("report");
-        assert!(report.jobs.is_empty());
-        assert_eq!(report.skipped.len(), 1);
+        .expect_err("need two clips");
+        assert_eq!(err, "至少添加两段视频");
     }
 
     #[test]
@@ -676,8 +640,12 @@ mod tests {
         let mut bad = media("/bad.bin", 1920, 1080, Some(30.0));
         bad.importable = false;
         bad.error = Some("无法读取".into());
-        let report = concat_enqueue_report(
-            vec![media("/a.mp4", 1920, 1080, Some(30.0)), bad],
+        let err = concat_enqueue_report(
+            vec![
+                media("/a.mp4", 1920, 1080, Some(30.0)),
+                media("/b.mp4", 1280, 720, Some(24.0)),
+                bad,
+            ],
             OutputConfig {
                 preset: "video-concat".into(),
                 ..Default::default()
@@ -687,8 +655,36 @@ mod tests {
             |_| false,
             1,
         )
-        .expect("report");
-        assert!(report.jobs.is_empty());
-        assert!(report.skipped.iter().any(|item| item.path == "/bad.bin"));
+        .expect_err("mixed reject is whole-batch failure");
+        assert_eq!(err, "无法读取");
+    }
+
+    #[test]
+    fn concat_enqueue_missing_video_is_error_not_partial_ok() {
+        let mut no_dims = media("/no-video.mp4", 1920, 1080, Some(30.0));
+        no_dims.width = None;
+        no_dims.height = None;
+        match concat_enqueue_report(
+            vec![
+                media("/a.mp4", 1920, 1080, Some(30.0)),
+                media("/b.mp4", 1280, 720, Some(24.0)),
+                no_dims,
+            ],
+            OutputConfig {
+                preset: "video-concat".into(),
+                ..Default::default()
+            },
+            Path::new("/out"),
+            "job-1".into(),
+            |_| false,
+            1,
+        ) {
+            Ok(report) => panic!(
+                "must not succeed with {} jobs and {} skipped",
+                report.jobs.len(),
+                report.skipped.len()
+            ),
+            Err(message) => assert_eq!(message, "Each clip needs a video track"),
+        }
     }
 }
