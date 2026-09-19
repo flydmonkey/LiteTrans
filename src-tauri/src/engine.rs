@@ -74,7 +74,7 @@ pub fn resolve_binary(name: &str) -> Result<PathBuf, String> {
     ))
 }
 
-fn sidecar_command(bin: impl AsRef<Path>) -> Command {
+pub(crate) fn sidecar_command(bin: impl AsRef<Path>) -> Command {
     let mut cmd = Command::new(bin.as_ref());
     #[cfg(windows)]
     {
@@ -385,22 +385,40 @@ pub fn transcode_job(
     output_path: &Path,
     active: &Arc<Mutex<Option<ActiveTranscode>>>,
 ) -> Result<(), String> {
-    let ffmpeg = resolve_binary("ffmpeg")?;
     let partial = partial_output_path(output_path);
-    if partial.exists() {
-        let _ = std::fs::remove_file(&partial);
-    }
-
     let args = build_ffmpeg_args(
         &media.path,
         partial.to_string_lossy().as_ref(),
         config,
         media,
     )?;
+    let duration = output_duration_secs(config, media);
+    run_tracked_ffmpeg(app, job_id, &args, &partial, duration, active, |percent| {
+        percent
+    })?;
+    if output_path.exists() {
+        let _ = std::fs::remove_file(output_path);
+    }
+    std::fs::rename(&partial, output_path).map_err(|err| format!("无法写入输出文件：{err}"))
+}
+
+pub(crate) fn run_tracked_ffmpeg(
+    app: &AppHandle,
+    job_id: &str,
+    args: &[String],
+    partial: &Path,
+    duration_secs: f64,
+    active: &Arc<Mutex<Option<ActiveTranscode>>>,
+    map_percent: impl Fn(f64) -> f64 + Send + 'static,
+) -> Result<(), String> {
+    let ffmpeg = resolve_binary("ffmpeg")?;
+    if partial.exists() {
+        let _ = std::fs::remove_file(partial);
+    }
 
     let mut command = sidecar_command(&ffmpeg);
     command
-        .args(&args)
+        .args(args)
         .env("PATH", restricted_path())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -416,23 +434,22 @@ pub fn transcode_job(
         *slot = Some(ActiveTranscode {
             job_id: job_id.to_string(),
             child,
-            partial: partial.clone(),
+            partial: partial.to_path_buf(),
         });
     }
 
-    let duration = output_duration_secs(config, media);
     if let Some(stdout) = stdout {
         let app_clone = app.clone();
         let job_id = job_id.to_string();
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines().map_while(Result::ok) {
-                if let Some(percent) = parse_progress_line(&line, duration) {
+                if let Some(percent) = parse_progress_line(&line, duration_secs) {
                     let _ = app_clone.emit(
                         "job-progress",
                         ProgressPayload {
                             id: job_id.clone(),
-                            percent,
+                            percent: map_percent(percent),
                         },
                     );
                 }
@@ -452,7 +469,7 @@ pub fn transcode_job(
         let mut slot = active.lock().map_err(|_| "转码状态锁失败".to_string())?;
         match slot.as_mut() {
             None => {
-                cleanup_partial(&partial);
+                cleanup_partial(partial);
                 return Err("cancelled".into());
             }
             Some(active_job) => match active_job.child.try_wait() {
@@ -463,7 +480,7 @@ pub fn transcode_job(
                 Ok(None) => {}
                 Err(err) => {
                     *slot = None;
-                    cleanup_partial(&partial);
+                    cleanup_partial(partial);
                     return Err(format!("等待 FFmpeg 失败：{err}"));
                 }
             },
@@ -476,14 +493,9 @@ pub fn transcode_job(
         .unwrap_or_default();
 
     if status.success() {
-        if output_path.exists() {
-            let _ = std::fs::remove_file(output_path);
-        }
-        std::fs::rename(&partial, output_path)
-            .map_err(|err| format!("无法写入输出文件：{err}"))?;
         Ok(())
     } else {
-        cleanup_partial(&partial);
+        cleanup_partial(partial);
         let reason = stderr_text
             .lines()
             .rev()
@@ -513,7 +525,7 @@ fn cleanup_partial(path: &Path) {
     }
 }
 
-fn restricted_path() -> &'static str {
+pub(crate) fn restricted_path() -> &'static str {
     if cfg!(windows) {
         r"C:\Windows\System32"
     } else {

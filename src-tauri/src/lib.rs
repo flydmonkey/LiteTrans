@@ -1,4 +1,5 @@
 mod args;
+mod concat;
 mod convert;
 mod engine;
 mod history;
@@ -18,6 +19,8 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 use args::validate;
+use concat::{concat_enqueue_report, concat_job};
+use convert::{concat_output_stem, is_video_concat_preset};
 use engine::{
     cancel_active, extract_preview_frame, prepare_preview, probe_media, transcode_job,
     ActiveTranscode,
@@ -248,6 +251,26 @@ fn enqueue_jobs(
     persist_output_dir(&app, &output_dir)?;
 
     let resolved = resolve_config(&config)?;
+    if is_video_concat_preset(&resolved.preset) {
+        let report = concat_enqueue_report(
+            sources,
+            config,
+            Path::new(&output_dir),
+            format!("job-{}", NEXT_JOB_ID.fetch_add(1, Ordering::Relaxed)),
+            path_or_partial_exists,
+            now_epoch_ms(),
+        )?;
+        if !report.jobs.is_empty() {
+            let mut jobs = lock_err(state.jobs.lock())?;
+            jobs.extend(report.jobs.clone());
+        }
+        emit_jobs(&app, &state)?;
+        if !report.jobs.is_empty() {
+            start_pump(app);
+        }
+        return Ok(report);
+    }
+
     let (accepted, mut skipped) = split_importable(sources);
 
     let mut created = Vec::new();
@@ -336,7 +359,11 @@ fn retry_job(app: AppHandle, state: State<AppState>, id: String) -> Result<(), S
             return Err("只能重试失败的任务".into());
         }
         let resolved = resolve_config(&job.config)?;
-        let stem = source_stem(&job.source_path);
+        let stem = if is_video_concat_preset(&job.config.preset) {
+            concat_output_stem(&job.source_path)
+        } else {
+            source_stem(&job.source_path)
+        };
         let output_dir = job
             .output_path
             .as_ref()
@@ -581,10 +608,18 @@ async fn pump_queue(app: AppHandle) {
         let active = app.state::<AppState>().active.clone();
         let job_id = job.id.clone();
         let media = job.media.clone();
+        let concat = is_video_concat_preset(&job.config.preset);
         let result = tauri::async_runtime::spawn_blocking({
             let app = app.clone();
             let output_path = output_path.clone();
-            move || transcode_job(&app, &job_id, &media, &resolved, &output_path, &active)
+            let job = job.clone();
+            move || {
+                if concat {
+                    concat_job(&app, &job, &output_path, &active)
+                } else {
+                    transcode_job(&app, &job_id, &media, &resolved, &output_path, &active)
+                }
+            }
         })
         .await;
 

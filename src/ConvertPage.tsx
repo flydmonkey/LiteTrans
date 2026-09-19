@@ -719,6 +719,7 @@ export default function ConvertPage({
   const [busy, setBusy] = useState(false);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [prefsReady, setPrefsReady] = useState(false);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
   const activeRef = useRef(active);
@@ -928,6 +929,18 @@ export default function ConvertPage({
     }
   }
 
+  function reorderSources(from: number, to: number) {
+    if (from === to || from < 0 || to < 0) return;
+    patchSession(mode, (current) => {
+      if (to >= current.sources.length) return current;
+      const next = [...current.sources];
+      const [item] = next.splice(from, 1);
+      if (!item) return current;
+      next.splice(to, 0, item);
+      return { ...current, sources: next };
+    });
+  }
+
   function removeSource(path: string) {
     if (runningIds.has(path)) {
       onNotice(t(locale, "notice_cannot_remove_running"));
@@ -1106,15 +1119,37 @@ export default function ConvertPage({
           </button>
           {sources.length > 0 ? (
             <ul className="files">
-              {sources.map((item) => (
+              {sources.map((item, index) => (
                 <li
                   key={item.path}
+                  draggable={concatOnly}
                   className={[
                     item.importable || item.probing ? "" : "bad",
                     item.path === selectedPath ? "on" : "",
+                    concatOnly ? "sortable" : "",
+                    concatOnly && dragFrom === index ? "dragging" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
+                  onDragStart={(event) => {
+                    if (!concatOnly) return;
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", String(index));
+                    setDragFrom(index);
+                  }}
+                  onDragOver={(event) => {
+                    if (!concatOnly) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(event) => {
+                    if (!concatOnly) return;
+                    event.preventDefault();
+                    const from = Number(event.dataTransfer.getData("text/plain"));
+                    if (Number.isFinite(from)) reorderSources(from, index);
+                    setDragFrom(null);
+                  }}
+                  onDragEnd={() => setDragFrom(null)}
                   onClick={() => {
                     if (allowsTrim(config.preset) && itemHasDuration(item)) setSelectedPath(item.path);
                   }}

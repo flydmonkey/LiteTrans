@@ -597,6 +597,15 @@ select {
   cursor: pointer;
 }
 
+.files li.sortable {
+  cursor: grab;
+}
+
+.files li.sortable.dragging {
+  opacity: 0.55;
+  cursor: grabbing;
+}
+
 .trim-wrap {
   display: flex;
   flex-direction: column;
