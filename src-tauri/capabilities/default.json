@@ -6,7 +6,19 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "opener:allow-open-path",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        { "path": "$HOME/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$AUDIO/**" },
+        { "path": "/**" }
+      ]
+    },
     "dialog:default"
   ]
 }
