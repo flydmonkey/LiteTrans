@@ -15,10 +15,9 @@ import {
 import {
   allowsTrim,
   canStart,
-  clampPageRange,
+  applySessionPageRange,
   clampVideoPreset,
   defaultDocumentPreset,
-  pageRangeAfterProbe,
   documentCardsFor,
   documentSourceKind,
   isVideoConcatPreset,
@@ -359,6 +358,8 @@ type WizardSession = {
   config: OutputConfig;
   outputDir: string;
   showAll: boolean;
+  pageStart: number | null;
+  pageEnd: number | null;
 };
 
 function emptySession(preset: string, outputDir = ""): WizardSession {
@@ -367,6 +368,8 @@ function emptySession(preset: string, outputDir = ""): WizardSession {
     config: emptyConfig(preset),
     outputDir,
     showAll: false,
+    pageStart: null,
+    pageEnd: null,
   };
 }
 
@@ -387,6 +390,8 @@ function sessionFromSettings(
     },
     outputDir: saved?.outputDir || fallbackDir,
     showAll: false,
+    pageStart: null,
+    pageEnd: null,
   };
 }
 
@@ -749,7 +754,8 @@ export default function ConvertPage({
   localeRef.current = locale;
 
   const session = sessions[mode];
-  const { sources, config, outputDir, showAll: showAllFormats } = session;
+  const { sources, config, outputDir, showAll: showAllFormats, pageStart: sessionPageStart, pageEnd: sessionPageEnd } =
+    session;
 
   const runningIds = useMemo(
     () => new Set(jobs.filter((job) => job.status === "running").map((job) => job.sourcePath)),
@@ -851,32 +857,27 @@ export default function ConvertPage({
       try {
         const info = await probeMedia(path);
         patchSession(modeNow, (session) => {
-          const rangeSource = session.sources.find(
-            (item) => item.path !== path && item.importable && item.pageCount != null,
+          const nextSources = session.sources.map((item) =>
+            item.path === path
+              ? {
+                  ...info,
+                  probing: false,
+                  trimStartSecs: 0,
+                  trimEndSecs: info.durationSecs,
+                }
+              : item,
           );
           const pages = info.pageCount;
-          const [pageStart, pageEnd] =
-            pages != null
-              ? pageRangeAfterProbe(
-                  rangeSource?.pageStart ?? info.pageStart ?? 1,
-                  rangeSource?.pageEnd ?? info.pageEnd ?? pages,
-                  pages,
-                )
-              : [info.pageStart ?? null, info.pageEnd ?? null];
+          if (pages == null) {
+            return { ...session, sources: nextSources };
+          }
+          const sessionStart = session.pageStart ?? info.pageStart ?? 1;
+          const sessionEnd = session.pageEnd ?? info.pageEnd ?? pages;
           return {
             ...session,
-            sources: session.sources.map((item) =>
-              item.path === path
-                ? {
-                    ...info,
-                    probing: false,
-                    trimStartSecs: 0,
-                    trimEndSecs: info.durationSecs,
-                    pageStart,
-                    pageEnd,
-                  }
-                : item,
-            ),
+            pageStart: sessionStart,
+            pageEnd: sessionEnd,
+            sources: applySessionPageRange(nextSources, sessionStart, sessionEnd),
           };
         });
       } catch (err) {
@@ -986,10 +987,15 @@ export default function ConvertPage({
       onNotice(t(locale, "notice_cannot_remove_running"));
       return;
     }
-    patchSession(mode, (current) => ({
-      ...current,
-      sources: current.sources.filter((item) => item.path !== path),
-    }));
+    patchSession(mode, (current) => {
+      const sources = current.sources.filter((item) => item.path !== path);
+      return {
+        ...current,
+        sources,
+        pageStart: sources.length ? current.pageStart : null,
+        pageEnd: sources.length ? current.pageEnd : null,
+      };
+    });
   }
 
   function applyPreset(preset: string) {
@@ -1017,13 +1023,13 @@ export default function ConvertPage({
   }
 
   function applyPageRange(start: number, end: number) {
+    const sessionStart = Math.max(1, start);
+    const sessionEnd = Math.max(sessionStart, end);
     patchSession(mode, (current) => ({
       ...current,
-      sources: current.sources.map((item) => {
-        const pages = item.pageCount ?? 1;
-        const [lo, hi] = clampPageRange(start, end, pages);
-        return { ...item, pageStart: lo, pageEnd: hi };
-      }),
+      pageStart: sessionStart,
+      pageEnd: sessionEnd,
+      sources: applySessionPageRange(current.sources, sessionStart, sessionEnd),
     }));
   }
 
@@ -1050,7 +1056,12 @@ export default function ConvertPage({
         config,
         outputDir,
       );
-      patchSession(mode, (current) => ({ ...current, sources: [] }));
+      patchSession(mode, (current) => ({
+        ...current,
+        sources: [],
+        pageStart: null,
+        pageEnd: null,
+      }));
       setSelectedPath(null);
       onEnqueued(config.preset);
       if (report.skipped.length) {
@@ -1087,13 +1098,14 @@ export default function ConvertPage({
           : collapsedPresetCards(config.preset);
   const showPdfImageFormat = mode === "document" && config.preset === "pdf-image";
   const showPageRange = mode === "document" && documentKind === "pdf";
-  const pageRangeSource = sources.find((item) => item.importable && item.pageCount != null) ?? sources[0];
-  const pageRangePages = pageRangeSource?.pageCount ?? 1;
-  const [pageRangeStart, pageRangeEnd] = clampPageRange(
-    pageRangeSource?.pageStart ?? 1,
-    pageRangeSource?.pageEnd ?? pageRangePages,
-    pageRangePages,
+  const pageRangePages = Math.max(
+    1,
+    ...sources
+      .filter((item) => item.importable && item.pageCount != null)
+      .map((item) => item.pageCount ?? 1),
   );
+  const pageRangeStart = sessionPageStart ?? 1;
+  const pageRangeEnd = sessionPageEnd ?? pageRangePages;
   const audioOnly = mode === "audio" || isAudioPreset(config.preset);
   const showQuality = shouldShowQuality(config.preset, mode);
   const showResolution = shouldShowResolution(config.preset, mode);

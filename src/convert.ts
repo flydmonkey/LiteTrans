@@ -101,13 +101,17 @@ export function clampPageRange(start: number, end: number, pageCount: number): [
   return [lo, hi];
 }
 
-/** Inherit the session page-range control onto a newly probed document, clamped to that file. */
-export function pageRangeAfterProbe(
-  sessionStart: number,
-  sessionEnd: number,
-  pageCount: number,
-): [number, number] {
-  return clampPageRange(sessionStart, sessionEnd, pageCount);
+/** Store the session page range on every source that already has a pageCount. */
+export function applySessionPageRange<T extends {
+  pageCount?: number | null;
+  pageStart?: number | null;
+  pageEnd?: number | null;
+}>(sources: T[], sessionStart: number, sessionEnd: number): T[] {
+  return sources.map((item) => {
+    if (item.pageCount == null) return item;
+    const [pageStart, pageEnd] = clampPageRange(sessionStart, sessionEnd, item.pageCount);
+    return { ...item, pageStart, pageEnd };
+  });
 }
 
 export function defaultDocumentPreset(kind: DocumentSourceKind): string {
