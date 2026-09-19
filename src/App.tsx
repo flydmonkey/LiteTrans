@@ -29,7 +29,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("convert");
   const [convertMode, setConvertMode] = useState<ConvertMode>("video");
   const [historySegment, setHistorySegment] = useState<HistorySegment>("video");
-  const [minePage, setMinePage] = useState<MinePageId>("language");
+  const [minePage, setMinePage] = useState<MinePageId>("lan");
   const [language, setLanguage] = useState<AppLanguage>("system");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [locale, setLocale] = useState(() => resolveLocaleTag("system", navigator.language));

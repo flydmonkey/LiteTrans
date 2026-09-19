@@ -30,30 +30,36 @@ pub struct LanHistoryCopy {
 }
 
 impl LanHistoryCopy {
-    pub fn english() -> Self {
-        Self {
-            warning: "Anyone on this network who has the address can view history and download finished files."
-                .into(),
-            video: "Video".into(),
-            audio: "Audio".into(),
-            document: "Documents".into(),
-            image: "Images".into(),
-            empty_video: "No video history yet".into(),
-            empty_audio: "No audio history yet".into(),
-            empty_document: "No document history yet".into(),
-            empty_image: "No image history yet".into(),
-            download: "Download".into(),
-            download_named: "Download %1$s".into(),
-            download_index: "Download #%1$d".into(),
-            status_queued: "Queued".into(),
-            status_running: "Converting".into(),
-            status_completed: "Done".into(),
-            status_failed: "Failed".into(),
-            status_cancelled: "Cancelled".into(),
-            need_token: "Password required".into(),
-            preview_failed: "Can't preview. Download the file instead.".into(),
-            download_to_open: "Download and open it on your computer.".into(),
+    pub fn for_locale(tag: &str) -> Self {
+        fn pick(tag: &str, key: &str) -> String {
+            crate::locale::message(tag, key)
         }
+        Self {
+            warning: pick(tag, "lan_open_warning"),
+            video: pick(tag, "lan_segment_video"),
+            audio: pick(tag, "lan_segment_audio"),
+            document: pick(tag, "lan_segment_document"),
+            image: pick(tag, "lan_segment_image"),
+            empty_video: pick(tag, "history_empty_video"),
+            empty_audio: pick(tag, "history_empty_audio"),
+            empty_document: pick(tag, "history_empty_document"),
+            empty_image: pick(tag, "history_empty_image"),
+            download: pick(tag, "lan_download"),
+            download_named: pick(tag, "lan_download_named"),
+            download_index: pick(tag, "lan_download_index"),
+            status_queued: pick(tag, "status_queued"),
+            status_running: pick(tag, "status_running"),
+            status_completed: pick(tag, "status_completed"),
+            status_failed: pick(tag, "status_failed"),
+            status_cancelled: pick(tag, "status_cancelled"),
+            need_token: pick(tag, "lan_need_token"),
+            preview_failed: pick(tag, "lan_preview_failed"),
+            download_to_open: pick(tag, "lan_download_to_open"),
+        }
+    }
+
+    pub fn english() -> Self {
+        Self::for_locale("en")
     }
 }
 
@@ -527,6 +533,16 @@ mod tests {
         let html = render_lan_history_html(&jobs, "pw", &LanHistoryCopy::english(), |_| true);
         assert!(html.contains("k="));
         assert!(html.contains("/d/v?k=") || html.contains("/m/v?k="));
+    }
+
+    #[test]
+    fn zh_hans_copy_comes_from_locale_json() {
+        let copy = LanHistoryCopy::for_locale("zh-Hans");
+        assert_eq!(copy.need_token, "需要正确口令");
+        assert_eq!(copy.video, "视频");
+        assert_eq!(copy.empty_image, "还没有图片记录");
+        let html = render_lan_history_html(&[], "", &copy, |_| true);
+        assert!(html.contains(&copy.warning));
     }
 
     #[test]

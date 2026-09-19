@@ -155,6 +155,7 @@ pub fn serve_lan_listener(
     stop: mpsc::Receiver<()>,
     token: String,
     load_jobs: impl Fn() -> Vec<Job>,
+    load_copy: impl Fn() -> LanHistoryCopy,
 ) {
     let _ = listener.set_nonblocking(true);
     loop {
@@ -166,7 +167,8 @@ pub fn serve_lan_listener(
             Ok((mut stream, _)) => {
                 let _ = stream.set_nonblocking(false);
                 let jobs = load_jobs();
-                let _ = handle_lan_stream(&mut stream, &jobs, &token);
+                let copy = load_copy();
+                let _ = handle_lan_stream(&mut stream, &jobs, &token, &copy);
             }
             Err(err) if err.kind() == io::ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_millis(50));
@@ -180,6 +182,7 @@ pub fn handle_lan_stream(
     stream: &mut TcpStream,
     jobs: &[Job],
     token: &str,
+    copy: &LanHistoryCopy,
 ) -> io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_secs(15)))?;
     stream.set_write_timeout(Some(Duration::from_secs(15)))?;
@@ -202,13 +205,7 @@ pub fn handle_lan_stream(
         return Ok(());
     };
     req.headers = parse_header_lines(&header_lines);
-    let response = handle_lan_request(
-        &req,
-        jobs,
-        token,
-        lan_file_is_regular,
-        &LanHistoryCopy::english(),
-    );
+    let response = handle_lan_request(&req, jobs, token, lan_file_is_regular, copy);
     write_lan_response(
         stream,
         &response,
@@ -540,7 +537,7 @@ mod tests {
         let jobs = vec![job];
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            handle_lan_stream(&mut stream, &jobs, "").unwrap();
+            handle_lan_stream(&mut stream, &jobs, "", &LanHistoryCopy::english()).unwrap();
         });
 
         let mut client = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
@@ -577,7 +574,7 @@ mod tests {
         let jobs = vec![job];
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            handle_lan_stream(&mut stream, &jobs, "").unwrap();
+            handle_lan_stream(&mut stream, &jobs, "", &LanHistoryCopy::english()).unwrap();
         });
 
         let mut client = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();

@@ -5,6 +5,8 @@ import type {
   EnqueueReport,
   HistorySegment,
   Job,
+  LanShareSettings,
+  LanStatus,
   MediaInfo,
   OutputConfig,
   PresetInfo,
@@ -166,4 +168,12 @@ export function loadSessionSettings() {
 
 export function saveSessionSettings(settings: SessionSettings) {
   return invoke<void>("save_session_settings", { settings });
+}
+
+export function lanStatus() {
+  return invoke<LanStatus>("lan_status");
+}
+
+export function setLanShare(settings: LanShareSettings) {
+  return invoke<LanStatus>("set_lan_share", { settings });
 }

@@ -36,10 +36,12 @@ use history::{
     is_document_preset, mark_interrupted, parse_history_segment, remaining_jobs_after_clear_finished,
 };
 use lan::{collect_ifaces, normalize_lan_token, LanShareSettings};
+use lan_page::LanHistoryCopy;
 use lan_server::{
     serve_lan_listener, status_from_runtime, stop_lan_runtime, sync_lan_runtime, LanRuntime,
     LanStatus,
 };
+use locale::{resolve_locale_tag, system_locale_tag, AppLanguage};
 use job_store::{jobs_file, load_jobs, save_jobs};
 use naming::{allocate_output_path, partial_output_path, sanitized_rename_stem, source_stem};
 use presets::{list_presets, resolve_config, OutputConfig, PresetInfo};
@@ -223,15 +225,34 @@ fn sync_lan_server(app: &AppHandle) -> Result<LanStatus, String> {
     let state = app.state::<AppState>();
     let mut runtime = lock_err(state.lan.lock())?;
     let token = runtime.settings.token.clone();
-    let app_for_serve = app.clone();
+    let app_for_jobs = app.clone();
+    let app_for_copy = app.clone();
     sync_lan_runtime(
         &mut runtime,
         &collect_ifaces(),
         |ip, port| TcpListener::bind((ip, port)),
         move |listener, stop| {
-            serve_lan_listener(listener, stop, token, move || current_jobs(&app_for_serve));
+            serve_lan_listener(
+                listener,
+                stop,
+                token,
+                move || current_jobs(&app_for_jobs),
+                move || current_lan_copy(&app_for_copy),
+            );
         },
     )
+}
+
+fn current_lan_copy(app: &AppHandle) -> LanHistoryCopy {
+    let language = session_settings_path(app)
+        .ok()
+        .map(|file| load_from_path(&file))
+        .and_then(|settings| settings.language);
+    let tag = resolve_locale_tag(
+        &AppLanguage::from_setting(language.as_deref()),
+        &system_locale_tag(),
+    );
+    LanHistoryCopy::for_locale(tag)
 }
 
 fn stop_lan_server(app: &AppHandle) {

@@ -85,6 +85,13 @@ export type LanShareSettings = {
   token?: string;
 };
 
+export type LanStatus = {
+  enabled: boolean;
+  token: string;
+  url: string | null;
+  error: string | null;
+};
+
 export type SessionSettings = {
   outputDir?: string | null;
   preset?: string | null;

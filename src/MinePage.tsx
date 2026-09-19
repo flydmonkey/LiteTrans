@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { appVersion } from "./api";
+import { appVersion, lanStatus, setLanShare } from "./api";
 import { t } from "./i18n";
-import type { AppLanguage } from "./types";
+import type { AppLanguage, LanStatus } from "./types";
 
-export type MinePageId = "language" | "privacy" | "terms" | "about";
+export type MinePageId = "lan" | "language" | "privacy" | "terms" | "about";
 
 const LANGUAGES: AppLanguage[] = ["system", "zh-Hans", "zh-Hant", "en", "ja", "ko"];
 
@@ -20,13 +20,25 @@ const LANGUAGE_KEY: Record<AppLanguage, string> = {
 const PRIVACY_URL = "https://flydmonkey.github.io/LiteTrans/docs/privacy.html";
 const TERMS_URL = "https://flydmonkey.github.io/LiteTrans/docs/terms.html";
 
-const NAV_GROUPS: MinePageId[][] = [["language"], ["privacy", "terms"], ["about"]];
+const NAV_GROUPS: MinePageId[][] = [
+  ["lan", "language"],
+  ["privacy", "terms"],
+  ["about"],
+];
 
 const NAV_KEY: Record<MinePageId, string> = {
+  lan: "mine_lan",
   language: "mine_language",
   privacy: "mine_privacy",
   terms: "mine_terms",
   about: "mine_about",
+};
+
+const EMPTY_LAN_STATUS: LanStatus = {
+  enabled: false,
+  token: "",
+  url: null,
+  error: null,
 };
 
 export type MinePageProps = {
@@ -38,6 +50,12 @@ export type MinePageProps = {
   onNotice?: (message: string | null) => void;
 };
 
+function invokeErrorText(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error && err.message) return err.message;
+  return String(err);
+}
+
 export default function MinePage({
   locale,
   language,
@@ -47,12 +65,53 @@ export default function MinePage({
   onNotice,
 }: MinePageProps) {
   const [version, setVersion] = useState("");
+  const [status, setStatus] = useState<LanStatus>(EMPTY_LAN_STATUS);
+  const [tokenDraft, setTokenDraft] = useState("");
 
   useEffect(() => {
     void appVersion()
       .then(setVersion)
       .catch(() => setVersion(""));
+    void lanStatus()
+      .then((next) => {
+        setStatus(next);
+        setTokenDraft(next.token);
+      })
+      .catch(() => {});
   }, []);
+
+  async function refreshLanStatus() {
+    const next = await lanStatus();
+    setStatus(next);
+    setTokenDraft(next.token);
+    return next;
+  }
+
+  async function applyShare(enabled: boolean, token: string) {
+    try {
+      await setLanShare({ enabled, token });
+    } catch (err) {
+      const errorKey = invokeErrorText(err);
+      if (errorKey === "lan_need_address" || errorKey === "lan_ports_busy") {
+        onNotice?.(t(locale, errorKey));
+      } else {
+        onNotice?.(errorKey);
+      }
+    }
+    try {
+      await refreshLanStatus();
+    } catch (err) {
+      onNotice?.(invokeErrorText(err));
+    }
+  }
+
+  async function copyAddress(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch (err) {
+      onNotice?.(invokeErrorText(err));
+    }
+  }
 
   async function openLegal(url: string) {
     try {
@@ -61,6 +120,8 @@ export default function MinePage({
       onNotice?.(String(err));
     }
   }
+
+  const shareUrl = status.url;
 
   return (
     <div className="mine-page">
@@ -84,6 +145,56 @@ export default function MinePage({
         </nav>
 
         <section className="mine-pane" aria-labelledby="mine-pane-title">
+          {minePage === "lan" ? (
+            <>
+              <h1 id="mine-pane-title">{t(locale, "mine_lan")}</h1>
+              <label className="mine-lan-switch">
+                <span className="mine-lan-switch-copy">
+                  <span>{t(locale, "mine_lan")}</span>
+                  {shareUrl ? <em>{t(locale, "lan_status_on")}</em> : null}
+                </span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={status.enabled}
+                  onChange={(event) => void applyShare(event.target.checked, tokenDraft)}
+                />
+              </label>
+              <p className="mine-legal">{t(locale, "lan_open_warning")}</p>
+              <label className="mine-lan-field">
+                <span>{t(locale, "lan_token_label")}</span>
+                <input
+                  type="text"
+                  value={tokenDraft}
+                  placeholder={t(locale, "lan_token_placeholder")}
+                  autoComplete="off"
+                  spellCheck={false}
+                  onChange={(event) => setTokenDraft(event.target.value)}
+                  onBlur={() => void applyShare(status.enabled, tokenDraft)}
+                />
+              </label>
+              {!tokenDraft.trim() ? (
+                <p className="mine-lan-hint">{t(locale, "lan_token_empty_hint")}</p>
+              ) : null}
+              {shareUrl ? (
+                <div className="mine-lan-address">
+                  <p>
+                    <span>{t(locale, "lan_address")}</span>
+                    {shareUrl}
+                  </p>
+                  <div className="mine-lan-actions">
+                    <button type="button" className="text" onClick={() => void copyAddress(shareUrl)}>
+                      {t(locale, "lan_copy")}
+                    </button>
+                    <button type="button" className="text" onClick={() => void openLegal(shareUrl)}>
+                      {t(locale, "lan_open_browser")}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+
           {minePage === "language" ? (
             <>
               <h1 id="mine-pane-title">{t(locale, "mine_language")}</h1>
