@@ -195,6 +195,6 @@ Apple Silicon 电脑上打 Intel 包，需要先安装交叉编译目标，并�
 
 ## FFmpeg 许可
 
-应用通过 sidecar 调用 FFmpeg / FFprobe，不静态链接 libav。开发时默认使用 `ffmpeg-static` / `ffprobe-static` 提供的二进制，这些构建通常按 GPL / LGPL 分发。
+应用通过 sidecar 调用 FFmpeg / FFprobe，不静态链接 libav。开发时默认使用 `ffmpeg-static` 的 FFmpeg，以及同一 GitHub 发布页上的 FFprobe（`ffprobe-static` 的 darwin-arm64 实际是 x86_64）。这些构建通常按 GPL / LGPL 分发。
 
 发布产品前请自行确认所用构建的许可证，并保留 FFmpeg 版权与源码获取说明。如需 LGPL 构建，可从 [FFmpeg 官网](https://ffmpeg.org/download.html) 或各平台官方包替换 `src-tauri/binaries/` 中的文件。
