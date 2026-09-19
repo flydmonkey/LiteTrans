@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::lan::{normalize_lan_token, LanShareSettings};
+
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModeSettings {
@@ -28,6 +30,8 @@ pub struct SessionSettings {
     pub audio: ModeSettings,
     #[serde(default)]
     pub document: ModeSettings,
+    #[serde(default)]
+    pub lan_share: LanShareSettings,
 }
 
 fn mode_is_populated(mode: &ModeSettings) -> bool {
@@ -82,6 +86,12 @@ fn apply_legacy_top_level(current: &mut SessionSettings, incoming: &SessionSetti
 }
 
 pub fn merge_session_settings(current: &mut SessionSettings, incoming: SessionSettings) {
+    if incoming_carries_lan_share(&incoming) {
+        current.lan_share = LanShareSettings {
+            enabled: incoming.lan_share.enabled,
+            token: normalize_lan_token(&incoming.lan_share.token),
+        };
+    }
     if mode_is_populated(&incoming.video) {
         current.video = incoming.video;
         mirror_video_to_top_level(current);
@@ -97,6 +107,10 @@ pub fn merge_session_settings(current: &mut SessionSettings, incoming: SessionSe
     if incoming.language.is_some() {
         current.language = incoming.language;
     }
+}
+
+fn incoming_carries_lan_share(incoming: &SessionSettings) -> bool {
+    incoming.lan_share.enabled || !incoming.lan_share.token.is_empty()
 }
 
 pub fn settings_file(config_dir: &Path) -> PathBuf {
@@ -248,5 +262,83 @@ mod tests {
         assert_eq!(current.audio.output_dir.as_deref(), Some("/tmp/audio"));
         assert_eq!(current.language.as_deref(), Some("zh-Hans"));
         assert_eq!(current.document, ModeSettings::default());
+    }
+
+    #[test]
+    fn saving_lan_does_not_clear_video() {
+        let mut current = SessionSettings {
+            output_dir: Some("/tmp/video".into()),
+            preset: Some("mp4-h264".into()),
+            quality: Some("standard".into()),
+            max_width: Some(1920),
+            max_height: Some(1080),
+            language: Some("zh-Hans".into()),
+            video: ModeSettings {
+                output_dir: Some("/tmp/video".into()),
+                preset: Some("mp4-h264".into()),
+                quality: Some("standard".into()),
+                max_width: Some(1920),
+                max_height: Some(1080),
+            },
+            audio: ModeSettings {
+                output_dir: Some("/tmp/audio".into()),
+                preset: Some("mp3".into()),
+                quality: Some("small".into()),
+                ..Default::default()
+            },
+            document: ModeSettings {
+                output_dir: Some("/tmp/doc".into()),
+                preset: Some("pdf".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let incoming = SessionSettings {
+            lan_share: LanShareSettings {
+                enabled: true,
+                token: "  secret  ".into(),
+            },
+            ..Default::default()
+        };
+
+        merge_session_settings(&mut current, incoming);
+
+        assert_eq!(current.video.preset.as_deref(), Some("mp4-h264"));
+        assert_eq!(current.video.quality.as_deref(), Some("standard"));
+        assert_eq!(current.video.output_dir.as_deref(), Some("/tmp/video"));
+        assert_eq!(current.audio.preset.as_deref(), Some("mp3"));
+        assert_eq!(current.audio.output_dir.as_deref(), Some("/tmp/audio"));
+        assert_eq!(current.document.preset.as_deref(), Some("pdf"));
+        assert_eq!(current.document.output_dir.as_deref(), Some("/tmp/doc"));
+        assert_eq!(current.language.as_deref(), Some("zh-Hans"));
+        assert!(current.lan_share.enabled);
+        assert_eq!(current.lan_share.token, "secret");
+    }
+
+    #[test]
+    fn legacy_json_without_lan_share_defaults_off() {
+        let dir = std::env::temp_dir().join(format!(
+            "video-converter-legacy-lan-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = settings_file(&dir);
+        std::fs::write(
+            &path,
+            r#"{
+                "outputDir": "/tmp/out",
+                "preset": "mp4-h265",
+                "quality": "small",
+                "maxWidth": 1280,
+                "maxHeight": 720,
+                "language": "zh-Hans"
+            }"#,
+        )
+        .unwrap();
+
+        let loaded = load_from_path(&path);
+        assert!(!loaded.lan_share.enabled);
+        assert_eq!(loaded.lan_share.token, "");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

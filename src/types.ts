@@ -80,6 +80,11 @@ export type ModeSettings = {
   maxHeight?: number | null;
 };
 
+export type LanShareSettings = {
+  enabled?: boolean;
+  token?: string;
+};
+
 export type SessionSettings = {
   outputDir?: string | null;
   preset?: string | null;
@@ -90,6 +95,7 @@ export type SessionSettings = {
   video?: ModeSettings;
   audio?: ModeSettings;
   document?: ModeSettings;
+  lanShare?: LanShareSettings;
 };
 
 export type SourceItem = MediaInfo & {

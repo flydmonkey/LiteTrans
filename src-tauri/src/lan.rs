@@ -11,7 +11,9 @@ pub const LAN_SHARE_PORT_ATTEMPTS: u16 = 10;
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LanShareSettings {
+    #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
     pub token: String,
 }
 
