@@ -67,6 +67,14 @@ export type EnqueueReport = {
   skipped: SkippedSource[];
 };
 
+export type ModeSettings = {
+  outputDir?: string | null;
+  preset?: string | null;
+  quality?: string | null;
+  maxWidth?: number | null;
+  maxHeight?: number | null;
+};
+
 export type SessionSettings = {
   outputDir?: string | null;
   preset?: string | null;
@@ -74,6 +82,9 @@ export type SessionSettings = {
   maxWidth?: number | null;
   maxHeight?: number | null;
   language?: AppLanguage | null;
+  video?: ModeSettings;
+  audio?: ModeSettings;
+  document?: ModeSettings;
 };
 
 export type SourceItem = MediaInfo & {

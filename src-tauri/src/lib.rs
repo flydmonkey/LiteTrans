@@ -28,7 +28,10 @@ use naming::{allocate_output_path, partial_output_path, sanitized_rename_stem, s
 use presets::{list_presets, resolve_config, OutputConfig, PresetInfo};
 use probe::{unreadable, MediaInfo};
 use queue::{config_for_source, split_importable, EnqueueReport, Job, JobStatus, SkippedSource};
-use settings::{load_from_path, save_to_path, settings_file, usable_output_dir, SessionSettings};
+use settings::{
+    load_from_path, merge_session_settings, save_to_path, settings_file, usable_output_dir,
+    SessionSettings,
+};
 
 static NEXT_JOB_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -171,16 +174,7 @@ fn load_session_settings(app: AppHandle) -> Result<SessionSettings, String> {
 fn save_session_settings(app: AppHandle, settings: SessionSettings) -> Result<(), String> {
     let file = session_settings_path(&app)?;
     let mut current = load_from_path(&file);
-    if settings.output_dir.is_some() {
-        current.output_dir = settings.output_dir;
-    }
-    if settings.language.is_some() {
-        current.language = settings.language;
-    }
-    current.preset = settings.preset;
-    current.quality = settings.quality;
-    current.max_width = settings.max_width;
-    current.max_height = settings.max_height;
+    merge_session_settings(&mut current, settings);
     save_to_path(&file, &current)
 }
 
