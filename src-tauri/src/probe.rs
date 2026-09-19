@@ -1,4 +1,28 @@
+use std::fs::File;
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
+
+use crate::convert::{document_source_kind, DocumentSourceKind};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProbeKind {
+    DocumentImage,
+    DocumentPdf,
+    DocumentWord,
+    DocumentExcel,
+    Ffprobe,
+}
+
+pub fn probe_kind_for_path(path: &str) -> ProbeKind {
+    match document_source_kind(path) {
+        Some(DocumentSourceKind::Image) => ProbeKind::DocumentImage,
+        Some(DocumentSourceKind::Pdf) => ProbeKind::DocumentPdf,
+        Some(DocumentSourceKind::Word) => ProbeKind::DocumentWord,
+        Some(DocumentSourceKind::Excel) => ProbeKind::DocumentExcel,
+        None => ProbeKind::Ffprobe,
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -141,6 +165,83 @@ pub fn unreadable(path: &str, reason: impl Into<String>) -> MediaInfo {
     }
 }
 
+fn path_extension(path: &str) -> Option<String> {
+    Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+}
+
+fn document_media(
+    path: &str,
+    container: Option<String>,
+    importable: bool,
+    error: Option<String>,
+    page_count: Option<u32>,
+) -> MediaInfo {
+    MediaInfo {
+        path: path.to_string(),
+        duration_secs: None,
+        container,
+        video_codec: None,
+        width: None,
+        height: None,
+        frame_rate: None,
+        audio_codec: None,
+        channels: None,
+        importable,
+        error,
+        trim_start_secs: None,
+        trim_end_secs: None,
+        page_count,
+        page_start: None,
+        page_end: None,
+    }
+}
+
+fn openable_document(path: &str) -> MediaInfo {
+    if File::open(path).is_err() {
+        return unreadable(path, "无法读取该文件");
+    }
+    document_media(path, path_extension(path), true, None, None)
+}
+
+fn pdf_page_count(path: &str) -> Result<u32, String> {
+    let doc = lopdf::Document::load(path).map_err(|err| err.to_string())?;
+    let count = u32::try_from(doc.get_pages().len()).unwrap_or(0);
+    if count == 0 {
+        Err("无法读取该文件".into())
+    } else {
+        Ok(count)
+    }
+}
+
+fn probe_pdf(path: &str) -> MediaInfo {
+    match pdf_page_count(path) {
+        Ok(pages) => document_media(path, Some("pdf".into()), true, None, Some(pages)),
+        Err(err) => unreadable(path, err),
+    }
+}
+
+fn unsupported_document(path: &str) -> MediaInfo {
+    document_media(
+        path,
+        path_extension(path),
+        false,
+        Some("error_unsupported_document".into()),
+        None,
+    )
+}
+
+pub fn probe_document(path: &str) -> Option<MediaInfo> {
+    match probe_kind_for_path(path) {
+        ProbeKind::Ffprobe => None,
+        ProbeKind::DocumentImage | ProbeKind::DocumentWord => Some(openable_document(path)),
+        ProbeKind::DocumentPdf => Some(probe_pdf(path)),
+        ProbeKind::DocumentExcel => Some(unsupported_document(path)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,5 +270,125 @@ mod tests {
         let info = parse_ffprobe_json("/tmp/a.bin", json);
         assert!(!info.importable);
         assert!(info.error.unwrap().contains("没有可转码"));
+    }
+
+    #[test]
+    fn probe_kind_routes_document_extensions() {
+        assert_eq!(probe_kind_for_path("a.png"), ProbeKind::DocumentImage);
+        assert_eq!(probe_kind_for_path("photo.JPG"), ProbeKind::DocumentImage);
+        assert_eq!(probe_kind_for_path("scan.PDF"), ProbeKind::DocumentPdf);
+        assert_eq!(probe_kind_for_path("notes.docx"), ProbeKind::DocumentWord);
+        assert_eq!(probe_kind_for_path("sheet.xlsx"), ProbeKind::DocumentExcel);
+        assert_eq!(probe_kind_for_path("legacy.xls"), ProbeKind::DocumentExcel);
+        assert_eq!(probe_kind_for_path("old.doc"), ProbeKind::DocumentExcel);
+        assert_eq!(probe_kind_for_path("clip.mp4"), ProbeKind::Ffprobe);
+    }
+
+    fn temp_file(name: &str, bytes: &[u8]) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "video-converter-probe-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        std::fs::write(&path, bytes).unwrap();
+        path
+    }
+
+    #[test]
+    fn excel_and_doc_are_unsupported() {
+        for name in ["sheet.xlsx", "legacy.xls", "old.doc"] {
+            let info = crate::engine::probe_media(name);
+            assert!(!info.importable, "{name}: {info:?}");
+            assert_eq!(info.error.as_deref(), Some("error_unsupported_document"));
+            assert_eq!(info.container.as_deref(), Some(name.rsplit('.').next().unwrap()));
+        }
+    }
+
+    #[test]
+    fn image_is_importable_without_decode() {
+        let path = temp_file("photo.png", b"not a real png");
+        let info = crate::engine::probe_media(path.to_str().unwrap());
+        assert!(info.importable, "{info:?}");
+        assert_eq!(info.container.as_deref(), Some("png"));
+        assert!(info.error.is_none());
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn unreadable_image_is_not_importable() {
+        let info = crate::engine::probe_media("/tmp/video-converter-missing-probe-image.png");
+        assert!(!info.importable, "{info:?}");
+        assert!(info.error.is_some());
+    }
+
+    #[test]
+    fn word_docx_is_importable() {
+        let path = temp_file("notes.docx", b"pk-placeholder");
+        let info = crate::engine::probe_media(path.to_str().unwrap());
+        assert!(info.importable, "{info:?}");
+        assert_eq!(info.container.as_deref(), Some("docx"));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    fn write_two_page_pdf(path: &std::path::Path) {
+        use lopdf::{dictionary, content::Content, Document, Object, Stream};
+
+        let mut doc = Document::with_version("1.5");
+        let pages_id = doc.new_object_id();
+        let font_id = doc.add_object(dictionary! {
+            "Type" => "Font",
+            "Subtype" => "Type1",
+            "BaseFont" => "Courier",
+        });
+        let resources_id = doc.add_object(dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+        });
+        let content_id = doc.add_object(Stream::new(
+            dictionary! {},
+            Content { operations: vec![] }.encode().unwrap(),
+        ));
+        let page_ids: Vec<Object> = (0..2)
+            .map(|_| {
+                doc.add_object(dictionary! {
+                    "Type" => "Page",
+                    "Parent" => pages_id,
+                    "Contents" => content_id,
+                })
+                .into()
+            })
+            .collect();
+        doc.objects.insert(
+            pages_id,
+            dictionary! {
+                "Type" => "Pages",
+                "Kids" => page_ids,
+                "Count" => 2,
+                "Resources" => resources_id,
+                "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()],
+            }
+            .into(),
+        );
+        let catalog_id = doc.add_object(dictionary! {
+            "Type" => "Catalog",
+            "Pages" => pages_id,
+        });
+        doc.trailer.set("Root", catalog_id);
+        doc.save(path).unwrap();
+    }
+
+    #[test]
+    fn pdf_page_count_from_lopdf() {
+        let path = temp_file("scan.pdf", b"");
+        write_two_page_pdf(&path);
+        let info = crate::engine::probe_media(path.to_str().unwrap());
+        assert!(info.importable, "{info:?}");
+        assert_eq!(info.container.as_deref(), Some("pdf"));
+        assert_eq!(info.page_count, Some(2));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 }

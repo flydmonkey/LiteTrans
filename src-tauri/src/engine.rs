@@ -10,7 +10,7 @@ use tauri::{AppHandle, Emitter};
 use crate::args::{build_ffmpeg_args, output_duration_secs};
 use crate::naming::{ffmpeg_file_arg, partial_output_path};
 use crate::presets::ResolvedConfig;
-use crate::probe::{parse_ffprobe_json, unreadable, MediaInfo};
+use crate::probe::{parse_ffprobe_json, probe_document, unreadable, MediaInfo};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -85,6 +85,10 @@ fn sidecar_command(bin: impl AsRef<Path>) -> Command {
 }
 
 pub fn probe_media(path: &str) -> MediaInfo {
+    if let Some(info) = probe_document(path) {
+        return info;
+    }
+
     let ffprobe = match resolve_binary("ffprobe") {
         Ok(path) => path,
         Err(err) => return unreadable(path, err),
